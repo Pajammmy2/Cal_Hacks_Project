@@ -1,6 +1,6 @@
 """wildfire-refuge-evidence: where did civilians shelter during a wildfire and survive?
 
-Pipeline (Ember spec, Apify track): Google News search -> article bodies + Reddit posts ->
+Pipeline (Ember spec, Apify track): Google search -> article bodies + Reddit posts ->
 Claude structured extraction -> privacy scrub -> Nominatim geocode -> 50 km perimeter filter ->
 150 m clustering -> one GeoJSON Feature per dataset item, plus OUTPUT / evidence.geojson /
 summary.json in the key-value store.
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 import logging
 import os
 import re
@@ -226,7 +227,7 @@ async def main() -> None:
         if fc["features"]:
             await Actor.push_data(fc["features"])
         await Actor.set_value("OUTPUT", fc)
-        await Actor.set_value("evidence.geojson", fc, content_type="application/geo+json")
+        await Actor.set_value("evidence.geojson", json.dumps(fc), content_type="application/geo+json")
         await Actor.set_value("summary.json", summary)
         await Actor.set_status_message(
             f"{summary['features']} places, {summary['mentions']} mentions; {summary['perimeter']['note']}",

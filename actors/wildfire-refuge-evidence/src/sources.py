@@ -1,6 +1,7 @@
 """Source collection through other Apify Store actors, called from inside this actor.
 
-  news search   apify/google-search-scraper    Google News results for the spec query
+  news search   apify/google-search-scraper    Google web results for the spec query (the scraper
+                                               returns no organic results for the News tab, tbm=nws)
   article text  apify/website-content-crawler  bodies of those result URLs (depth 0)
   reddit        trudax/reddit-scraper-lite     posts found by searching the fire name
 
@@ -40,7 +41,8 @@ def build_query(fire_name: str) -> str:
 
 
 def google_news_url(query: str) -> str:
-    return "https://www.google.com/search?" + urlencode({"q": query, "tbm": "nws", "hl": "en"})
+    # Plain web search: apify/google-search-scraper parses 0 organic results on the News tab (tbm=nws).
+    return "https://www.google.com/search?" + urlencode({"q": query, "hl": "en"})
 
 
 def split_budget(max_pages: int) -> tuple[int, int]:

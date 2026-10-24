@@ -85,7 +85,7 @@ Office-hours question: how to evaluate the plan writer on real clients safely.
 
 - **Validation (pre-season):** `wildfire-refuge-evidence` runs on "Camp Fire 2018". `engine/validate.py --county paradise --evidence-dataset <id>` reads its dataset (`GET /v2/datasets/<id>/items`) and reports the share of survivor-evidence points within 300 m of a refuge scored 70 or higher. The demo also runs it live on "Tubbs Fire 2017" over Santa Rosa.
 - **Situation feed (when online):** `county-fire-situation` runs on an Apify schedule every 15 minutes. The staff tool ([staff/ember_staff/feed.py](staff/ember_staff/feed.py)) and the navigator ([navigator/Sources/EmberCore/ApifyFeed.swift](navigator/Sources/EmberCore/ApifyFeed.swift)) read it with a **2 s timeout** and **cache the last good result**. No fire-day feature depends on it.
-- Actor links: **TODO** after `apify push` (see [actors/PUBLISHING.md](actors/PUBLISHING.md)).
+- Actor links: [`wildfire-refuge-evidence`](https://console.apify.com/actors/aNdgDQuJJuzSzuCco) (Store page: https://apify.com/outgoing_profiterole/wildfire-refuge-evidence, live once the owner finishes the Console publication checklist in [actors/PUBLISHING.md](actors/PUBLISHING.md) §2e) and [`county-fire-situation`](https://console.apify.com/actors/CVITtkQDbvOELcp4m) (actor path `outgoing_profiterole~county-fire-situation`). Public Camp Fire 2018 dataset: [`AOGDPLjePpApuEBcB`](https://api.apify.com/v2/datasets/AOGDPLjePpApuEBcB/items?format=json&clean=true).
 
 ## Notability
 
