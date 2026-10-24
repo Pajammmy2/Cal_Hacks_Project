@@ -158,7 +158,38 @@ enum SatelliteCache {
             try JSONSerialization.data(withJSONObject: meta).write(to: base.appendingPathExtension("json"), options: .atomic)
             written += 1
         }
+        written += try await saveRefugeThumbs(bundle: bundle)
         SatelliteSnapshot.clearCache()
+        return written
+    }
+
+    /// Writes `thumbs/<refuge id>.jpg` (640x640 satellite, refuge centred) for every refuge, replacing bundle placeholders.
+    @MainActor
+    static func saveRefugeThumbs(bundle: EmberBundle) async throws -> Int {
+        var written = 0
+        for r in bundle.refuges {
+            guard r.centroid.count >= 2 else { continue }
+            let rel = r.thumb ?? "thumbs/\(r.id).jpg"
+            let url = bundle.dir.appendingPathComponent(rel)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            var latSpan = 0.0018, lonSpan = 0.0018 / cos(Py.radians(r.centroid[1]))
+            if let poly = r.polygon, let b = box(of: poly.compactMap { $0.count >= 2 ? ($0[1], $0[0]) : nil }, pad: 0.6) {
+                latSpan = max(latSpan, b.n - b.s)
+                lonSpan = max(lonSpan, b.e - b.w)
+            }
+            let o = MKMapSnapshotter.Options()
+            o.mapType = .hybrid
+            o.pointOfInterestFilter = .excludingAll
+            o.showsBuildings = false
+            o.scale = 1
+            o.size = CGSize(width: 640, height: 640)
+            o.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: r.centroid[1], longitude: r.centroid[0]),
+                                          span: MKCoordinateSpan(latitudeDelta: latSpan, longitudeDelta: lonSpan))
+            let snap = try await MKMapSnapshotter(options: o).start()
+            guard let jpg = snap.image.jpegData(compressionQuality: 0.85) else { continue }
+            try jpg.write(to: url, options: .atomic)
+            written += 1
+        }
         return written
     }
 }
