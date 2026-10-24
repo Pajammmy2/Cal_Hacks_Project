@@ -187,6 +187,25 @@ def keys(strings):
 
 # ---------------------------------------------------------------- steps 2-3: synthesize
 
+def samples(row, n=4):
+    """A few of this client's own sentences with their clip keys, for listening in the staff tool."""
+    S = (row.get("text") or {}).get("sections") or {}
+    lang = (row.get("text") or {}).get("language")
+    picks = [S.get("steps_en", [])[:1], S.get("steps_en", [])[-1:], S.get("shelter_en", [])[:1],
+             S.get("steps_l2", [])[:1] if lang in CARTESIA_LANGS else []]
+    vals = plan_writer.values_obj(row.get("text") or {})
+    out, seen = [], set()
+    out_dir = audio_dir(row)[0]
+    for sentences in picks:
+        for raw in sentences:
+            s = hashing.normalize(vals.fill(raw))
+            k = hashing.clip_key(s)
+            if s and k not in seen:
+                seen.add(k)
+                out.append({"key": k, "text": s, "exists": (out_dir / f"{k}.mp3").exists()})
+    return out[:n]
+
+
 def audio_dir(row):
     county = (row.get("plan") or {}).get("county") or config.county()
     base = config.bundle_dir(county) / "audio"

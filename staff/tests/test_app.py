@@ -241,3 +241,24 @@ def test_forbidden_shows_in_the_clicked_panel(app_client, sample):
     assert r.headers["HX-Retarget"] == "#audio-panel" and r.headers["HX-Reswap"] == "afterbegin"
     r = app_client.post("/clients/c_rosa/audio", headers={"HX-Request": "true"})
     assert r.status_code == 403 and r.headers["HX-Retarget"] == "#flash"
+
+
+def test_listen_clips_appear_once_the_mp3_exists(app_client, sample):
+    from ember_staff import db, pregen
+    row = db.get("c_rosa")
+    clips = pregen.samples(row)
+    assert clips and clips[0]["text"].startswith("Start on") and not any(c["exists"] for c in clips)
+    assert "Listen" not in app_client.get("/clients/c_rosa/panel/audio").text
+    assert app_client.get(f"/clients/c_rosa/audio/clip/{clips[0]['key']}").status_code == 404
+    assert app_client.get("/clients/c_rosa/audio/clip/../index").status_code == 404
+    d = pregen.audio_dir(row)[0]
+    d.mkdir(parents=True, exist_ok=True)
+    fake = d / f"{clips[0]['key']}.mp3"
+    fake.write_bytes(b"ID3fake")
+    try:
+        panel = app_client.get("/clients/c_rosa/panel/audio").text
+        assert "Listen" in panel and f"/audio/clip/{clips[0]['key']}" in panel and clips[1]["key"] not in panel
+        r = app_client.get(f"/clients/c_rosa/audio/clip/{clips[0]['key']}")
+        assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.content == b"ID3fake"
+    finally:
+        fake.unlink()   # the bundle copy is shared by the whole test session

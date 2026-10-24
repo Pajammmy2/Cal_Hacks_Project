@@ -1,5 +1,6 @@
 """Ember staff planning tool: FastAPI + HTMX + Jinja2, SQLite. Run: python -m ember_staff (binds 127.0.0.1)."""
 import hmac
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -157,7 +158,7 @@ def create_app():
         text = row.get("text") or {}
         if text.get("sections"):
             text = plan_writer.finish(text)   # re-run the deterministic checks so older records get newer ones
-        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": text,
+        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": text, "clips": pregen.samples(row),
                 "cardctx": card.context(row) if row.get("plan") else None, "editable": EDITABLE,
                 "consent_text": CONSENT_TEXT.format(client=row["profile"]["name"])}
 
@@ -258,6 +259,16 @@ def create_app():
         pregen.run_background(cid)
         db.update(cid, audio={"state": "running", "at": db.now()})
         return page(request, "_audio.html", **review_ctx(must(cid)))
+
+    @app.get("/clients/{cid}/audio/clip/{key}")
+    def audio_clip(cid: str, key: str):
+        row = must(cid)
+        if not re.fullmatch(r"[0-9a-f]{40}", key):
+            raise _NotFound()
+        path = pregen.audio_dir(row)[0] / f"{key}.mp3"
+        if not path.exists():
+            raise _NotFound()
+        return Response(path.read_bytes(), media_type="audio/mpeg")
 
     @app.get("/clients/{cid}/audio/dry-run")
     def audio_dry_run(cid: str):
