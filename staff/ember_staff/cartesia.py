@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 import httpx
@@ -16,6 +17,8 @@ from . import config
 API = "https://api.cartesia.ai"
 DEFAULT_SPEED = 0.85   # calm, slower default voice (spec)
 FALLBACK_MODEL = "sonic-3"
+RETRY_STATUSES = (429, 500, 502, 503, 504)
+MAX_RETRIES = 6
 
 
 class CartesiaError(Exception):
@@ -59,13 +62,26 @@ class TTS:
             b["generation_config"] = {"speed": self.speed}
         return b
 
+    def _post(self, text, language):
+        """One clip, retrying 429 (free tier allows 2 concurrent requests) and 5xx with backoff."""
+        for attempt in range(MAX_RETRIES + 1):
+            r = self.client.post(f"{API}/tts/bytes", json=self.body(text, language), headers=headers())
+            if r.status_code not in RETRY_STATUSES or attempt == MAX_RETRIES:
+                return r
+            try:
+                wait = float(r.headers.get("retry-after") or 0)
+            except ValueError:
+                wait = 0
+            time.sleep(min(max(wait, 0.5 * (2 ** attempt)), 30.0))
+        return r
+
     def synth(self, text, language="en"):
-        r = self.client.post(f"{API}/tts/bytes", json=self.body(text, language), headers=headers())
+        r = self._post(text, language)
         if r.status_code in (400, 404, 422) and self.model == model_id() and self.model != FALLBACK_MODEL \
                 and re.search(r"model|generation_config|speed", r.text, re.I):
             self.model_note = f"{self.model} rejected by the API ({r.status_code}); using {FALLBACK_MODEL}"
             self.model = FALLBACK_MODEL
-            r = self.client.post(f"{API}/tts/bytes", json=self.body(text, language), headers=headers())
+            r = self._post(text, language)
         if r.status_code != 200:
             raise CartesiaError(f"tts/bytes {r.status_code}: {r.text[:200]}")
         return r.content

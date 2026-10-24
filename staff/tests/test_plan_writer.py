@@ -144,3 +144,11 @@ def test_edit_rechecks_against_back_translation(rosa, monkeypatch):
     i = len(rec["sections"]["shelter_en"]) - 1
     rec = pw.edit_sentence(rec, "shelter_en", i, "Do not open the windows. Never go outside.")
     assert rec["needs_review"]
+
+
+def test_diff_back_flags_changed_units():
+    en = ["Turn left onto {street_1}. Keep going for {n_1} meters.", "It takes about {n_2} minutes."]
+    back = ["Turn left onto {street_1}. Keep going for {n_1} miles.", "It takes about {n_2} minutes."]
+    kinds = [(i, k) for i, k, _ in pw.diff_back(en, back)]
+    assert kinds == [(0, "unit_changed")]
+    assert pw.diff_back(en, en) == []

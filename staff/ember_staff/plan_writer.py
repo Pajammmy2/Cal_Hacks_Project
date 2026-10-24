@@ -205,6 +205,18 @@ def negations(text):
     return len(NEG_RE.findall(text.replace("’", "'")))
 
 
+UNIT_WORDS = {"meter": "m", "meters": "m", "metre": "m", "metres": "m", "m": "m", "km": "km", "kilometer": "km",
+              "kilometers": "km", "kilometre": "km", "kilometres": "km", "mile": "mi", "miles": "mi", "foot": "ft",
+              "feet": "ft", "ft": "ft", "yard": "yd", "yards": "yd", "block": "block", "blocks": "block",
+              "minute": "min", "minutes": "min", "min": "min", "hour": "h", "hours": "h"}
+UNIT_RE = re.compile(r"\b(" + "|".join(sorted(UNIT_WORDS, key=len, reverse=True)) + r")\b", re.I)
+
+
+def units(text):
+    """Distance/time unit words in a sentence, normalized (a translation that turns meters into miles must be caught)."""
+    return {UNIT_WORDS[m.lower()] for m in UNIT_RE.findall(PH_RE.sub(" ", text))}
+
+
 def _tokens(text):
     return sorted(TOKEN_RE.findall(text))
 
@@ -212,7 +224,8 @@ def _tokens(text):
 def diff_back(en, back, l2=None):
     """Compare English source sentences with the back-translation (all already tokenized to placeholders).
 
-    Flags dropped/added negations, changed digits, missing placeholders, and sentence-count changes.
+    Flags dropped/added negations, changed digits, changed distance/time units, missing placeholders, and
+    sentence-count changes.
     Returns [(index, kind, detail)]."""
     issues = []
     if len(en) != len(back):
@@ -231,6 +244,9 @@ def diff_back(en, back, l2=None):
         db_ = sorted(DIGIT_RE.findall(PH_RE.sub(" ", b)))
         if de != db_:
             issues.append((i, "digit_changed", f"numbers {de} became {db_}"))
+        ue, ub = units(e), units(b)
+        if ue != ub:
+            issues.append((i, "unit_changed", f"units {sorted(ue)} became {sorted(ub)}"))
         pe, pb = set(PH_RE.findall(e)), set(PH_RE.findall(b))
         if pe - pb:
             issues.append((i, "placeholder_missing", "missing " + ", ".join("{%s}" % k for k in sorted(pe - pb))))
@@ -311,12 +327,26 @@ def writer_tool(with_l2):
             "input_schema": {"type": "object", "properties": props, "required": req, "additionalProperties": False}}
 
 
+BACK_KEYS = ("steps_l2", "steps_b_l2", "shelter_l2", "devices_l2")
+# Output keys end in _en so the model does not just copy the input lists back (claude-sonnet-4-6 did exactly that
+# when the output keys were also *_l2).
 BACK_TOOL = {"name": "back_translate",
-             "description": "Return the literal English translation of each list, sentence for sentence.",
+             "description": "Return the literal ENGLISH translation of each list, sentence for sentence. "
+                            "Never return the original non-English sentences.",
              "input_schema": {"type": "object",
-                              "properties": {k: _arr() for k in ("steps_l2", "steps_b_l2", "shelter_l2", "devices_l2")},
-                              "required": ["steps_l2", "steps_b_l2", "shelter_l2", "devices_l2"],
+                              "properties": {k.replace("_l2", "_en"): dict(_arr(), description=f"English translation of {k}")
+                                             for k in BACK_KEYS},
+                              "required": [k.replace("_l2", "_en") for k in BACK_KEYS],
                               "additionalProperties": False}}
+
+
+def back_lists(back, back_in):
+    """Map the back-translation tool output onto the *_l2 keys; raise if the model echoed the input."""
+    out = {k: list(back.get(k.replace("_l2", "_en")) or back.get(k) or []) for k in back_in}
+    echoed = [k for k in back_in if back_in[k] and out[k] == list(back_in[k])]
+    if echoed:
+        raise ValueError(f"back-translation echoed the input for {', '.join(echoed)}")
+    return out
 
 
 def writer_user_message(payload, label):
@@ -396,11 +426,12 @@ def generate(profile, plan, selected=None, use_claude=True):
     rec = _record(profile, vals, "claude", {k: [vals.fill(s) for s in out[k]] for k, _ in keys}, lang, label)
     if lang:
         try:
-            back_in = {k: out[k] for k in ("steps_l2", "steps_b_l2", "shelter_l2", "devices_l2")}
+            back_in = {k: out[k] for k in BACK_KEYS}
             back = _call_claude(BACK_SYSTEM_PROMPT,
-                                f"Translate from {label} to English. JSON:\n" + json.dumps(back_in, ensure_ascii=False),
+                                f"Translate these {label} sentences into English. Put the English in steps_en, "
+                                f"steps_b_en, shelter_en and devices_en. JSON:\n" + json.dumps(back_in, ensure_ascii=False),
                                 BACK_TOOL)
-            rec["back"] = {k: [vals.fill(s) for s in back.get(k) or []] for k in back_in}
+            rec["back"] = {k: [vals.fill(s) for s in v] for k, v in back_lists(back, back_in).items()}
         except Exception as e:
             rec["back"] = {}
             rec["issues"].append({"section": "steps_l2", "index": None, "kind": "back_translation_failed",

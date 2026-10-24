@@ -13,7 +13,7 @@ from . import cartesia, config, db, engine_client, plan_writer
 from ember_engine.core import cues as cuemod
 from ember_engine.core import hashing, router, shared
 
-CONCURRENCY = 4
+CONCURRENCY = 2   # Cartesia's entry tier allows 2 concurrent requests; EMBER_CARTESIA_CONCURRENCY overrides
 MAX_REPLAN_EDGES = 400
 CARTESIA_LANGS = {"en", "es", "fr", "de", "pt", "zh", "ja", "hi", "it", "ko", "nl", "pl", "ru", "sv", "tr"}
 DEVICE_SPOKEN = {"oxygen": "Oxygen", "ventilator": "Ventilator", "power_chair": "Power chair", "cpap": "CPAP"}
@@ -243,9 +243,13 @@ def generate(row, tts=None, dry_run=False, progress=None):
             index[k] = s
         return k
 
-    with ThreadPoolExecutor(max_workers=CONCURRENCY) as ex:
+    workers = max(1, int(config.env("EMBER_CARTESIA_CONCURRENCY", CONCURRENCY)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {ex.submit(one, it): it for it in todo}
         for i, f in enumerate(as_completed(futs), 1):
+            if f.cancelled():
+                summary["skipped"] = summary.get("skipped", 0) + 1
+                continue
             try:
                 f.result()
                 summary["generated"] += 1
@@ -253,6 +257,11 @@ def generate(row, tts=None, dry_run=False, progress=None):
                 summary["failed"] += 1
                 if len(summary["errors"]) < 5:
                     summary["errors"].append(str(e)[:200])
+                if "402" in str(e) and not summary.get("aborted"):
+                    # out of Cartesia credits: stop hammering the API, keep what we have
+                    summary["aborted"] = "quota_exceeded"
+                    for g in futs:
+                        g.cancel()
             if progress and i % 20 == 0:
                 progress(summary)
             if i % 50 == 0:
