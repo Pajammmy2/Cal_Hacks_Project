@@ -100,33 +100,23 @@ struct ChooseView: View {
                     .lineLimit(1).minimumScaleFactor(0.7)
                     Text(a.refuge.name).font(.system(size: big * 1.15, weight: .heavy)).foregroundColor(Theme.text)
                         .fixedSize(horizontal: false, vertical: true)
-                    HStack(alignment: .top, spacing: 10) {
-                        if let url = model.bundle?.thumbURL(a.refuge), let img = Platform.image(at: url) {
-                            img.resizable().scaledToFill()
-                                .frame(width: 110, height: 110)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .accessibilityLabel("Photo of \(a.refuge.name) from above")
-                        }
-                        RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
-                                     satellite: SatelliteSnapshot.best(for: a.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
-                                     online: voice.online, thumbnail: true)
-                    }
+                    RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
+                                 satellite: SatelliteSnapshot.best(for: a.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
+                                 online: voice.online, thumbnail: true, height: 300)
                 }
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
                 if let b {
                     HStack(spacing: 12) {
-                        if let url = model.bundle?.thumbURL(b.refuge), let img = Platform.image(at: url) {
-                            img.resizable().scaledToFill()
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .accessibilityHidden(true)
-                        }
+                        RouteMapView(graph: m.graph, route: b.route, position: m.position, refuge: b.refuge,
+                                     satellite: SatelliteSnapshot.best(for: b.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
+                                     online: voice.online, thumbnail: true, height: 120)
+                            .frame(width: 130)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Or").font(.system(size: small * 0.85, weight: .semibold)).foregroundColor(Theme.dim)
-                            Text(b.refuge.name).font(.system(size: small * 1.1, weight: .bold)).foregroundColor(Theme.text)
+                            Text("Or").font(.system(size: small, weight: .semibold)).foregroundColor(Theme.dim)
+                            Text(b.refuge.name).font(.system(size: small * 1.3, weight: .bold)).foregroundColor(Theme.text)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("\(b.route.minutes) min").font(.system(size: small, weight: .semibold)).foregroundColor(Theme.dim)
+                            Text("\(b.route.minutes) min").font(.system(size: small * 1.2, weight: .bold)).foregroundColor(Theme.dim)
                         }
                         Spacer(minLength: 0)
                     }

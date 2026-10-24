@@ -18,6 +18,7 @@ struct RouteMapView: View {
     var satellite: SatelliteSnapshot? = nil
     var online = false
     var thumbnail = false
+    var height: CGFloat? = nil
 
     @ScaledMetric(relativeTo: .body) var thumbHeight: CGFloat = 170
     @State private var liveRect: MKMapRect? = nil
@@ -114,7 +115,7 @@ struct RouteMapView: View {
                 drawOverlays(ctx, size, proj)
             }
         }
-        .frame(height: thumbnail ? thumbHeight : nil)
+        .frame(height: thumbnail ? (height ?? thumbHeight) : nil)
         .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Color.white.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .ignore)
@@ -134,7 +135,7 @@ struct RouteMapView: View {
         if !thumbnail { drawStreetNames(ctx, pt) }
         drawPins(ctx, size, pt)
         drawYou(ctx, pt)
-        drawCompassAndScale(ctx, size, proj.metersPerPoint)
+        if !thumbnail { drawCompassAndScale(ctx, size, proj.metersPerPoint) }
     }
 
     func drawStreets(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection, skipping: Set<Int>) {
@@ -186,7 +187,7 @@ struct RouteMapView: View {
         ctx.stroke(Path(ellipseIn: CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)),
                    with: .color(Theme.safe), lineWidth: 2.5 * k)
         symbol(ctx, RouteMapView.symbolName(for: r.kind), at: c, size: badge * 1.15, color: Color(red: 0.05, green: 0.4, blue: 0.2))
-        pill(ctx, Text(r.name).font(.system(size: thumbnail ? 13 : 16, weight: .bold)).foregroundColor(.white),
+        pill(ctx, Text(r.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white),
              at: CGPoint(x: c.x, y: c.y + badge + 5 * k), anchor: .top, in: size, fill: Color.black.opacity(0.78), stroke: Theme.safe)
     }
 
