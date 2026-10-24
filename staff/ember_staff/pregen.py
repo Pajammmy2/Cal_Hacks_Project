@@ -33,7 +33,8 @@ def _streets_of(cue_list):
 
 def replans(profile, plan, bundle, which=(0, 1), selected=None):
     """Cue lists the core produces after blocking each edge of route A (and B) once, re-planned from the origin
-    and from the node where the blocked edge starts (where the navigator would be when the user says "blocked")."""
+    and from the node where the blocked edge starts (where the navigator would be when the user says "blocked"),
+    plus the "fire ahead" re-plan at that node (fire bearing = edge heading, wedge toward it closed)."""
     out = []
     if bundle is None or not plan or not plan.get("choices"):
         return out
@@ -54,6 +55,13 @@ def replans(profile, plan, bundle, which=(0, 1), selected=None):
                                            None, frozenset({ei})):
                         out.append((c["refuge"]["name"], c["route"]["minutes"],
                                     cuemod.build_cues(bundle.graph, c["route"], c["refuge"]["name"])))
+                # "fire ahead" at this edge: the heading becomes the fire bearing and the wedge toward it is closed
+                node = route["nodes"][i]
+                heading = bundle.graph.edge_bearing(ei, route["forward"][i])
+                wedge = router.wedge_blocked_edges(bundle.graph, bundle.graph.lat[node], bundle.graph.lon[node], heading)
+                for c in router.choose(bundle.graph, bundle.refuges, prof, node, heading, None, frozenset(wedge | {ei})):
+                    out.append((c["refuge"]["name"], c["route"]["minutes"],
+                                cuemod.build_cues(bundle.graph, c["route"], c["refuge"]["name"])))
     return out
 
 
@@ -151,6 +159,7 @@ def collect(row, bundle="auto", include_replans=True):
     tp = P["templates"]
     for d in T["directions"]:
         add(tp["fire_dir"].format(direction=d))
+        add(tp["fire_is"].format(direction=d))
         add(tp["which_way"].format(direction=d))
     for s in streets:
         add(tp["blocking"].format(street=s))

@@ -19,10 +19,13 @@
     "Keep the phone on.",
     "Switching to pushed chair. Say yes to reroute.",
     "Switching to solo. Say yes to reroute.",
-    "Find a new route? Say yes to reroute."
+    "Find a new route? Say yes to reroute.",
+    "Fire ahead. Turning away from it.",
+    "Fire ahead. Turning away from it. Say yes to reroute."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
+    "fire_is": "Fire is to the {direction}.",
     "blocking": "Blocking {street}. Say yes to reroute.",
     "blocking_cross": "Blocking {street} at {cross_street}. Say yes to reroute.",
     "where": "You are on {street}.",

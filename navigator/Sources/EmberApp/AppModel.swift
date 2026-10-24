@@ -72,6 +72,7 @@ public final class AppModel: ObservableObject {
             let b = try store.load(county: selected?.county)
             bundle = b
             machine = NavigatorStateMachine(bundle: b)
+            machine?.headingProvider = { [weak self] in self?.compass.heading }
             processor = VoiceCommandProcessor(matcher: IntentMatcher(b.config.intents), config: b.config)
             loadError = nil
             configureFeed()
@@ -202,6 +203,19 @@ public final class AppModel: ObservableObject {
         machine?.point(bearing: h)
         sync()
     }
+
+    /// Navigate/Choose "Point": the phone is pointed at new smoke; the fire bearing is updated and the route turns away.
+    public func pointAtNewFire() {
+        guard let h = compass.heading else {
+            speaker.speak([Utterance("Point the phone at the smoke and tap.")])
+            return
+        }
+        machine?.pointAtNewFire(bearing: h)
+        sync()
+    }
+
+    /// "Fire ahead" without a bearing: the fire is where the user is heading (compass, else the route edge).
+    public func fireAhead() { machine?.fireAhead(heading: compass.heading); sync() }
 
     public func go() { machine?.go(); sync() }
     public func other() { machine?.other(); sync() }

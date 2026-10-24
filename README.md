@@ -14,7 +14,7 @@ The full spec is in [docs/spec.md](docs/spec.md); the cross-lane interfaces are 
 | [staff/](staff/) | FastAPI + HTMX staff tool: clients, profile, review + stamp, print to PDF, plan writer, Cartesia pre-generation, voice consent | Needs signal only for Claude/Cartesia/Apify |
 | [navigator/](navigator/) | Swift: `EmberCore` (pure logic, a port of `engine/ember_engine/core` with exact parity) + `EmberApp` (SwiftUI iOS 16 app) + XcodeGen `project.yml` | Yes, airplane mode |
 | [actors/](actors/) | Apify actors `wildfire-refuge-evidence` and `county-fire-situation` | Pre-season / when online |
-| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 12 intents | |
+| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 13 intents | |
 | [notability/](notability/) | Build-log structure, capture schedule and checklist | |
 | [docs/DEMO.md](docs/DEMO.md) | Demo scripts and rehearsal plan | |
 

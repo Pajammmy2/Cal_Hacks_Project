@@ -12,7 +12,7 @@ shared/                 JSON shared by Python and Swift (copied into every bundl
   turn_templates.json   fixed phrase templates for turn cues
   phrases.json          fixed phrase set (generic clips) + numbers 1-500
   pronunciation.json    street-name pronunciation map applied ONLY to text sent to Cartesia
-  intents.json          12 on-device intents with synonyms
+  intents.json          13 on-device intents with synonyms (`fire` = fire/smoke seen, distinct from a physical `blocked`)
 engine/                 Python engine (lane A)
   ember_engine/         importable package
     core/               routing + turn cues + hashing + geocode (written first; Swift ports it)
@@ -77,6 +77,21 @@ Profiles from `shared/profiles.json`. Edge cost (seconds) = `length_m / speed(pr
   sort by (time asc, score desc) → return all routed (index 0 = A, 1 = B; rest are swap candidates).
 - Fire-side filter: drop refuge if `angdiff(bearing(client→refuge centroid), θ) <= 60`. If perimeter known, drop refuges inside it or within 500 m of its edge.
 - `blocked`: set of undirected edge indices; blocking edge i blocks both directions.
+- Physical blockage ("blocked", "tree down", "road closed", "car blocking", ...): the navigator blocks the current edge and
+  re-plans with `choose(..., prefer=<heading>)`, `heading` = bearing of the route edge the user was on. Rule
+  (`prefer_heading` / `Router.preferHeading`): among the routed candidates whose `time_s <= fastest * 1.25`
+  (`HEADING_SIMILAR_RATIO`), the one whose initial heading is closest (`angdiff`) to `heading` comes first, ties keep the
+  (time, score) order; slower candidates follow unchanged. Initial heading (`initial_heading` / `Router.initialHeading`) =
+  bearing from the route start to the first route node at or beyond 200 m (`HEADING_WINDOW_M`) of cumulative edge length
+  (the last node if the route is shorter). `prefer=None` leaves `choose` output unchanged.
+- Fire/smoke blockage (`fire` intent, or "Point" in Navigate): the fire bearing becomes the user's heading (compass if the
+  device has one, else the bearing of the current route edge; "Point" uses the pointed compass bearing). The navigator
+  blocks the current edge plus `wedge_blocked_edges(lat, lon, bearing)` / `Router.wedgeBlockedEdges`: every edge whose
+  midpoint is within 400 m (`WEDGE_RADIUS_M`) of the position and within ±60° (`WEDGE_HALF_ANGLE`) of the bearing. It then
+  re-runs `choose` with the new `fire_bearing`, so the fire-side filter drops refuges toward the fire and the far side wins;
+  index 1 (B) stays the fallback. Spoken: "Fire ahead. Turning away from it." (voice: read back as "... Say yes to
+  reroute." first, like block_edge) or, for "Point", `fire_is` ("Fire is to the {direction}.") + "Rerouting.", then the
+  first cue of the new route.
 - Arrival: within 25 m of any entry point. Destination for A* = nearest entry-point node.
 
 ## Turn cues (identical algorithm in Python and Swift — pre-generated audio depends on it)

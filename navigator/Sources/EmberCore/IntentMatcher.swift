@@ -1,8 +1,8 @@
 import Foundation
 
-/// The 12 on-device intents (shared/intents.json), in spec order (used as the last tie-break).
+/// The 13 on-device intents (shared/intents.json), in spec order (used as the last tie-break).
 public enum Intent: String, CaseIterable, Sendable {
-    case blocked, `repeat`, slower, louder, pushing
+    case blocked, fire, `repeat`, slower, louder, pushing
     case cantMove = "cant_move"
     case whereAmI = "where_am_i"
     case howLong = "how_long"
