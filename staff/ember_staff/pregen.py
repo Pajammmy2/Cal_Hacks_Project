@@ -76,7 +76,7 @@ def _pushed_choices(profile, plan, bundle):
     return out
 
 
-REROUTE_RADIUS_M = float(os.environ.get("EMBER_PREGEN_RADIUS_M", "1500"))
+REROUTE_RADIUS_M = float(os.environ.get("EMBER_PREGEN_RADIUS_M", "1000"))
 
 
 def _nodes_near_routes(bundle, plan):
