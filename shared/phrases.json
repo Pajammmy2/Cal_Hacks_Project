@@ -56,6 +56,16 @@
     "how_long": [
       "{n}",
       "minutes to go."
+    ],
+    "choose": [
+      "Go to {refuge}.",
+      "{n}",
+      "minutes."
+    ],
+    "or_b": [
+      "Or {refuge}.",
+      "{n}",
+      "minutes."
     ]
   },
   "numbers": {

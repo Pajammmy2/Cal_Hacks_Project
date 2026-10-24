@@ -117,8 +117,14 @@ def collect(row, bundle="auto", include_replans=True):
         if name not in refuges:
             refuges.append(name)
 
+    # every county refuge too: a live re-rank on the phone (fire bearing, blocked street) can pick any of them
+    all_refuges = list(refuges)
+    for r in (bundle.refuges if bundle is not None else []):
+        if r.get("name") and r["name"] not in all_refuges:
+            all_refuges.append(r["name"])
+
     # every turn template with the streets and refuges on both routes (and their re-plans)
-    for s in sorted(cuemod.all_cue_texts_for_streets(streets, refuges)):
+    for s in sorted(cuemod.all_cue_texts_for_streets(streets, all_refuges)):
         add(s)
 
     # card steps, shelter steps, device sentences (engine text and the reviewed card text)
@@ -174,6 +180,9 @@ def collect(row, bundle="auto", include_replans=True):
             if "{street}" in frag:
                 for s in streets:
                     add(frag.format(street=s))
+            elif "{refuge}" in frag:
+                for r in all_refuges:
+                    add(frag.format(refuge=r))
             else:
                 add(frag)
     for n in range(P["numbers"]["from"], P["numbers"]["to"] + 1):
