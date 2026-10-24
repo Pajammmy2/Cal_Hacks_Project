@@ -221,3 +221,14 @@ def test_voice_clone_flow(app_client, sample, monkeypatch):
     assert v["kind"] == "clone" and v["voice_id"] == "voice_new" and v["consent_name"] == "Ana Delgado"
     assert "Rosa Delgado" in v["consent_text"] and v["consent_at"]
     assert "Voice: Ana Delgado, recorded" in app_client.get("/clients/c_rosa/card").text
+
+
+def test_stamp_refreshes_audio_panel(app_client, sample):
+    """The stamp response fires cardChanged; the audio panel must listen so Generate audio enables without a reload."""
+    page = app_client.get("/clients/c_rosa/review").text
+    assert 'id="audio-panel" hx-get="/clients/c_rosa/panel/audio" hx-trigger="cardChanged from:body"' in page
+    assert 'disabled title="Stamp the card first">Generate audio' in page
+    r = app_client.post("/clients/c_rosa/stamp", data={"reviewed_by": "Dana"}, headers={"HX-Request": "true"})
+    assert r.status_code == 200 and r.headers["HX-Trigger"] == "cardChanged"
+    panel = app_client.get("/clients/c_rosa/panel/audio").text
+    assert "Generate audio" in panel and "Stamp the card first" not in panel

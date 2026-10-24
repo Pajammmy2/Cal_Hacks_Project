@@ -46,7 +46,7 @@
     <section id="text-panel">
       {% include "_text.html" %}
     </section>
-    <section id="audio-panel">
+    <section id="audio-panel" hx-get="/clients/{{ row.id }}/panel/audio" hx-trigger="cardChanged from:body" hx-swap="innerHTML">
       {% include "_audio.html" %}
     </section>
   </div>
