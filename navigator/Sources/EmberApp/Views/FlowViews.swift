@@ -191,7 +191,10 @@ struct NavigateView: View {
             ButtonRow {
                 EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
                 EmberButton(title: voice.listening ? "Done" : "Speak", systemImage: voice.listening ? "mic.fill" : "mic",
-                            hint: "Say blocked, repeat, where am I, or how long") { model.micTapped() }
+                            hint: "Say blocked, fire, repeat, where am I, or how long") { model.micTapped() }
+            }
+            ButtonRow {
+                EmberButton(title: "New fire", systemImage: "flame.fill", hint: "Point the phone at the fire, then tap") { model.pointAtNewFire() }
             }
         }
     }
