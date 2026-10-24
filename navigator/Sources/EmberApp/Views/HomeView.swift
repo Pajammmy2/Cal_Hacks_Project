@@ -17,20 +17,20 @@ struct HomeView: View {
                     HStack(spacing: 14) {
                         if !typeSize.isAccessibilitySize {
                             Image(systemName: icon(p))
-                                .font(.system(size: nameSize, weight: .semibold))
+                                .font(Theme.font(nameSize, .semibold))
                                 .frame(width: nameSize * 1.8, height: nameSize * 1.8)
                                 .background(Circle().fill(selected ? Theme.accent : Theme.cardRaised))
                                 .foregroundColor(selected ? Theme.onAccent : Theme.text)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(p.name).font(.system(size: nameSize, weight: .bold))
-                            Text(p.mobilityLabel).font(.system(size: nameSize * 0.72, weight: .medium)).foregroundColor(Theme.dim)
+                            Text(p.name).font(Theme.font(nameSize, .bold))
+                            Text(p.mobilityLabel).font(Theme.font(nameSize * 0.72, .medium)).foregroundColor(Theme.dim)
                         }
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: nameSize * 1.1, weight: .bold))
+                            .font(Theme.font(nameSize * 1.1, .bold))
                             .foregroundColor(selected ? Theme.accent : Theme.dim)
                     }
                     .foregroundColor(Theme.text)
@@ -122,6 +122,9 @@ struct SettingsView: View {
         .apifyToken: "Apify token", .apifyDatasetId: "Apify county feed dataset id",
     ]
 
+    static let fonts = [("system", "Apple"), ("rounded", "Rounded"), ("hyperlegible", "Hyperlegible")]
+    @AppStorage(Theme.fontKey) private var fontChoice = "rounded"
+
     var body: some View {
         Screen {
             InstructionText(text: "Keys stay on this phone.")
@@ -140,11 +143,21 @@ struct SettingsView: View {
                 }
             }
             .card()
+            VStack(alignment: .leading, spacing: 10) {
+                SecondaryText(text: "Font")
+                ButtonRow {
+                    ForEach(SettingsView.fonts, id: \.0) { f in
+                        EmberButton(title: f.1, systemImage: fontChoice == f.0 ? "checkmark.circle.fill" : "circle",
+                                    hint: "Use the \(f.1) font everywhere") { fontChoice = f.0 }
+                    }
+                }
+            }
+            .card()
             #if os(iOS)
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Offline map (developer)")
                 Text("Saves satellite pictures of \(model.selected?.name ?? "the selected person")'s routes into the county bundle, for use with no signal.")
-                    .font(.system(size: 17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                    .font(Theme.font(17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
                 EmberButton(title: saving ? "Saving…" : "Save satellite snapshot", systemImage: "square.and.arrow.down",
                             hint: "Needs signal; writes satellite/<client>_<n>.jpg into the bundle") { saveSnapshots() }
                     .disabled(saving || model.selected == nil || model.bundle == nil)

@@ -4,6 +4,7 @@ import EmberCore
 /// One screen at a time, chosen by the state machine. "Leave now" sits on top of every screen.
 public struct RootView: View {
     @EnvironmentObject var model: AppModel
+    @AppStorage(Theme.fontKey) private var fontChoice = "rounded"
 
     public init() {}
 
@@ -23,6 +24,7 @@ public struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(Theme.background.ignoresSafeArea())
+        .id(fontChoice)
         .environmentObject(model.speaker)
         .environmentObject(model.compass)
         .environmentObject(model.voice)
@@ -38,8 +40,8 @@ struct LeaveNowBanner: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Leave now.", systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: size, weight: .heavy))
-            Text(text).font(.system(size: size * 0.7, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.font(size, .heavy))
+            Text(text).font(Theme.font(size * 0.7, .semibold)).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundColor(Theme.onAccent)
         .card(Theme.accent, padding: 14)
@@ -61,7 +63,7 @@ struct CaregiverInfo: View {
                 Label(c.equipmentLabel, systemImage: "bolt.heart")
                 if let chair = c.home?.chairLocation, !chair.isEmpty { Label("Chair: \(chair)", systemImage: "house") }
             }
-            .font(.system(size: size, weight: .medium))
+            .font(Theme.font(size, .medium))
             .foregroundColor(Theme.text)
             .card(padding: 12)
             .accessibilityElement(children: .combine)

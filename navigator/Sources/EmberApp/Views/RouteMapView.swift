@@ -187,7 +187,7 @@ struct RouteMapView: View {
         ctx.stroke(Path(ellipseIn: CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)),
                    with: .color(Theme.safe), lineWidth: 2.5 * k)
         symbol(ctx, RouteMapView.symbolName(for: r.kind), at: c, size: badge * 1.15, color: Color(red: 0.05, green: 0.4, blue: 0.2))
-        pill(ctx, Text(r.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white),
+        pill(ctx, Text(r.name).font(Theme.font(16, .bold)).foregroundColor(.white),
              at: CGPoint(x: c.x, y: c.y + badge + 5 * k), anchor: .top, in: size, fill: Color.black.opacity(0.78), stroke: Theme.safe)
     }
 
@@ -239,7 +239,7 @@ struct RouteMapView: View {
             if len > (best[name]?.2 ?? 0) { best[name] = (p, q, len) }
         }
         for (name, seg) in best {
-            let t = ctx.resolve(Text(name).font(.system(size: 13, weight: .semibold)).foregroundColor(.white))
+            let t = ctx.resolve(Text(name).font(Theme.font(13, .semibold)).foregroundColor(.white))
             let w = t.measure(in: CGSize(width: 400, height: 40)).width
             guard seg.2 >= w + 12 else { continue }
             var angle = atan2(seg.1.y - seg.0.y, seg.1.x - seg.0.x)
@@ -260,7 +260,7 @@ struct RouteMapView: View {
             let r = 6 * k
             ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.white))
             ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.black), lineWidth: 2.5 * k)
-            pill(ctx, Text("Start").font(.system(size: thumbnail ? 11 : 13, weight: .bold)).foregroundColor(.black),
+            pill(ctx, Text("Start").font(Theme.font(thumbnail ? 11 : 13, .bold)).foregroundColor(.black),
                  at: CGPoint(x: p.x + r + 4, y: p.y), anchor: .leading, in: size, fill: .white, stroke: .black)
         }
         if let ep = refuge?.entryPoints.first {
@@ -316,7 +316,7 @@ struct RouteMapView: View {
         tri.addLine(to: CGPoint(x: c.x - r * 0.32, y: c.y - r * 0.05))
         tri.closeSubpath()
         ctx.fill(tri, with: .color(.white))
-        ctx.draw(Text("N").font(.system(size: 10 * k + 2, weight: .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
+        ctx.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
         // Scale bar, top left (bottom edge is Apple's attribution on the live map).
         guard metersPerPoint > 0, metersPerPoint.isFinite else { return }
         let maxPts = Double(size.width) * 0.32
@@ -324,7 +324,7 @@ struct RouteMapView: View {
         let metres = candidates.last { $0 / metersPerPoint <= maxPts } ?? 10
         let w = CGFloat(metres / metersPerPoint)
         let label = metres >= 1000 ? "\(Int(metres / 1000)) km" : "\(Int(metres)) m"
-        let t = ctx.resolve(Text(label).font(.system(size: 11 * k + 2, weight: .bold)).foregroundColor(.white))
+        let t = ctx.resolve(Text(label).font(Theme.font(11 * k + 2, .bold)).foregroundColor(.white))
         let tw = t.measure(in: CGSize(width: 200, height: 40))
         let h = tw.height + 10 * k
         let box = CGRect(x: m, y: m, width: max(w, tw.width) + 16 * k, height: h)

@@ -1,18 +1,31 @@
 import SwiftUI
 
-/// Navy / white / light blue: white on the navy card (#142B52) is ~13:1, navy text on light blue (#8FCCFF) ~9:1, both above 7:1.
+/// Near-black navy / white / steel blue: white on the card (#0D1A33) is ~17:1, navy text on steel blue (#94B5D6) ~9.5:1, both above 7:1.
 /// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
 public enum Theme {
-    public static let background = Color(red: 0.03, green: 0.09, blue: 0.20)
+    public static let background = Color(red: 0.015, green: 0.035, blue: 0.09)
     public static let text = Color.white
-    public static let dim = Color(red: 0.78, green: 0.86, blue: 0.96)
-    public static let accent = Color(red: 0.56, green: 0.80, blue: 1.0)
-    public static let onAccent = Color(red: 0.02, green: 0.07, blue: 0.16)
-    public static let card = Color(red: 0.08, green: 0.17, blue: 0.32)
-    public static let cardRaised = Color(red: 0.13, green: 0.25, blue: 0.43)
+    public static let dim = Color(red: 0.74, green: 0.80, blue: 0.88)
+    public static let accent = Color(red: 0.58, green: 0.71, blue: 0.84)
+    public static let onAccent = Color(red: 0.01, green: 0.03, blue: 0.08)
+    public static let card = Color(red: 0.05, green: 0.10, blue: 0.20)
+    public static let cardRaised = Color(red: 0.09, green: 0.16, blue: 0.29)
     public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
     public static let minButtonHeight: CGFloat = 64
+
+    /// "system" | "rounded" | "hyperlegible" (Atkinson Hyperlegible, bundled; OFL). Settings → Font.
+    public static let fontKey = "ember.font"
+    public static var fontChoice: String { UserDefaults.standard.string(forKey: fontKey) ?? "rounded" }
+    public static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        switch fontChoice {
+        case "hyperlegible":
+            let bold: Set<Font.Weight> = [.semibold, .bold, .heavy, .black]
+            return .custom(bold.contains(weight) ? "AtkinsonHyperlegible-Bold" : "AtkinsonHyperlegible-Regular", size: size)
+        case "system": return .system(size: size, weight: weight)
+        default: return .system(size: size, weight: weight, design: .rounded)
+        }
+    }
     public static let corner: CGFloat = 18
 }
 
@@ -44,7 +57,7 @@ struct EmberButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: min(size, 40), weight: .bold))
+            .font(Theme.font(min(size, 40), .bold))
             .labelStyle(SingleLineLabelStyle())
             .lineLimit(1)
             .minimumScaleFactor(0.5)
@@ -118,7 +131,7 @@ struct InstructionText: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: size, weight: .bold))
+            .font(Theme.font(size, .bold))
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -133,7 +146,7 @@ struct SecondaryText: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: size, weight: .semibold))
+            .font(Theme.font(size, .semibold))
             .foregroundColor(Theme.text)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,10 +161,10 @@ struct NoteText: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let systemImage { Image(systemName: systemImage).font(.system(size: size, weight: .semibold)) }
+            if let systemImage { Image(systemName: systemImage).font(Theme.font(size, .semibold)) }
             Text(text).fixedSize(horizontal: false, vertical: true)
         }
-        .font(.system(size: size, weight: .semibold))
+        .font(Theme.font(size, .semibold))
         .foregroundColor(Theme.text)
         .card(padding: 14)
     }
@@ -170,13 +183,13 @@ struct StatTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value).font(.system(size: big, weight: .heavy, design: .rounded))
-                Text(unit).font(.system(size: small * 1.2, weight: .bold))
+                Text(value).font(Theme.font(big, .heavy))
+                Text(unit).font(Theme.font(small * 1.2, .bold))
             }
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             Label(caption, systemImage: systemImage)
-                .font(.system(size: small, weight: .semibold))
+                .font(Theme.font(small, .semibold))
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
         }

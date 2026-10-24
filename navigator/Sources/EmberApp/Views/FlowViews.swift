@@ -55,7 +55,7 @@ struct CompassArrow: View {
                         .rotationEffect(.degrees(Double(i) * 90))
                 }
                 Image(systemName: "arrow.up")
-                    .font(.system(size: size * 0.75, weight: .black))
+                    .font(Theme.font(size * 0.75, .black))
                     .rotationEffect(.degrees(angle))
                     .animation(.easeOut(duration: 0.2), value: angle)
             }
@@ -65,7 +65,7 @@ struct CompassArrow: View {
                 Text(fireBearing == nil ? "Aim the top of the phone" : "Fire")
                 if let h = heading { Text("· \(Int(h.rounded()))°") }
             }
-            .font(.system(size: size * 0.14, weight: .bold))
+            .font(Theme.font(size * 0.14, .bold))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
         }
@@ -92,13 +92,13 @@ struct ChooseView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     header {
                         Label("Go here", systemImage: "arrow.forward.circle.fill")
-                            .font(.system(size: small, weight: .bold)).foregroundColor(Theme.accent)
+                            .font(Theme.font(small, .bold)).foregroundColor(Theme.accent)
                         if !typeSize.isAccessibilitySize { Spacer() }
                         Label("\(a.route.minutes) min", systemImage: "figure.roll")
-                            .font(.system(size: small, weight: .bold)).foregroundColor(Theme.text)
+                            .font(Theme.font(small, .bold)).foregroundColor(Theme.text)
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    Text(a.refuge.name).font(.system(size: big * 1.15, weight: .heavy)).foregroundColor(Theme.text)
+                    Text(a.refuge.name).font(Theme.font(big * 1.15, .heavy)).foregroundColor(Theme.text)
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellite: SatelliteSnapshot.best(for: a.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
@@ -113,10 +113,10 @@ struct ChooseView: View {
                                      online: voice.online, thumbnail: true, height: 120)
                             .frame(width: 130)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Or").font(.system(size: small, weight: .semibold)).foregroundColor(Theme.dim)
-                            Text(b.refuge.name).font(.system(size: small * 1.3, weight: .bold)).foregroundColor(Theme.text)
+                            Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+                            Text(b.refuge.name).font(Theme.font(small * 1.3, .bold)).foregroundColor(Theme.text)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("\(b.route.minutes) min").font(.system(size: small * 1.2, weight: .bold)).foregroundColor(Theme.dim)
+                            Text("\(b.route.minutes) min").font(Theme.font(small * 1.2, .bold)).foregroundColor(Theme.dim)
                         }
                         Spacer(minLength: 0)
                     }
@@ -199,7 +199,7 @@ struct ShelterView: View {
         let m = model.machine
         Screen {
             if let room = m?.shelter.room {
-                Text(room).font(.system(size: roomSize, weight: .black)).foregroundColor(Theme.onAccent)
+                Text(room).font(Theme.font(roomSize, .black)).foregroundColor(Theme.onAccent)
                     .fixedSize(horizontal: false, vertical: true)
                     .card(Theme.accent)
                     .accessibilityLabel("Room: \(room)")
@@ -225,8 +225,8 @@ struct ArrivedView: View {
     var body: some View {
         Screen {
             HStack(spacing: 14) {
-                Image(systemName: "checkmark.seal.fill").font(.system(size: badge)).foregroundColor(Theme.accent)
-                Text("You made it.").font(.system(size: badge * 0.5, weight: .heavy)).foregroundColor(Theme.text)
+                Image(systemName: "checkmark.seal.fill").font(Theme.font(badge)).foregroundColor(Theme.accent)
+                Text("You made it.").font(Theme.font(badge * 0.5, .heavy)).foregroundColor(Theme.text)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 Spacer(minLength: 0)
             }
