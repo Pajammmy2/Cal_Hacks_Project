@@ -14,6 +14,13 @@ TOP_N = 5
 FIRE_SIDE_HALF_ANGLE = 60.0
 PERIMETER_BUFFER_M = 500.0
 ARRIVAL_RADIUS_M = 25.0
+# "Fire ahead": close every edge whose midpoint lies within WEDGE_RADIUS_M and within +-WEDGE_HALF_ANGLE of the fire bearing.
+WEDGE_HALF_ANGLE = 60.0
+WEDGE_RADIUS_M = 400.0
+# Physical blockage: among routes within HEADING_SIMILAR_RATIO of the fastest, prefer the one whose first
+# HEADING_WINDOW_M heading is closest to the previous direction of travel.
+HEADING_WINDOW_M = 200.0
+HEADING_SIMILAR_RATIO = 1.25
 
 
 class Graph:
@@ -220,8 +227,54 @@ def fire_side_ok(graph, origin, refuge, fire_bearing, perimeter):
     return True
 
 
-def choose(graph, refuges, profile, origin, fire_bearing=None, perimeter=None, blocked=frozenset(), top_n=TOP_N):
-    """Fire-side filter -> top N by score -> route each -> sort by (time, -score). Index 0 = A, 1 = B."""
+def wedge_blocked_edges(graph, lat, lon, bearing, half_angle=WEDGE_HALF_ANGLE, radius_m=WEDGE_RADIUS_M):
+    """Edges whose midpoint is within radius_m of (lat, lon) and within +-half_angle of `bearing` (the fire side)."""
+    out = set()
+    for i, e in enumerate(graph.edges):
+        mlat = (graph.lat[e["a"]] + graph.lat[e["b"]]) / 2.0
+        mlon = (graph.lon[e["a"]] + graph.lon[e["b"]]) / 2.0
+        if geo.haversine_m(lat, lon, mlat, mlon) > radius_m:
+            continue
+        if geo.angdiff(geo.bearing_deg(lat, lon, mlat, mlon), bearing) <= half_angle:
+            out.add(i)
+    return out
+
+
+def initial_heading(graph, route, window_m=HEADING_WINDOW_M):
+    """Bearing from the route start to the first node at or beyond window_m along it (the last node if shorter)."""
+    nodes = route["nodes"]
+    if len(nodes) < 2:
+        return None
+    cum = 0.0
+    end = nodes[-1]
+    for i, ei in enumerate(route["edges"]):
+        cum += graph.edges[ei]["length_m"]
+        if cum >= window_m:
+            end = nodes[i + 1]
+            break
+    return geo.bearing_deg(graph.lat[nodes[0]], graph.lon[nodes[0]], graph.lat[end], graph.lon[end])
+
+
+def prefer_heading(graph, candidates, heading):
+    """Stable re-order: candidates within HEADING_SIMILAR_RATIO of the fastest time come first, sorted by how close
+    their initial heading is to `heading`; the rest keep their (time, -score) order."""
+    if heading is None or not candidates:
+        return list(candidates)
+    limit = candidates[0]["route"]["time_s"] * HEADING_SIMILAR_RATIO
+    similar = [c for c in candidates if c["route"]["time_s"] <= limit]
+    rest = [c for c in candidates if c["route"]["time_s"] > limit]
+
+    def turn(c):
+        h = initial_heading(graph, c["route"])
+        return geo.angdiff(h, heading) if h is not None else 180.0
+    similar.sort(key=turn)
+    return similar + rest
+
+
+def choose(graph, refuges, profile, origin, fire_bearing=None, perimeter=None, blocked=frozenset(), top_n=TOP_N,
+           prefer=None):
+    """Fire-side filter -> top N by score -> route each -> sort by (time, -score). Index 0 = A, 1 = B.
+    `prefer` (a heading in degrees) applies prefer_heading() to the sorted list (physical blockage re-plan)."""
     if profile.shelter_only:
         return []
     allowed = [r for r in refuges if fire_side_ok(graph, origin, r, fire_bearing, perimeter)]
@@ -233,7 +286,7 @@ def choose(graph, refuges, profile, origin, fire_bearing=None, perimeter=None, b
         if route is not None:
             out.append({"refuge": r, "route": route})
     out.sort(key=lambda c: (c["route"]["time_s"], -c["refuge"]["score"]))
-    return out
+    return prefer_heading(graph, out, prefer)
 
 
 def arrived(lat, lon, refuge):

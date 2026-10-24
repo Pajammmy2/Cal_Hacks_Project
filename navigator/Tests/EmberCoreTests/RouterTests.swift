@@ -160,4 +160,67 @@ import Testing
         _ = try Graph(contentsOf: Fixtures.fakeDir.appendingPathComponent("graph.json"))
         #expect(Date().timeIntervalSince(t0) < 2.0)
     }
+
+    func midpoint(_ ei: Int) -> (Double, Double) {
+        let e = b.graph.edges[ei]
+        return ((b.graph.lat[e.a] + b.graph.lat[e.b]) / 2.0, (b.graph.lon[e.a] + b.graph.lon[e.b]) / 2.0)
+    }
+
+    @Test func wedgeBlocksEdgesTowardTheFireOnly() {
+        let g = b.graph
+        let o = 112
+        let lat = g.lat[o], lon = g.lon[o]
+        for fire in [0.0, 90.0, 180.0, 270.0] {
+            let w = Router.wedgeBlockedEdges(g, lat: lat, lon: lon, bearing: fire)
+            #expect(!w.isEmpty)
+            for a in g.adj[o] {
+                #expect(w.contains(a.edge) == (Geo.angdiff(g.edgeBearing(a.edge, a.forward), fire) <= Router.wedgeHalfAngle))
+            }
+            for ei in 0..<g.edges.count {
+                let (mlat, mlon) = midpoint(ei)
+                let inside = Geo.haversineM(lat, lon, mlat, mlon) <= Router.wedgeRadiusM
+                    && Geo.angdiff(Geo.bearingDeg(lat, lon, mlat, mlon), fire) <= Router.wedgeHalfAngle
+                #expect(w.contains(ei) == inside)
+            }
+        }
+    }
+
+    @Test func fireRerouteChoosesRefugesAwayFromTheBearing() {
+        let g = b.graph
+        let p = Fixtures.profile("manual_chair")
+        let o = 112
+        let lat = g.lat[o], lon = g.lon[o]
+        for fire in [0.0, 90.0, 180.0, 270.0] {
+            let w = Router.wedgeBlockedEdges(g, lat: lat, lon: lon, bearing: fire)
+            let out = Router.choose(g, refuges: b.refuges, profile: p, origin: o, fireBearing: fire, blocked: w)
+            #expect(!out.isEmpty)
+            for c in out {
+                #expect(Geo.angdiff(Geo.bearingDeg(lat, lon, c.refuge.centroidLat, c.refuge.centroidLon), fire) > Router.fireSideHalfAngle)
+                #expect(w.isDisjoint(with: c.route.edges))
+                #expect(Geo.angdiff(g.edgeBearing(c.route.edges[0], c.route.forward[0]), fire) > Router.wedgeHalfAngle)
+            }
+        }
+    }
+
+    @Test func preferHeadingReordersOnlySimilarRoutes() {
+        let g = b.graph
+        let p = Fixtures.profile("manual_chair")
+        var changed = 0
+        for origin in stride(from: 0, to: g.nodes.count, by: 5) {
+            guard let first = Router.choose(g, refuges: b.refuges, profile: p, origin: origin).first?.route else { continue }
+            let heading = g.edgeBearing(first.edges[0], first.forward[0])
+            let blocked: Set<Int> = [first.edges[0]]
+            let plain = Router.choose(g, refuges: b.refuges, profile: p, origin: origin, blocked: blocked)
+            let pref = Router.choose(g, refuges: b.refuges, profile: p, origin: origin, blocked: blocked, prefer: heading)
+            #expect(pref.map(\.refuge.id).sorted() == plain.map(\.refuge.id).sorted())
+            guard let fastest = plain.first else { continue }
+            let limit = fastest.route.timeS * Router.headingSimilarRatio
+            func turn(_ c: Choice) -> Double { Geo.angdiff(Router.initialHeading(g, route: c.route)!, heading) }
+            #expect(pref[0].route.timeS <= limit)
+            #expect(turn(pref[0]) <= plain.filter { $0.route.timeS <= limit }.map(turn).min()!)
+            if pref[0].refuge.id != fastest.refuge.id { changed += 1 }
+        }
+        #expect(changed > 0)
+        #expect(Router.initialHeading(g, route: Route(nodes: [0], edges: [], forward: [], coords: [], lengthM: 0, timeS: 0, minutes: 0)) == nil)
+    }
 }
