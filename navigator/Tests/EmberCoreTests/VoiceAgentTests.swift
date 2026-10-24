@@ -44,7 +44,7 @@ func toolReply(_ name: String, _ input: String) -> String {
         #expect(r.value(forHTTPHeaderField: "anthropic-version") == "2023-06-01")
         #expect(r.timeoutInterval == 2)
         let body = try JSONSerialization.jsonObject(with: r.httpBody!) as! [String: Any]
-        #expect(body["model"] as? String == "claude-sonnet-4-5")
+        #expect(body["model"] as? String == VoiceAgent.model)
         #expect(body["stream"] == nil)
         #expect(body["system"] as? String == "You help a person evacuating a wildfire in a wheelchair, or the person pushing them. Map what they say to one tool call. Never give directions yourself; the router does that. If unsure, ask one short question.")
         let tools = body["tools"] as! [[String: Any]]
