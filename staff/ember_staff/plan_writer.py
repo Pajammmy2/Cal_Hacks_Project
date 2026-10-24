@@ -453,7 +453,7 @@ def values_obj(rec):
 def finish(rec, vals=None):
     """(Re)compute back-translation diffs and readability; set needs_review."""
     vals = vals or values_obj(rec)
-    keep = [i for i in rec["issues"] if not i["kind"].startswith(("negation", "digit", "unit", "placeholder", "count", "reading"))]
+    keep = [i for i in rec["issues"] if not i["kind"].startswith(("negation", "digit", "unit", "placeholder", "count", "reading", "echoed"))]
     rec["issues"] = keep
     S = rec["sections"]
     if rec.get("language") and rec.get("back"):
@@ -462,6 +462,10 @@ def finish(rec, vals=None):
             l2k = f"{sec}_l2"
             l2 = [vals.tokenize(s, register=False) for s in S.get(l2k, [])] if l2k in S else None
             back = [vals.tokenize(s, register=False) for s in rec["back"].get(l2k, [])]
+            if l2 and back and back == l2:
+                rec["issues"].append({"section": l2k, "index": None, "kind": "echoed_back_translation", "severity": "error",
+                                      "detail": "the back-translation repeats the translated text instead of translating it to English"})
+                continue
             for idx, kind, detail in diff_back(en, back, l2):
                 rec["issues"].append({"section": l2k, "index": idx, "kind": kind, "severity": "error", "detail": detail})
     grades = {}

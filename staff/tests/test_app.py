@@ -232,3 +232,12 @@ def test_stamp_refreshes_audio_panel(app_client, sample):
     assert r.status_code == 200 and r.headers["HX-Trigger"] == "cardChanged"
     panel = app_client.get("/clients/c_rosa/panel/audio").text
     assert "Generate audio" in panel and "Stamp the card first" not in panel
+
+
+def test_forbidden_shows_in_the_clicked_panel(app_client, sample):
+    """Audio on an unstamped card: the error must land in the audio panel the user is looking at, not off-screen."""
+    r = app_client.post("/clients/c_rosa/audio", headers={"HX-Request": "true", "HX-Target": "audio-panel"})
+    assert r.status_code == 403 and "Stamp the card" in r.text
+    assert r.headers["HX-Retarget"] == "#audio-panel" and r.headers["HX-Reswap"] == "afterbegin"
+    r = app_client.post("/clients/c_rosa/audio", headers={"HX-Request": "true"})
+    assert r.status_code == 403 and r.headers["HX-Retarget"] == "#flash"

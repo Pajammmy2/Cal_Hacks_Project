@@ -57,8 +57,10 @@ def create_app():
     @app.exception_handler(workflow.Forbidden)
     async def forbidden(request, exc):
         if request.headers.get("HX-Request"):
-            return HTMLResponse(f'<p class="err" role="alert">{exc}</p>', status_code=403,
-                                headers={"HX-Retarget": "#flash", "HX-Reswap": "innerHTML"})
+            # Show the error inside the panel that was clicked (it may be far below #flash), else at the top.
+            target = request.headers.get("HX-Target")
+            hx = {"HX-Retarget": f"#{target}", "HX-Reswap": "afterbegin"} if target else {"HX-Retarget": "#flash", "HX-Reswap": "innerHTML"}
+            return HTMLResponse(f'<p class="err" role="alert">{exc}</p>', status_code=403, headers=hx)
         return HTMLResponse(f"<p>{exc}</p><p><a href='javascript:history.back()'>Back</a></p>", status_code=403)
 
     # ------------------------------------------------------------ passphrase

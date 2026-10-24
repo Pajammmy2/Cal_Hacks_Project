@@ -169,3 +169,17 @@ def test_finish_recomputes_unit_issues_without_duplicates(rosa, monkeypatch):
     units = [x for x in rec["issues"] if x["kind"] == "unit_changed"]
     assert len(units) == 1 and units[0]["section"] == "steps_l2" and units[0]["index"] == i
     assert rec["needs_review"]
+
+
+def test_finish_flags_echoed_back_translation(rosa, monkeypatch):
+    """Older records stored the translation itself as the back-translation; flag that instead of spurious unit diffs."""
+    _, vals, sections, _ = pw.build_input(rosa["profile"], rosa["plan"], rosa["selected"])
+    writer = _good_output(sections)
+    back = {k: [s for s in writer[k.replace("_l2", "_en")]] for k in ("steps_l2", "steps_b_l2", "shelter_l2", "devices_l2")}
+    _mock(monkeypatch, writer, back, [])
+    rec = pw.generate(rosa["profile"], rosa["plan"], rosa["selected"])
+    rec["back"]["steps_l2"] = list(rec["sections"]["steps_l2"])
+    pw.finish(rec)
+    kinds = [(x["kind"], x["section"]) for x in rec["issues"] if x["severity"] == "error"]
+    assert kinds == [("echoed_back_translation", "steps_l2")]
+    assert rec["needs_review"]
