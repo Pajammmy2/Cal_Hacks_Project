@@ -453,7 +453,7 @@ def values_obj(rec):
 def finish(rec, vals=None):
     """(Re)compute back-translation diffs and readability; set needs_review."""
     vals = vals or values_obj(rec)
-    keep = [i for i in rec["issues"] if not i["kind"].startswith(("negation", "digit", "placeholder", "count", "reading"))]
+    keep = [i for i in rec["issues"] if not i["kind"].startswith(("negation", "digit", "unit", "placeholder", "count", "reading"))]
     rec["issues"] = keep
     S = rec["sections"]
     if rec.get("language") and rec.get("back"):

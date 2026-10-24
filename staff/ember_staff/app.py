@@ -152,7 +152,10 @@ def create_app():
 
     # ------------------------------------------------------------ 3. review
     def review_ctx(row):
-        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": row.get("text") or {},
+        text = row.get("text") or {}
+        if text.get("sections"):
+            text = plan_writer.finish(text)   # re-run the deterministic checks so older records get newer ones
+        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": text,
                 "cardctx": card.context(row) if row.get("plan") else None, "editable": EDITABLE,
                 "consent_text": CONSENT_TEXT.format(client=row["profile"]["name"])}
 

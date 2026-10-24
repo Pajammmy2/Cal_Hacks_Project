@@ -152,3 +152,20 @@ def test_diff_back_flags_changed_units():
     kinds = [(i, k) for i, k, _ in pw.diff_back(en, back)]
     assert kinds == [(0, "unit_changed")]
     assert pw.diff_back(en, en) == []
+
+
+def test_finish_recomputes_unit_issues_without_duplicates(rosa, monkeypatch):
+    """Review re-runs finish() on stored records; a changed unit must be flagged once, not stacked on each render."""
+    _, vals, sections, _ = pw.build_input(rosa["profile"], rosa["plan"], rosa["selected"])
+    writer = _good_output(sections)
+    back = {k: [s for s in writer[k.replace("_l2", "_en")]] for k in ("steps_l2", "steps_b_l2", "shelter_l2", "devices_l2")}
+    _mock(monkeypatch, writer, back, [])
+    rec = pw.generate(rosa["profile"], rosa["plan"], rosa["selected"])
+    assert not rec["needs_review"]
+    i = next(i for i, s in enumerate(rec["back"]["steps_l2"]) if " m" in s or "meters" in s or "feet" in s)
+    rec["back"]["steps_l2"][i] = rec["back"]["steps_l2"][i].replace(" m", " miles", 1).replace("meters", "miles").replace("feet", "miles")
+    pw.finish(rec)
+    pw.finish(rec)
+    units = [x for x in rec["issues"] if x["kind"] == "unit_changed"]
+    assert len(units) == 1 and units[0]["section"] == "steps_l2" and units[0]["index"] == i
+    assert rec["needs_review"]
