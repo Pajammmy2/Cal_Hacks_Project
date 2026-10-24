@@ -3,13 +3,13 @@ import SwiftUI
 /// Black / white / yellow, plus dark-grey cards: white on #1F1F1F is 16:1, black on yellow (#FFD60A) ~14:1, both above 7:1.
 /// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
 public enum Theme {
-    public static let background = Color.black
+    public static let background = Color(red: 0.03, green: 0.09, blue: 0.20)
     public static let text = Color.white
-    public static let dim = Color(white: 0.78)
-    public static let accent = Color(red: 1.0, green: 0.84, blue: 0.04)
-    public static let onAccent = Color.black
-    public static let card = Color(white: 0.12)
-    public static let cardRaised = Color(white: 0.19)
+    public static let dim = Color(red: 0.78, green: 0.86, blue: 0.96)
+    public static let accent = Color(red: 0.56, green: 0.80, blue: 1.0)
+    public static let onAccent = Color(red: 0.02, green: 0.07, blue: 0.16)
+    public static let card = Color(red: 0.08, green: 0.17, blue: 0.32)
+    public static let cardRaised = Color(red: 0.13, green: 0.25, blue: 0.43)
     public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
     public static let minButtonHeight: CGFloat = 64

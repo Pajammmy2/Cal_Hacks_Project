@@ -150,7 +150,7 @@ struct NavigateView: View {
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
         let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
-        Screen(scrolls: typeSize.isAccessibilitySize) {
+        Screen {
             InstructionText(text: model.displayText)
             tiles {
                 if let d = p?.distanceToNextTurnM {
@@ -169,7 +169,7 @@ struct NavigateView: View {
                              heading: compass.heading, walkedM: p.progressM,
                              satellite: SatelliteSnapshot.best(for: p.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
                              online: voice.online)
-                    .frame(minHeight: typeSize.isAccessibilitySize ? 260 : 200, maxHeight: typeSize.isAccessibilitySize ? 320 : .infinity)
+                    .frame(height: typeSize.isAccessibilitySize ? 300 : 280)
             }
             CaregiverInfo(client: m?.client)
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
