@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Black / white / yellow, plus dark-grey cards: white on #1F1F1F is 16:1, black on yellow (#FFD60A) ~14:1, both above 7:1.
+/// Navy / white / light blue: white on the navy card (#142B52) is ~13:1, navy text on light blue (#8FCCFF) ~9:1, both above 7:1.
 /// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
 public enum Theme {
     public static let background = Color(red: 0.03, green: 0.09, blue: 0.20)
