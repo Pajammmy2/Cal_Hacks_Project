@@ -345,18 +345,28 @@ public final class NavigatorStateMachine {
         serial += 1
     }
 
+    /// What "repeat" would say right now: the current instruction (Navigate), the current step (Shelter), else the last utterances.
+    func currentRepeat() -> [Utterance] {
+        switch state {
+        case .navigate:
+            if let g = progress?.currentGroup, !g.isEmpty { return g.map(Utterance.init) }
+            return utterances
+        case .shelter:
+            if let s = shelterStep { return [Utterance(s)] }
+            return utterances
+        default:
+            return utterances
+        }
+    }
+
     /// Repeat: the current instruction (Navigate), the current step (Shelter), else the last utterances.
     public func repeatCurrent() {
         stopped = false
         switch state {
-        case .navigate:
-            if let g = progress?.currentGroup, !g.isEmpty { say(g.map(Utterance.init)) } else { say(utterances) }
-        case .shelter:
-            if let s = shelterStep { say(s) } else { say(utterances) }
         case .choose:
             sayChoice()
         default:
-            say(utterances)
+            say(currentRepeat())
         }
     }
 
@@ -383,9 +393,9 @@ public final class NavigatorStateMachine {
         case .repeat:
             repeatCurrent()
         case .slower:
-            say("Going slower.")
+            say([Utterance("Going slower.")] + currentRepeat())
         case .louder:
-            say("Louder.")
+            say([Utterance("Louder.")] + currentRepeat())
         case .pushing:
             setVariant(pushed: true)
         case .cantMove:
