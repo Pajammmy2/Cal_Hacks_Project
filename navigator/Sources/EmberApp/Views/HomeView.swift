@@ -6,54 +6,58 @@ struct HomeView: View {
     @State private var scanning = false
     @State private var settings = false
     @ScaledMetric(relativeTo: .title2) var nameSize: CGFloat = 26
+    @Environment(\.dynamicTypeSize) var typeSize
 
     var body: some View {
         Screen {
             InstructionText(text: model.profiles.isEmpty ? "Add a profile from the plan card." : "Who are you moving?")
             ForEach(model.profiles) { p in
+                let selected = p.id == model.selectedId
                 Button { model.select(p.id) } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: icon(p)).font(.system(size: nameSize))
-                        VStack(alignment: .leading) {
+                    HStack(spacing: 14) {
+                        if !typeSize.isAccessibilitySize {
+                            Image(systemName: icon(p))
+                                .font(.system(size: nameSize, weight: .semibold))
+                                .frame(width: nameSize * 1.8, height: nameSize * 1.8)
+                                .background(Circle().fill(selected ? Theme.accent : Theme.cardRaised))
+                                .foregroundColor(selected ? Theme.onAccent : Theme.text)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(p.name).font(.system(size: nameSize, weight: .bold))
-                            Text(p.mobilityLabel).font(.system(size: nameSize * 0.75))
+                            Text(p.mobilityLabel).font(.system(size: nameSize * 0.72, weight: .medium)).foregroundColor(Theme.dim)
                         }
-                        Spacer()
-                        if p.id == model.selectedId {
-                            Label("Selected", systemImage: "checkmark.circle.fill").font(.system(size: nameSize * 0.75, weight: .bold))
-                        }
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: nameSize * 1.1, weight: .bold))
+                            .foregroundColor(selected ? Theme.accent : Theme.dim)
                     }
                     .foregroundColor(Theme.text)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, minHeight: Theme.minButtonHeight)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.text, lineWidth: p.id == model.selectedId ? 4 : 1))
+                    .frame(minHeight: Theme.minButtonHeight)
+                    .card(padding: 12)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous)
+                        .stroke(selected ? Theme.accent : Color.clear, lineWidth: 3))
                 }
-                .accessibilityLabel("\(p.name), \(p.mobilityLabel)\(p.id == model.selectedId ? ", selected" : "")")
+                .accessibilityLabel("\(p.name), \(p.mobilityLabel)\(selected ? ", selected" : "")")
                 .accessibilityHint("Select who you are moving")
             }
-            Toggle(isOn: $model.caregiverMode) {
-                SecondaryText(text: "I am pushing the chair")
+            VStack(spacing: 0) {
+                ToggleRow(title: "I am pushing the chair", isOn: $model.caregiverMode)
+                Divider().overlay(Theme.cardRaised)
+                ToggleRow(title: "Power is out", isOn: Binding(get: { model.powerIsOut }, set: { model.setPowerOut($0) }))
+                    .accessibilityHint("Starts the battery timer for oxygen and other devices")
             }
-            .tint(Theme.accent)
-            .frame(minHeight: Theme.minButtonHeight)
-            .accessibilityLabel("I am pushing the chair")
-            Toggle(isOn: Binding(get: { model.powerIsOut }, set: { model.setPowerOut($0) })) {
-                SecondaryText(text: "Power is out")
-            }
-            .tint(Theme.accent)
-            .frame(minHeight: Theme.minButtonHeight)
-            .accessibilityLabel("Power is out")
-            .accessibilityHint("Starts the battery timer for oxygen and other devices")
-            Label(model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock")
-                .font(.system(size: nameSize * 0.8, weight: .semibold)).foregroundColor(Theme.text)
+            .card(padding: 14)
+            NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
                 .accessibilityLabel(model.fireAgeText + (model.fireIsStale ? ", old" : ""))
-            if let note = model.feedNote { SecondaryText(text: note) }
-            if let err = model.loadError { SecondaryText(text: err) }
-            if let n = model.notice { SecondaryText(text: n) }
+            if let note = model.feedNote { NoteText(text: note, systemImage: "antenna.radiowaves.left.and.right") }
+            if let err = model.loadError { NoteText(text: err, systemImage: "exclamationmark.triangle") }
+            if let n = model.notice { NoteText(text: n, systemImage: "info.circle") }
         } buttons: {
             EmberButton(title: "Start", systemImage: "play.fill", hint: "Find a safe place to go") { model.start() }
                 .disabled(model.selected == nil || model.bundle == nil)
-            HStack(spacing: 12) {
+            ButtonRow {
                 EmberButton(title: "Add profile", systemImage: "qrcode.viewfinder", hint: "Scan the QR code on the plan card") { scanning = true }
                 EmberButton(title: "Settings", systemImage: "gearshape", hint: "API keys, entered once at install") { settings = true }
             }
@@ -65,12 +69,16 @@ struct HomeView: View {
                     scanning = false
                     model.addProfile(fromCode: code)
                 }
+                .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
                 EmberButton(title: "Cancel", systemImage: "xmark") { scanning = false }
             }
             .padding(16)
             .background(Theme.background.ignoresSafeArea())
         }
-        .sheet(isPresented: $settings) { SettingsView { settings = false; model.settingsChanged() } }
+        .sheet(isPresented: $settings) {
+            SettingsView { settings = false; model.settingsChanged() }
+                .environmentObject(model)
+        }
     }
 
     func icon(_ p: ClientProfile) -> String {
@@ -83,9 +91,31 @@ struct HomeView: View {
     }
 }
 
+/// Label that wraps, switch on the right, at every text size.
+struct ToggleRow: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SecondaryText(text: title)
+            Toggle(title, isOn: $isOn).labelsHidden().tint(Theme.accent)
+        }
+        .frame(minHeight: Theme.minButtonHeight)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityValue(isOn ? "on" : "off")
+        .accessibilityAddTraits(.isButton)
+        .onTapGesture { isOn.toggle() }
+    }
+}
+
 struct SettingsView: View {
     let close: () -> Void
+    @EnvironmentObject var model: AppModel
     @State private var values: [KeychainStore.Key: String] = [:]
+    @State private var snapshotNote: String?
+    @State private var saving = false
 
     static let labels: [KeychainStore.Key: String] = [
         .anthropicAPIKey: "Anthropic API key", .cartesiaAPIKey: "Cartesia API key", .cartesiaVoiceId: "Cartesia voice id",
@@ -95,15 +125,33 @@ struct SettingsView: View {
     var body: some View {
         Screen {
             InstructionText(text: "Keys stay on this phone.")
-            ForEach(KeychainStore.Key.allCases, id: \.self) { k in
-                VStack(alignment: .leading) {
-                    SecondaryText(text: SettingsView.labels[k] ?? k.rawValue)
-                    SecureField(SettingsView.labels[k] ?? k.rawValue, text: Binding(get: { values[k] ?? "" }, set: { values[k] = $0 }))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
-                        .accessibilityLabel(SettingsView.labels[k] ?? k.rawValue)
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(KeychainStore.Key.allCases, id: \.self) { k in
+                    VStack(alignment: .leading, spacing: 6) {
+                        SecondaryText(text: SettingsView.labels[k] ?? k.rawValue)
+                        SecureField(SettingsView.labels[k] ?? k.rawValue, text: Binding(get: { values[k] ?? "" }, set: { values[k] = $0 }))
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 48)
+                            .background(Theme.cardRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .accessibilityLabel(SettingsView.labels[k] ?? k.rawValue)
+                    }
                 }
             }
+            .card()
+            #if os(iOS)
+            VStack(alignment: .leading, spacing: 10) {
+                SecondaryText(text: "Offline map (developer)")
+                Text("Saves satellite pictures of \(model.selected?.name ?? "the selected person")'s routes into the county bundle, for use with no signal.")
+                    .font(.system(size: 17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                EmberButton(title: saving ? "Saving…" : "Save satellite snapshot", systemImage: "square.and.arrow.down",
+                            hint: "Needs signal; writes satellite/<client>_<n>.jpg into the bundle") { saveSnapshots() }
+                    .disabled(saving || model.selected == nil || model.bundle == nil)
+                if let snapshotNote { NoteText(text: snapshotNote, systemImage: "photo") }
+            }
+            .card()
+            #endif
         } buttons: {
             EmberButton(title: "Save", systemImage: "checkmark") {
                 for k in KeychainStore.Key.allCases { KeychainStore.set(k, values[k]) }
@@ -115,5 +163,21 @@ struct SettingsView: View {
         .onAppear {
             for k in KeychainStore.Key.allCases { values[k] = KeychainStore.get(k) ?? "" }
         }
+    }
+
+    func saveSnapshots() {
+        #if os(iOS)
+        guard let bundle = model.bundle, let client = model.selected else { return }
+        saving = true
+        Task { @MainActor in
+            do {
+                let n = try await SatelliteCache.save(bundle: bundle, client: client)
+                snapshotNote = n == 0 ? "No routes to save for \(client.name)." : "Saved \(n) snapshot\(n == 1 ? "" : "s") to \(bundle.county)/satellite."
+            } catch {
+                snapshotNote = "Could not save: \(error.localizedDescription)"
+            }
+            saving = false
+        }
+        #endif
     }
 }

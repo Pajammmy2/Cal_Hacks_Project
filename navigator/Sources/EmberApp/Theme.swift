@@ -1,13 +1,19 @@
 import SwiftUI
 
-/// Black / white / yellow only: white on black is 21:1, black on yellow (#FFD60A) is ~14:1, both above 7:1.
-/// Meaning is never carried by color alone; every state also has words and an icon.
+/// Black / white / yellow, plus dark-grey cards: white on #1F1F1F is 16:1, black on yellow (#FFD60A) ~14:1, both above 7:1.
+/// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
 public enum Theme {
     public static let background = Color.black
     public static let text = Color.white
+    public static let dim = Color(white: 0.78)
     public static let accent = Color(red: 1.0, green: 0.84, blue: 0.04)
     public static let onAccent = Color.black
+    public static let card = Color(white: 0.12)
+    public static let cardRaised = Color(white: 0.19)
+    public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
+    public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
     public static let minButtonHeight: CGFloat = 64
+    public static let corner: CGFloat = 18
 }
 
 /// Sizes scale with Dynamic Type up to the largest accessibility size.
@@ -18,22 +24,40 @@ struct ScaledFonts {
     @ScaledMetric(relativeTo: .body) var body: CGFloat = 20
 }
 
-/// The one button style.
+/// Icon + title on one line; the title shrinks (to 60 %) rather than wrapping.
+struct SingleLineLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon
+            configuration.title
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .allowsTightening(true)
+        }
+    }
+}
+
+/// The one button style. Text never wraps: one line, scaled down if the title is long.
 struct EmberButtonStyle: ButtonStyle {
     @ScaledMetric(relativeTo: .title2) var size: CGFloat = 24
     @Environment(\.isEnabled) var enabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: size, weight: .bold))
-            .multilineTextAlignment(.center)
-            .foregroundColor(enabled ? Theme.onAccent : Theme.text)
+            .font(.system(size: min(size, 40), weight: .bold))
+            .labelStyle(SingleLineLabelStyle())
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .foregroundColor(enabled ? Theme.onAccent : Theme.dim)
+            .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, minHeight: Theme.minButtonHeight)
-            .padding(.horizontal, 12)
-            .background(enabled ? Theme.accent : Theme.background)
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.accent, lineWidth: enabled ? 0 : 3))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .background(enabled ? Theme.accent : Theme.card)
+            .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous)
+                .stroke(Theme.dim.opacity(enabled ? 0 : 0.7), lineWidth: 2))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -53,7 +77,41 @@ struct EmberButton: View {
     }
 }
 
-/// The instruction sentence: 28 pt, white on black, never truncated.
+/// Two buttons side by side; at accessibility text sizes they stack so no title has to shrink past readability.
+struct ButtonRow<Content: View>: View {
+    @Environment(\.dynamicTypeSize) var typeSize
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(spacing: 12) { content }
+        } else {
+            HStack(spacing: 12) { content }
+        }
+    }
+}
+
+struct CardModifier: ViewModifier {
+    var fill: Color
+    var padding: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(fill)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
+    }
+}
+
+extension View {
+    /// Dark-grey rounded card behind a block of text or controls.
+    func card(_ fill: Color = Theme.card, padding: CGFloat = 16) -> some View {
+        modifier(CardModifier(fill: fill, padding: padding))
+    }
+}
+
+/// The instruction sentence: 28 pt, white on a dark card, never truncated.
 struct InstructionText: View {
     let text: String
     @ScaledMetric(relativeTo: .title) var size: CGFloat = 28
@@ -64,7 +122,7 @@ struct InstructionText: View {
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .card()
             .accessibilityAddTraits(.updatesFrequently)
     }
 }
@@ -79,5 +137,52 @@ struct SecondaryText: View {
             .foregroundColor(Theme.text)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A note or status line on its own card (feed notes, errors, "listening…").
+struct NoteText: View {
+    let text: String
+    var systemImage: String? = nil
+    @ScaledMetric(relativeTo: .title3) var size: CGFloat = 20
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            if let systemImage { Image(systemName: systemImage).font(.system(size: size, weight: .semibold)) }
+            Text(text).fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: size, weight: .semibold))
+        .foregroundColor(Theme.text)
+        .card(padding: 14)
+    }
+}
+
+/// A big number with a unit and a caption, for distance and time on Navigate.
+struct StatTile: View {
+    let value: String
+    let unit: String
+    let caption: String
+    let systemImage: String
+    var warning = false
+    @ScaledMetric(relativeTo: .largeTitle) var big: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) var small: CGFloat = 17
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value).font(.system(size: big, weight: .heavy, design: .rounded))
+                Text(unit).font(.system(size: small * 1.2, weight: .bold))
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            Label(caption, systemImage: systemImage)
+                .font(.system(size: small, weight: .semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundColor(warning ? Theme.onAccent : Theme.text)
+        .card(warning ? Theme.accent : Theme.card, padding: 14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(value) \(unit) \(caption)")
     }
 }

@@ -9,7 +9,7 @@ public struct RootView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            if let text = model.leaveNow { LeaveNowBanner(text: text) }
+            if let text = model.leaveNow { LeaveNowBanner(text: text).padding([.horizontal, .top], 12) }
             Group {
                 switch model.state {
                 case .home: HomeView()
@@ -42,9 +42,7 @@ struct LeaveNowBanner: View {
             Text(text).font(.system(size: size * 0.7, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundColor(Theme.onAccent)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Theme.accent)
+        .card(Theme.accent, padding: 14)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Leave now. \(text)")
         .accessibilityAddTraits(.isHeader)
@@ -58,29 +56,36 @@ struct CaregiverInfo: View {
 
     var body: some View {
         if let c = client {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 6) {
                 Label(c.transferLabel, systemImage: "figure.roll")
                 Label(c.equipmentLabel, systemImage: "bolt.heart")
                 if let chair = c.home?.chairLocation, !chair.isEmpty { Label("Chair: \(chair)", systemImage: "house") }
             }
             .font(.system(size: size, weight: .medium))
             .foregroundColor(Theme.text)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.text, lineWidth: 1))
+            .card(padding: 12)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("For the helper: \(c.transferLabel). Equipment: \(c.equipmentLabel).")
         }
     }
 }
 
+/// Content above, buttons pinned below. `scrolls: false` lets a flexible child (the map) take the spare height.
 struct Screen<Content: View, Buttons: View>: View {
+    var scrolls = true
     @ViewBuilder let content: Content
     @ViewBuilder let buttons: Buttons
 
     var body: some View {
         VStack(spacing: 16) {
-            ScrollView { VStack(alignment: .leading, spacing: 16) { content }.padding(.top, 8) }
+            if scrolls {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 4)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 4)
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
             VStack(spacing: 12) { buttons }
         }
         .padding(16)
