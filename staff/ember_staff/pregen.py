@@ -5,13 +5,14 @@ bundles/<county>/audio/<sha1>.mp3 (+ index.json), or audio/clients/<client_id>/ 
 """
 import importlib.util
 import json
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from . import cartesia, config, db, engine_client, plan_writer
 from ember_engine.core import cues as cuemod
-from ember_engine.core import hashing, plan as plan_mod, router, shared
+from ember_engine.core import geo, hashing, plan as plan_mod, router, shared
 
 CONCURRENCY = 2   # Cartesia's entry tier allows 2 concurrent requests; EMBER_CARTESIA_CONCURRENCY overrides
 MAX_REPLAN_EDGES = 400
@@ -75,6 +76,29 @@ def _pushed_choices(profile, plan, bundle):
     return out
 
 
+REROUTE_RADIUS_M = float(os.environ.get("EMBER_PREGEN_RADIUS_M", "1500"))
+
+
+def _nodes_near_routes(bundle, plan):
+    """Node ids within REROUTE_RADIUS_M of any node on the plan's routes (empty without a bundle)."""
+    if bundle is None:
+        return set()
+    g = bundle.graph
+    anchors = {n for c in (plan.get("choices") or []) for n in c["route"]["nodes"]}
+    if not anchors:
+        return set()
+    lat0 = sum(g.lat[n] for n in anchors) / len(anchors)
+    lon0 = sum(g.lon[n] for n in anchors) / len(anchors)
+    span = max(geo.haversine_m(lat0, lon0, g.lat[n], g.lon[n]) for n in anchors) + REROUTE_RADIUS_M
+    out = set()
+    for i in range(len(g.adj)):
+        if geo.haversine_m(lat0, lon0, g.lat[i], g.lon[i]) > span:
+            continue
+        if any(geo.haversine_m(g.lat[i], g.lon[i], g.lat[n], g.lon[n]) <= REROUTE_RADIUS_M for n in anchors):
+            out.add(i)
+    return out
+
+
 def cross_pairs(bundle, node_lists):
     """(street, cross_street) pairs meeting at intersections along the routes."""
     pairs = set()
@@ -135,12 +159,16 @@ def collect(row, bundle="auto", include_replans=True):
     # "blocked <street>" tool accepting any named street within 2 km) can leave the pre-computed routes, and
     # whereAmI/currentStreet can name any edge the user is standing on. Uncovered streets would fall back to
     # on-device TTS, so cue/blocking/where/fragment strings must exist for all of them.
+    # Limited to the streets within REROUTE_RADIUS_M of the planned routes: a real OSM county has thousands of
+    # streets and tens of thousands of intersections, and a wheelchair reroute never leaves that neighbourhood.
     all_streets = list(streets)
+    near = _nodes_near_routes(bundle, plan)
     if bundle is not None:
         for e in bundle.graph.edges:
-            s = cuemod.display_name(e)
-            if s not in all_streets:
-                all_streets.append(s)
+            if e["a"] in near or e["b"] in near:
+                s = cuemod.display_name(e)
+                if s not in all_streets:
+                    all_streets.append(s)
 
     # every turn template with every street and refuge the phone can ever mention
     for s in sorted(cuemod.all_cue_texts_for_streets(all_streets, all_refuges)):
@@ -181,7 +209,7 @@ def collect(row, bundle="auto", include_replans=True):
         add(tp["where"].format(street=s))
     node_lists = [r["nodes"] for r in [c["route"] for c in (plan.get("choices") or [])]]
     if bundle is not None:
-        node_lists.append(range(len(bundle.graph.adj)))   # "<street> at <cross>" can name any intersection
+        node_lists.append(sorted(near))   # "<street> at <cross>" can name any intersection near the routes
     for s1, s2 in sorted(cross_pairs(bundle, node_lists)):
         if s1 in all_streets:
             add(tp["blocking_cross"].format(street=s1, cross_street=s2))
