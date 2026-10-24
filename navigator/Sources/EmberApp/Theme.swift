@@ -14,16 +14,16 @@ public enum Theme {
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
     public static let minButtonHeight: CGFloat = 64
 
-    /// "system" | "rounded" | "hyperlegible" (Atkinson Hyperlegible, bundled; OFL). Settings → Font.
+    /// "inter" (default, bundled) | "system" | "rounded" | "hyperlegible" (Atkinson Hyperlegible, bundled). Both custom fonts are OFL. Settings → Font.
     public static let fontKey = "ember.font"
-    public static var fontChoice: String { UserDefaults.standard.string(forKey: fontKey) ?? "rounded" }
+    public static var fontChoice: String { UserDefaults.standard.string(forKey: fontKey) ?? "inter" }
     public static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let bold: Set<Font.Weight> = [.semibold, .bold, .heavy, .black]
         switch fontChoice {
-        case "hyperlegible":
-            let bold: Set<Font.Weight> = [.semibold, .bold, .heavy, .black]
-            return .custom(bold.contains(weight) ? "AtkinsonHyperlegible-Bold" : "AtkinsonHyperlegible-Regular", size: size)
+        case "hyperlegible": return .custom(bold.contains(weight) ? "AtkinsonHyperlegible-Bold" : "AtkinsonHyperlegible-Regular", size: size)
         case "system": return .system(size: size, weight: weight)
-        default: return .system(size: size, weight: weight, design: .rounded)
+        case "rounded": return .system(size: size, weight: weight, design: .rounded)
+        default: return .custom(bold.contains(weight) ? "Inter-Bold" : "Inter-Regular", size: size)
         }
     }
     public static let corner: CGFloat = 18

@@ -4,7 +4,7 @@ import EmberCore
 /// One screen at a time, chosen by the state machine. "Leave now" sits on top of every screen.
 public struct RootView: View {
     @EnvironmentObject var model: AppModel
-    @AppStorage(Theme.fontKey) private var fontChoice = "rounded"
+    @AppStorage(Theme.fontKey) private var fontChoice = "inter"
 
     public init() {}
 

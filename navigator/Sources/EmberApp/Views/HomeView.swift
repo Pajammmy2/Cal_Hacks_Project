@@ -122,8 +122,8 @@ struct SettingsView: View {
         .apifyToken: "Apify token", .apifyDatasetId: "Apify county feed dataset id",
     ]
 
-    static let fonts = [("system", "Apple"), ("rounded", "Rounded"), ("hyperlegible", "Hyperlegible")]
-    @AppStorage(Theme.fontKey) private var fontChoice = "rounded"
+    static let fonts = [("inter", "Inter"), ("system", "Apple"), ("hyperlegible", "Hyperlegible")]
+    @AppStorage(Theme.fontKey) private var fontChoice = "inter"
 
     var body: some View {
         Screen {
