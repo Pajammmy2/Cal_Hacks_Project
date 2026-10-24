@@ -1,0 +1,3 @@
+{"geometryType": "esriGeometryPolygon", "spatialReference": {"wkid": 4326}, "features": [
+ {"attributes": {"OUTAGE_ID": "900001"}, "geometry": {"rings": [[[-121.64, 39.75], [-121.60, 39.75], [-121.60, 39.78], [-121.64, 39.78], [-121.64, 39.75]]]}}
+]}

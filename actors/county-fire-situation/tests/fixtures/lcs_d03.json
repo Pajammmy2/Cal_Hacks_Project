@@ -1,0 +1,1429 @@
+{
+ "data": [
+  {
+   "lcs": {
+    "index": "C32BA-0005-2026-10-23-08:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East / West",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "(County Rd)",
+      "beginFreeFormDescription": "form post mile 29.614",
+      "beginNearbyPlace": "Forest Ranch",
+      "beginLongitude": "-121.651095",
+      "beginLatitude": "39.943978",
+      "beginElevation": "3356",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "29.614",
+      "beginAlignment": "",
+      "beginMilepost": "41.345"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "(County Rd)",
+      "endFreeFormDescription": "post mile r32.835",
+      "endNearbyPlace": "Magalia",
+      "endLongitude": "-121.639100",
+      "endLatitude": "39.984359",
+      "endElevation": "3221",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "32.835",
+      "endAlignment": "",
+      "endMilepost": "44.566"
+     }
+    },
+    "closure": {
+     "closureID": "C32BA",
+     "logNumber": "5",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-12",
+      "closureRequestTime": "12:50:09",
+      "closureRequestEpoch": "1791834609",
+      "closureStartDate": "2026-10-23",
+      "closureStartTime": "08:01:00",
+      "closureStartEpoch": "1792767660",
+      "closureEndDate": "2026-10-23",
+      "closureEndTime": "17:30:00",
+      "closureEndEpoch": "1792801800",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "One-Way Traffic",
+     "typeOfWork": "Utility Work",
+     "durationOfClosure": "Intermittent",
+     "estimatedDelay": "5",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "1",
+     "isCHINReportable": "true",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "true",
+      "code1022Timestamp": {
+       "code1022Date": "2026-10-21",
+       "code1022Time": "12:05:57",
+       "code1022Epoch": "1792609557"
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C32VA-0002-2026-10-26-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "",
+      "beginFreeFormDescription": "pm 6.5",
+      "beginNearbyPlace": "Chico",
+      "beginLongitude": "-121.879118",
+      "beginLatitude": "39.740288",
+      "beginElevation": "173",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "S",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "6.500",
+      "beginAlignment": "",
+      "beginMilepost": "Not Reported"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "",
+      "endFreeFormDescription": "pm 6.9",
+      "endNearbyPlace": "Chico",
+      "endLongitude": "-121.872300",
+      "endLatitude": "39.737354",
+      "endElevation": "177",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "S",
+      "endPostmilePrefix": "",
+      "endPostmile": "6.900",
+      "endAlignment": "",
+      "endMilepost": "Not Reported"
+     }
+    },
+    "closure": {
+     "closureID": "C32VA",
+     "logNumber": "2",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-21",
+      "closureRequestTime": "09:37:42",
+      "closureRequestEpoch": "1792600662",
+      "closureStartDate": "2026-10-26",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793023260",
+      "closureEndDate": "2026-10-26",
+      "closureEndTime": "16:59:00",
+      "closureEndEpoch": "1793059140",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Sign Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "10",
+     "lanesClosed": "1",
+     "totalExistingLanes": "3",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C32VA-0003-2026-10-27-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "",
+      "beginFreeFormDescription": "pm 6.5",
+      "beginNearbyPlace": "Chico",
+      "beginLongitude": "-121.879118",
+      "beginLatitude": "39.740288",
+      "beginElevation": "173",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "S",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "6.500",
+      "beginAlignment": "",
+      "beginMilepost": "Not Reported"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "",
+      "endFreeFormDescription": "pm 6.9",
+      "endNearbyPlace": "Chico",
+      "endLongitude": "-121.872300",
+      "endLatitude": "39.737354",
+      "endElevation": "177",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "S",
+      "endPostmilePrefix": "",
+      "endPostmile": "6.900",
+      "endAlignment": "",
+      "endMilepost": "Not Reported"
+     }
+    },
+    "closure": {
+     "closureID": "C32VA",
+     "logNumber": "3",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-21",
+      "closureRequestTime": "09:37:55",
+      "closureRequestEpoch": "1792600675",
+      "closureStartDate": "2026-10-27",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793109660",
+      "closureEndDate": "2026-10-27",
+      "closureEndTime": "16:59:00",
+      "closureEndEpoch": "1793145540",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Sign Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "10",
+     "lanesClosed": "1",
+     "totalExistingLanes": "3",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C32VA-0004-2026-10-28-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "",
+      "beginFreeFormDescription": "pm 6.5",
+      "beginNearbyPlace": "Chico",
+      "beginLongitude": "-121.879118",
+      "beginLatitude": "39.740288",
+      "beginElevation": "173",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "S",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "6.500",
+      "beginAlignment": "",
+      "beginMilepost": "Not Reported"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "",
+      "endFreeFormDescription": "pm 6.9",
+      "endNearbyPlace": "Chico",
+      "endLongitude": "-121.872300",
+      "endLatitude": "39.737354",
+      "endElevation": "177",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "S",
+      "endPostmilePrefix": "",
+      "endPostmile": "6.900",
+      "endAlignment": "",
+      "endMilepost": "Not Reported"
+     }
+    },
+    "closure": {
+     "closureID": "C32VA",
+     "logNumber": "4",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-21",
+      "closureRequestTime": "09:38:09",
+      "closureRequestEpoch": "1792600689",
+      "closureStartDate": "2026-10-28",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793196060",
+      "closureEndDate": "2026-10-28",
+      "closureEndTime": "16:59:00",
+      "closureEndEpoch": "1793231940",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Sign Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "10",
+     "lanesClosed": "1",
+     "totalExistingLanes": "3",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C32VA-0005-2026-10-29-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "",
+      "beginFreeFormDescription": "pm 6.5",
+      "beginNearbyPlace": "Chico",
+      "beginLongitude": "-121.879118",
+      "beginLatitude": "39.740288",
+      "beginElevation": "173",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "S",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "6.500",
+      "beginAlignment": "",
+      "beginMilepost": "Not Reported"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "",
+      "endFreeFormDescription": "pm 6.9",
+      "endNearbyPlace": "Chico",
+      "endLongitude": "-121.872300",
+      "endLatitude": "39.737354",
+      "endElevation": "177",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "S",
+      "endPostmilePrefix": "",
+      "endPostmile": "6.900",
+      "endAlignment": "",
+      "endMilepost": "Not Reported"
+     }
+    },
+    "closure": {
+     "closureID": "C32VA",
+     "logNumber": "5",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-21",
+      "closureRequestTime": "09:38:27",
+      "closureRequestEpoch": "1792600707",
+      "closureStartDate": "2026-10-29",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793282460",
+      "closureEndDate": "2026-10-29",
+      "closureEndTime": "16:59:00",
+      "closureEndEpoch": "1793318340",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Sign Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "10",
+     "lanesClosed": "1",
+     "totalExistingLanes": "3",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C32VA-0006-2026-10-30-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "East",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "",
+      "beginFreeFormDescription": "pm 6.5",
+      "beginNearbyPlace": "Chico",
+      "beginLongitude": "-121.879118",
+      "beginLatitude": "39.740288",
+      "beginElevation": "173",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-32",
+      "beginRouteSuffix": "S",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "6.500",
+      "beginAlignment": "",
+      "beginMilepost": "Not Reported"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "",
+      "endFreeFormDescription": "pm 6.9",
+      "endNearbyPlace": "Chico",
+      "endLongitude": "-121.872300",
+      "endLatitude": "39.737354",
+      "endElevation": "177",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-32",
+      "endRouteSuffix": "S",
+      "endPostmilePrefix": "",
+      "endPostmile": "6.900",
+      "endAlignment": "",
+      "endMilepost": "Not Reported"
+     }
+    },
+    "closure": {
+     "closureID": "C32VA",
+     "logNumber": "6",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-21",
+      "closureRequestTime": "09:38:40",
+      "closureRequestEpoch": "1792600720",
+      "closureStartDate": "2026-10-30",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793368860",
+      "closureEndDate": "2026-10-30",
+      "closureEndTime": "16:59:00",
+      "closureEndEpoch": "1793404740",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Sign Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "10",
+     "lanesClosed": "1",
+     "totalExistingLanes": "3",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0001-2026-10-26-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Toland Rd",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688892",
+      "beginLatitude": "39.505499",
+      "beginElevation": "121",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "14.170",
+      "beginAlignment": "",
+      "beginMilepost": "358.973"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Badger Creek Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688624",
+      "endLatitude": "39.487035",
+      "endElevation": "111",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "12.665",
+      "endAlignment": "",
+      "endMilepost": "357.468"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "1",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-20",
+      "closureRequestTime": "06:04:20",
+      "closureRequestEpoch": "1792501460",
+      "closureStartDate": "2026-10-26",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793023260",
+      "closureEndDate": "2026-10-26",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1793059260",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0002-2026-10-27-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Toland Rd",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688892",
+      "beginLatitude": "39.505499",
+      "beginElevation": "121",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "14.170",
+      "beginAlignment": "",
+      "beginMilepost": "358.973"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Badger Creek Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688624",
+      "endLatitude": "39.487035",
+      "endElevation": "111",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "12.665",
+      "endAlignment": "",
+      "endMilepost": "357.468"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "2",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-20",
+      "closureRequestTime": "06:04:20",
+      "closureRequestEpoch": "1792501460",
+      "closureStartDate": "2026-10-27",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793109660",
+      "closureEndDate": "2026-10-27",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1793145660",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0003-2026-10-28-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Toland Rd",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688892",
+      "beginLatitude": "39.505499",
+      "beginElevation": "121",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "14.170",
+      "beginAlignment": "",
+      "beginMilepost": "358.973"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Badger Creek Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688624",
+      "endLatitude": "39.487035",
+      "endElevation": "111",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "12.665",
+      "endAlignment": "",
+      "endMilepost": "357.468"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "3",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-20",
+      "closureRequestTime": "06:04:20",
+      "closureRequestEpoch": "1792501460",
+      "closureStartDate": "2026-10-28",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793196060",
+      "closureEndDate": "2026-10-28",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1793232060",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0004-2026-10-29-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Toland Rd",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688892",
+      "beginLatitude": "39.505499",
+      "beginElevation": "121",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "14.170",
+      "beginAlignment": "",
+      "beginMilepost": "358.973"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Badger Creek Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688624",
+      "endLatitude": "39.487035",
+      "endElevation": "111",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "12.665",
+      "endAlignment": "",
+      "endMilepost": "357.468"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "4",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-20",
+      "closureRequestTime": "06:04:20",
+      "closureRequestEpoch": "1792501460",
+      "closureStartDate": "2026-10-29",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793282460",
+      "closureEndDate": "2026-10-29",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1793318460",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0005-2026-10-23-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Nelson Ave",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688865",
+      "beginLatitude": "39.523098",
+      "beginElevation": "124",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "15.160",
+      "beginAlignment": "",
+      "beginMilepost": "359.963"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Toland Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688951",
+      "endLatitude": "39.508812",
+      "endElevation": "121",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "14.170",
+      "endAlignment": "",
+      "endMilepost": "358.973"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "5",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-13",
+      "closureRequestTime": "14:42:41",
+      "closureRequestEpoch": "1791927761",
+      "closureStartDate": "2026-10-23",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1792764060",
+      "closureEndDate": "2026-10-23",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1792800060",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "true",
+      "code1097Timestamp": {
+       "code1097Date": "2026-10-23",
+       "code1097Time": "07:00:58",
+       "code1097Epoch": "1792764058"
+      }
+     },
+     "code1098": {
+      "isCode1098": "true",
+      "code1098Timestamp": {
+       "code1098Date": "2026-10-23",
+       "code1098Time": "17:06:43",
+       "code1098Epoch": "1792800403"
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C99LA-0005-2026-10-30-07:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "South",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Toland Rd",
+      "beginFreeFormDescription": "Start closure",
+      "beginNearbyPlace": "Oroville",
+      "beginLongitude": "-121.688892",
+      "beginLatitude": "39.505499",
+      "beginElevation": "121",
+      "beginDirection": "",
+      "beginCounty": "Butte",
+      "beginRoute": "SR-99",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "14.170",
+      "beginAlignment": "",
+      "beginMilepost": "358.973"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Badger Creek Rd",
+      "endFreeFormDescription": "Ending closure",
+      "endNearbyPlace": "Oroville",
+      "endLongitude": "-121.688624",
+      "endLatitude": "39.487035",
+      "endElevation": "111",
+      "endDirection": "",
+      "endCounty": "Butte",
+      "endRoute": "SR-99",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "12.665",
+      "endAlignment": "",
+      "endMilepost": "357.468"
+     }
+    },
+    "closure": {
+     "closureID": "C99LA",
+     "logNumber": "5",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-20",
+      "closureRequestTime": "06:04:20",
+      "closureRequestEpoch": "1792501460",
+      "closureStartDate": "2026-10-30",
+      "closureStartTime": "07:01:00",
+      "closureStartEpoch": "1793368860",
+      "closureEndDate": "2026-10-30",
+      "closureEndTime": "17:01:00",
+      "closureEndEpoch": "1793404860",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Conventional Hwy",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Drilling",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "RShoulder",
+     "totalExistingLanes": "2",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C5BB-0001-2026-10-23-21:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "North",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "25th Ave",
+      "beginFreeFormDescription": "",
+      "beginNearbyPlace": "Sacramento",
+      "beginLongitude": "-121.517051",
+      "beginLatitude": "38.533955",
+      "beginElevation": "26",
+      "beginDirection": "",
+      "beginCounty": "Sacramento",
+      "beginRoute": "I-5",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "19.954",
+      "beginAlignment": "",
+      "beginMilepost": "515.032"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Broadway",
+      "endFreeFormDescription": "",
+      "endNearbyPlace": "Sacramento",
+      "endLongitude": "-121.512286",
+      "endLatitude": "38.566949",
+      "endElevation": "26",
+      "endDirection": "",
+      "endCounty": "Sacramento",
+      "endRoute": "I-5",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "22.436",
+      "endAlignment": "",
+      "endMilepost": "517.514"
+     }
+    },
+    "closure": {
+     "closureID": "C5BB",
+     "logNumber": "1",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-12",
+      "closureRequestTime": "14:46:34",
+      "closureRequestEpoch": "1791841594",
+      "closureStartDate": "2026-10-23",
+      "closureStartTime": "21:01:00",
+      "closureStartEpoch": "1792814460",
+      "closureEndDate": "2026-10-24",
+      "closureEndTime": "04:59:00",
+      "closureEndEpoch": "1792843140",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Utility Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "4, RShoulder",
+     "totalExistingLanes": "4",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "true",
+      "code1097Timestamp": {
+       "code1097Date": "2026-10-23",
+       "code1097Time": "20:40:55",
+       "code1097Epoch": "1792813255"
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C5BB-0001-2026-10-30-21:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "North",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Sutterville Rd",
+      "beginFreeFormDescription": "",
+      "beginNearbyPlace": "Sacramento",
+      "beginLongitude": "-121.510706",
+      "beginLatitude": "38.540665",
+      "beginElevation": "32",
+      "beginDirection": "",
+      "beginCounty": "Sacramento",
+      "beginRoute": "I-5",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "20.534",
+      "beginAlignment": "",
+      "beginMilepost": "515.612"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Broadway",
+      "endFreeFormDescription": "",
+      "endNearbyPlace": "Sacramento",
+      "endLongitude": "-121.512286",
+      "endLatitude": "38.566949",
+      "endElevation": "26",
+      "endDirection": "",
+      "endCounty": "Sacramento",
+      "endRoute": "I-5",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "22.436",
+      "endAlignment": "",
+      "endMilepost": "517.514"
+     }
+    },
+    "closure": {
+     "closureID": "C5BB",
+     "logNumber": "1",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-19",
+      "closureRequestTime": "15:09:47",
+      "closureRequestEpoch": "1792447787",
+      "closureStartDate": "2026-10-30",
+      "closureStartTime": "21:01:00",
+      "closureStartEpoch": "1793419260",
+      "closureEndDate": "2026-10-31",
+      "closureEndTime": "04:59:00",
+      "closureEndEpoch": "1793447940",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Utility Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "4, RShoulder",
+     "totalExistingLanes": "4",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  },
+  {
+   "lcs": {
+    "index": "C5BB-0002-2026-10-26-21:01:00",
+    "recordTimestamp": {
+     "recordDate": "2026-10-23",
+     "recordTime": "21:23:02",
+     "recordEpoch": "1792815782"
+    },
+    "location": {
+     "travelFlowDirection": "North",
+     "begin": {
+      "beginDistrict": "3",
+      "beginLocationName": "Sutterville Rd",
+      "beginFreeFormDescription": "",
+      "beginNearbyPlace": "Sacramento",
+      "beginLongitude": "-121.510706",
+      "beginLatitude": "38.540665",
+      "beginElevation": "32",
+      "beginDirection": "",
+      "beginCounty": "Sacramento",
+      "beginRoute": "I-5",
+      "beginRouteSuffix": "",
+      "beginPostmilePrefix": "",
+      "beginPostmile": "20.534",
+      "beginAlignment": "",
+      "beginMilepost": "515.612"
+     },
+     "end": {
+      "endDistrict": "3",
+      "endLocationName": "Broadway",
+      "endFreeFormDescription": "",
+      "endNearbyPlace": "Sacramento",
+      "endLongitude": "-121.512286",
+      "endLatitude": "38.566949",
+      "endElevation": "26",
+      "endDirection": "",
+      "endCounty": "Sacramento",
+      "endRoute": "I-5",
+      "endRouteSuffix": "",
+      "endPostmilePrefix": "",
+      "endPostmile": "22.436",
+      "endAlignment": "",
+      "endMilepost": "517.514"
+     }
+    },
+    "closure": {
+     "closureID": "C5BB",
+     "logNumber": "2",
+     "closureTimestamp": {
+      "closureRequestDate": "2026-10-19",
+      "closureRequestTime": "15:09:20",
+      "closureRequestEpoch": "1792447760",
+      "closureStartDate": "2026-10-26",
+      "closureStartTime": "21:01:00",
+      "closureStartEpoch": "1793073660",
+      "closureEndDate": "2026-10-27",
+      "closureEndTime": "04:59:00",
+      "closureEndEpoch": "1793102340",
+      "isClosureEndIndefinite": "false"
+     },
+     "facility": "Mainline",
+     "typeOfClosure": "Lane",
+     "typeOfWork": "Utility Work",
+     "durationOfClosure": "Standard",
+     "estimatedDelay": "Not Reported",
+     "lanesClosed": "4, RShoulder",
+     "totalExistingLanes": "4",
+     "isCHINReportable": "false",
+     "code1097": {
+      "isCode1097": "false",
+      "code1097Timestamp": {
+       "code1097Date": "",
+       "code1097Time": "",
+       "code1097Epoch": ""
+      }
+     },
+     "code1098": {
+      "isCode1098": "false",
+      "code1098Timestamp": {
+       "code1098Date": "",
+       "code1098Time": "",
+       "code1098Epoch": ""
+      }
+     },
+     "code1022": {
+      "isCode1022": "false",
+      "code1022Timestamp": {
+       "code1022Date": "",
+       "code1022Time": "",
+       "code1022Epoch": ""
+      }
+     }
+    }
+   }
+  }
+ ]
+}

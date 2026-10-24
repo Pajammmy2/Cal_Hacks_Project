@@ -1,0 +1,41 @@
+{% set S = text.sections or {} %}
+{% set l2 = text.language %}
+<div class="row" style="justify-content:space-between">
+  <h2 style="margin:0">Plan text</h2>
+  <button class="small" hx-post="/clients/{{ row.id }}/regenerate" hx-target="#text-panel"
+          hx-indicator="#regen-ind">Regenerate text</button>
+</div>
+<p class="muted" style="margin:4px 0">
+  Reading-level target: grade {{ text.target_grade }}{% if text.readability %} · measured:
+  {% for k, g in text.readability.items() %}{{ k.replace('_en','').replace('_',' ') }} {{ g }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.
+  Click a sentence to edit it. <span id="regen-ind" class="htmx-indicator">Writing…</span>
+</p>
+{% if text.needs_review %}<p class="needs" role="alert">Needs review: the checks found differences. Read the red notes, fix the sentence, then stamp.</p>{% endif %}
+{% for i in text.issues if i.index is none %}
+  <p class="issue {{ 'warn' if i.severity == 'warn' }}" style="margin:2px 0">{{ i.section }}: {{ i.detail }}</p>
+{% endfor %}
+{% set titles = {'steps': 'Route A steps', 'steps_b': 'Route B steps', 'shelter': 'If you cannot move', 'devices': 'Your devices'} %}
+{% for sec in ['steps', 'steps_b', 'shelter', 'devices'] %}
+  {% set en = S.get(sec ~ '_en') or [] %}
+  {% set tr = S.get(sec ~ '_l2') %}
+  {% set back = (text.back or {}).get(sec ~ '_l2') or [] %}
+  {% if en or tr %}
+  <h3>{{ titles[sec] }}</h3>
+  <table class="text">
+    <thead><tr><th style="width:2em">#</th><th>English</th>{% if l2 %}<th>{{ text.language_label }}</th><th>Back-translation</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for n in range([en|length, (tr or [])|length]|max) %}
+      <tr>
+        <td>{{ n + 1 }}</td>
+        <td>{% if n < en|length %}{% with section=sec ~ '_en', idx=n, value=en[n] %}{% include "_sentence.html" %}{% endwith %}{% endif %}</td>
+        {% if l2 %}
+        <td>{% if tr is not none and n < tr|length %}{% with section=sec ~ '_l2', idx=n, value=tr[n] %}{% include "_sentence.html" %}{% endwith %}{% elif tr is none %}<span class="muted">none</span>{% endif %}</td>
+        <td>{% if n < back|length %}{{ back[n] }}{% endif %}
+          {% for i in text.issues if i.section == sec ~ '_l2' and i.index == n %}<div class="issue">needs review: {{ i.detail }}</div>{% endfor %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+{% endfor %}

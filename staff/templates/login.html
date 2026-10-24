@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Ember: locked{% endblock %}
+{% block main %}
+<h1>Enter the passphrase</h1>
+<form method="post" action="/login" style="max-width:420px">
+  <input type="hidden" name="next" value="{{ next }}">
+  <p><label for="pp">Passphrase</label><br><input id="pp" type="password" name="passphrase" autofocus autocomplete="current-password" style="width:100%"></p>
+  {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+  <button class="primary" type="submit">Open</button>
+</form>
+{% endblock %}

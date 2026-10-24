@@ -1,0 +1,27 @@
+{
+  "title": "County fire situation input",
+  "description": "Pick a California county. The actor returns current fire incidents, road closures, evacuation zone status and power outages for it.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "county": {
+      "title": "County",
+      "type": "string",
+      "editor": "textfield",
+      "description": "California county name, e.g. \"Butte\", \"Sonoma\" or \"Los Angeles\". \"Butte County\" and lowercase are accepted.",
+      "prefill": "Butte",
+      "example": "Sonoma"
+    },
+    "state": {
+      "title": "State",
+      "type": "string",
+      "editor": "select",
+      "description": "Only California is supported.",
+      "enum": ["CA"],
+      "enumTitles": ["California"],
+      "default": "CA",
+      "prefill": "CA"
+    }
+  },
+  "required": ["county", "state"]
+}

@@ -1,0 +1,60 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {
+      "type": {"type": "string", "const": "Feature"},
+      "geometry": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "const": "Point"},
+          "coordinates": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+        },
+        "required": ["type", "coordinates"]
+      },
+      "properties": {
+        "type": "object",
+        "properties": {
+          "place": {"type": "string"},
+          "kind": {"type": "string", "enum": ["parking lot", "lake", "field", "building", "road", "other"]},
+          "quotes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {"type": "string", "maxLength": 240},
+                "url": {"type": "string"},
+                "outlet": {"type": ["string", "null"]},
+                "date": {"type": ["string", "null"]}
+              },
+              "required": ["text", "url"]
+            }
+          },
+          "mentions": {"type": "integer"}
+        },
+        "required": ["place", "kind", "quotes", "mentions"]
+      }
+    },
+    "required": ["type", "geometry", "properties"]
+  },
+  "views": {
+    "overview": {
+      "title": "Refuge evidence",
+      "description": "One row per place where people sheltered and survived (points within 150 m merged).",
+      "transformation": {
+        "fields": ["properties", "geometry"],
+        "flatten": ["properties", "geometry"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "properties.place": {"label": "Place", "format": "text"},
+          "properties.kind": {"label": "Kind", "format": "text"},
+          "properties.mentions": {"label": "Mentions", "format": "number"},
+          "geometry.coordinates": {"label": "[lon, lat]", "format": "array"},
+          "properties.quotes": {"label": "Quotes (names removed)", "format": "array"}
+        }
+      }
+    }
+  }
+}

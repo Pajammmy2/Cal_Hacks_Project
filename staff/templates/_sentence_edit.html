@@ -1,0 +1,6 @@
+<form hx-post="/clients/{{ row.id }}/sentence/{{ section }}/{{ idx }}" hx-target="#text-panel" hx-swap="innerHTML">
+  <textarea name="value" rows="3" style="width:100%" aria-label="Sentence text" autofocus>{{ value }}</textarea>
+  <div class="row"><button class="small primary" type="submit">Save</button>
+    <button class="small" type="button" hx-get="/clients/{{ row.id }}/panel/text" hx-target="#text-panel">Cancel</button>
+    <span class="muted">Saving clears the stamp.</span></div>
+</form>

@@ -1,0 +1,17 @@
+{
+  "threshold": 1,
+  "intents": {
+    "blocked":    ["blocked", "block", "can't get through", "cant get through", "tree down", "road closed", "closed", "fire ahead", "no way through"],
+    "repeat":     ["repeat", "again", "what did you say", "say that again", "one more time"],
+    "slower":     ["slower", "slow down", "too fast", "speak slower"],
+    "louder":     ["louder", "can't hear", "cant hear", "speak up", "volume up"],
+    "pushing":    ["i'm pushing", "im pushing", "pushing", "i am pushing", "pushing the chair"],
+    "cant_move":  ["can't move", "cant move", "stuck", "can't go on", "cannot move", "we're trapped", "trapped"],
+    "where_am_i": ["where am i", "where are we", "what street", "location"],
+    "how_long":   ["how long", "how far", "how much longer", "how many minutes"],
+    "which_way":  ["which way", "what direction", "where do i go", "which direction"],
+    "stop":       ["stop", "pause", "wait", "hold on"],
+    "yes":        ["yes", "yeah", "yep", "correct", "do it", "okay", "ok"],
+    "no":         ["no", "nope", "cancel", "don't", "dont"]
+  }
+}

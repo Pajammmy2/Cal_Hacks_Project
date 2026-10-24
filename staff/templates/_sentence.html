@@ -1,0 +1,3 @@
+<div class="sent {{ 'edited' if (section ~ ':' ~ idx) in (text.edited or []) }}" tabindex="0" role="button"
+     aria-label="Edit sentence"
+     hx-get="/clients/{{ row.id }}/sentence/{{ section }}/{{ idx }}/edit" hx-trigger="click, keyup[key=='Enter']" hx-swap="outerHTML">{{ value }}</div>

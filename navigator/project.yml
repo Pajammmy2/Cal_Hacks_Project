@@ -1,0 +1,53 @@
+# XcodeGen: `brew install xcodegen && cd navigator && xcodegen` -> EmberNavigator.xcodeproj
+name: EmberNavigator
+options:
+  bundleIdPrefix: org.ember
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  EmberNavigator:
+    path: .
+targets:
+  EmberNavigator:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: EmberNavigator
+        excludes: ["Info.plist"]
+      # shared/*.json from the repo root, copied flat into the app bundle (fallback when a bundle lacks shared/)
+      - path: ../shared
+        buildPhase: resources
+        type: group
+    dependencies:
+      - package: EmberNavigator
+        product: EmberApp
+      - package: EmberNavigator
+        product: EmberCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.ember.navigator
+        PRODUCT_NAME: Ember
+        INFOPLIST_FILE: EmberNavigator/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+  # Swift Testing suites; they read bundles/fake and engine/tests/parity from the repo, so run them on the Simulator.
+  EmberCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Tests/EmberCoreTests
+    dependencies:
+      - package: EmberNavigator
+        product: EmberCore
+schemes:
+  EmberNavigator:
+    build:
+      targets:
+        EmberNavigator: all
+    test:
+      targets:
+        - EmberCoreTests

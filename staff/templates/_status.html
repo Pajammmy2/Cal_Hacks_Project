@@ -1,0 +1,30 @@
+{% set st = row.status %}
+<div class="row" style="justify-content:space-between">
+  <h2 style="margin:0">Stamp and print</h2>
+  <span class="badge {{ st }}">{{ st }}</span>
+</div>
+<p style="margin:6px 0">
+  Text: {% if text.source == 'claude' %}Claude plan writer ({{ text.model }}){% else %}engine templated steps{% endif %}.
+  {% if text.error %}<span class="warn">{{ text.error }}</span>{% endif %}
+  {% if text.needs_review %}<br><span class="needs">Needs review: see the red notes below.</span>{% endif %}
+</p>
+{% if st in ('stamped', 'printed') %}
+  <p>Reviewed by <b>{{ row.reviewed_by }}</b> on <b>{{ row.reviewed_at[:10] }}</b>{% if row.attested %} · read every sentence{% endif %}.
+  Any edit, regeneration or swap clears this stamp.</p>
+  <div class="row">
+    <a class="btn primary" href="/clients/{{ row.id }}/print" target="_blank">Print card (PDF)</a>
+    <button class="small" hx-post="/clients/{{ row.id }}/unstamp" hx-target="#status-panel">Remove stamp</button>
+  </div>
+{% else %}
+  <form hx-post="/clients/{{ row.id }}/stamp" hx-target="#status-panel" class="row" style="align-items:flex-end">
+    <p style="margin:0"><label for="rb">Reviewed by</label><br><input id="rb" type="text" name="reviewed_by" required placeholder="Your name"></p>
+    {% if p.cognition == 'simple_steps' %}
+    <p style="margin:0"><label><input type="checkbox" name="attest" value="1" required> I read every sentence.</label><br>
+      <span class="muted">Required: this client needs simple steps.</span></p>
+    {% endif %}
+    <button class="primary" type="submit">Set stamp</button>
+  </form>
+  <p class="muted" style="margin:6px 0 0">The date is set when you stamp.</p>
+  <p style="margin-top:8px"><button class="primary" disabled title="Stamp the card first">Print card (PDF)</button>
+    <span class="muted">Print is disabled until the card is stamped.</span></p>
+{% endif %}

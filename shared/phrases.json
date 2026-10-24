@@ -1,0 +1,65 @@
+{
+  "fixed": [
+    "Say again?",
+    "Leave now.",
+    "Rerouting.",
+    "Yes.",
+    "No.",
+    "Okay.",
+    "Stopped. Speak or tap a button when you are ready.",
+    "No route. Stay where you are. Start the shelter steps.",
+    "Point the phone at the smoke and tap.",
+    "You are almost there.",
+    "Going slower.",
+    "Louder.",
+    "Switching to pushed chair.",
+    "Switching to solo.",
+    "Call 911 and say the room.",
+    "Fire data is old. Point the phone at the smoke.",
+    "Keep the phone on.",
+    "Switching to pushed chair. Say yes to reroute.",
+    "Switching to solo. Say yes to reroute.",
+    "Find a new route? Say yes to reroute."
+  ],
+  "templates": {
+    "fire_dir": "Fire is to the {direction}. OK?",
+    "blocking": "Blocking {street}. Say yes to reroute.",
+    "blocking_cross": "Blocking {street} at {cross_street}. Say yes to reroute.",
+    "where": "You are on {street}.",
+    "how_long": "{n} minutes to go.",
+    "which_way": "Go {direction}.",
+    "choose": "Go to {refuge}. {n} minutes.",
+    "or_b": "Or {refuge}. {n} minutes.",
+    "leave_now_dev": "Leave now. {device} has {n} minutes left."
+  },
+  "fragments": {
+    "keep_blocks": [
+      "Keep going on {street} for",
+      "{n}",
+      "blocks."
+    ],
+    "keep_meters": [
+      "Keep going on {street} for",
+      "{n}",
+      "meters."
+    ],
+    "downhill": [
+      "Downhill for",
+      "{n}",
+      "meters."
+    ],
+    "uphill": [
+      "Uphill for",
+      "{n}",
+      "meters."
+    ],
+    "how_long": [
+      "{n}",
+      "minutes to go."
+    ]
+  },
+  "numbers": {
+    "from": 1,
+    "to": 500
+  }
+}

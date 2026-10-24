@@ -1,0 +1,44 @@
+{
+ "zone": {
+  "id": 71105608,
+  "countyId": 107,
+  "cityAbbr": "PVL",
+  "countyAbbr": "XTU",
+  "stateAbbr": "CA",
+  "countyName": "Tulare",
+  "alertSubscriptionUl": null,
+  "cityName": "Porterville",
+  "fireAgencyName": "Porterville Fire Department",
+  "fireAgencyIcon": "https://seals.zonehaven.com/us/states/ca/counties/xtu/fire/fire_portervillefd.jpeg",
+  "lawAgencyName": "Porterville Police Department",
+  "lawAgencyIcon": "https://seals.zonehaven.com/us/states/ca/counties/xtu/law/law_portervillepd.jpg",
+  "status": "Evacuation Order",
+  "statusColor": "#D37072",
+  "statusDescription": "Immediate threat to life. This is a lawful order to leave now. The area is lawfully closed to public access.",
+  "statusDescriptionTitle": "",
+  "critical": true,
+  "createdAt": "2023-03-21T22:28:39.357Z",
+  "updatedAt": "2023-09-20T22:33:08.543Z",
+  "updatedBy": "Kevin",
+  "specialConsiderations": null,
+  "layerId": 1,
+  "layerName": "Genasys",
+  "identifier": "US-CA-XTU-PVL-E039",
+  "statusReason": "Flooding",
+  "boundaries": {
+   "en": {
+    "eastOf": "Grace Cir, S 3rd Pl",
+    "westOf": "Rio Vista Ave, S Plano St",
+    "northOf": "S Roche St",
+    "southOf": "Rio Vista Ave"
+   }
+  },
+  "countyWebsite": null,
+  "countyAlerts": null,
+  "commonlyknownas": null,
+  "longitude": "-119.01146299824734",
+  "latitude": "36.05581358234236",
+  "bbox": "BOX(-119.016639887874 36.0549459513707,-119.007935344969 36.0564787732026)",
+  "parentZones": null
+ }
+}

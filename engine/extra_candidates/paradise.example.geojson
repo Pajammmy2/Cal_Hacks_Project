@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "amenity": "parking",
+        "name": "Walgreens",
+        "reviewed_by": "YOUR NAME",
+        "source": "traced from satellite imagery",
+        "note": "Walgreens, 7576 Skyway at Bille Rd, Paradise. Replace these coordinates with the traced lot outline."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.6125, 39.7695], [-121.6115, 39.7695], [-121.6115, 39.7702], [-121.6125, 39.7702], [-121.6125, 39.7695]]]
+      }
+    }
+  ]
+}

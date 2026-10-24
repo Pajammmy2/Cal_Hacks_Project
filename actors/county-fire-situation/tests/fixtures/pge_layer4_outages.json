@@ -1,0 +1,3 @@
+{"geometryType": "esriGeometryPoint", "spatialReference": {"wkid": 4326}, "features": [
+ {"attributes": {"OUTAGE_ID": "386926", "CURRENT_ETOR": 1792823400000, "EST_CUSTOMERS": 6, "OUTAGE_CAUSE": "PATROLLING", "OUTAGE_START": 1792768626000, "LAST_UPDATE": 1792790409000}, "geometry": {"x": -121.84, "y": 39.73}}
+]}

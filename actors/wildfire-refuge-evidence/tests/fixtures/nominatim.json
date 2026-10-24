@@ -1,0 +1,8 @@
+{
+  "kmart parking lot on clark road, butte county, california": [{"lat": "39.7593", "lon": "-121.6218", "display_name": "Kmart, Clark Road, Paradise"}],
+  "kmart lot in paradise, butte county, california": [{"lat": "39.7598", "lon": "-121.6222", "display_name": "Kmart, Paradise"}],
+  "lake concow, butte county, california": [{"lat": "39.7765", "lon": "-121.5039", "display_name": "Lake Concow"}],
+  "walgreens parking lot on clark road, butte county, california": [{"lat": "39.7470", "lon": "-121.6045", "display_name": "Walgreens, Clark Road"}],
+  "sacramento convention center, butte county, california": [],
+  "sacramento convention center": [{"lat": "38.5776", "lon": "-121.4944", "display_name": "SAFE Credit Union Convention Center"}]
+}

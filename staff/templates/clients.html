@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Ember: clients{% endblock %}
+{% block main %}
+{% if msg %}<div class="flash" role="status">{{ msg }}</div>{% endif %}
+<div class="row" style="justify-content:space-between">
+  <h1>Clients <span class="muted" style="font-weight:400">({{ rows|length }})</span></h1>
+  <div class="row">
+    <a class="btn primary" href="/clients/new">Add client</a>
+    <form method="post" action="/clients/import" enctype="multipart/form-data" class="row" style="margin:0">
+      <label for="csv" class="muted" style="font-weight:400">Registry CSV</label>
+      <input id="csv" type="file" name="file" accept=".csv,text/csv" required>
+      <button type="submit">Import CSV</button>
+    </form>
+    <form method="post" action="/clients/run-all" style="margin:0" class="row"
+          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Running…'">
+      <label class="muted" style="font-weight:400"><input type="checkbox" name="include_stamped" value="1"> include stamped</label>
+      <button type="submit">Run all</button>
+    </form>
+  </div>
+</div>
+<p class="muted">
+  County feed:
+  {% if feed.state == 'none' %}no feed (set APIFY_SITUATION_DATASET_ID)
+  {% elif feed.state == 'error' %}<span class="warn">feed unreachable, no cached copy</span>
+  {% else %}fire situation from {{ feed_age }}{% if feed.state == 'cached' %} <span class="warn">(cached; live fetch failed)</span>{% endif %}
+  {% endif %}
+  · CSV columns: <a href="/sample_registry.csv">sample_registry.csv</a>
+</p>
+<table class="grid">
+  <thead><tr><th>Name</th><th>Address</th><th>Mobility</th><th>Devices</th><th>Card</th><th>Last reviewed</th><th>Zone</th><th>Outage</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    {% set p = r.profile %}
+    <tr>
+      <td><a href="/clients/{{ r.id }}/{{ 'review' if r.plan else 'edit' }}"><b>{{ p.name }}</b></a>
+        {% if p.cognition == 'simple_steps' %}<br><span class="muted">simple steps</span>{% endif %}
+        {% if p.language and p.language != 'en' %}<br><span class="muted">{{ card.LANG.get(p.language) }}{% if p.language_other %} ({{ p.language_other }}){% endif %}</span>{% endif %}</td>
+      <td>{{ p.address or '' }}{% if p.lat is not none %}<br><span class="muted">{{ p.lat }}, {{ p.lon }}</span>{% endif %}
+        {% if r.plan_error %}<br><span class="err">{{ r.plan_error }}</span>{% endif %}</td>
+      <td>{{ card.MOBILITY.get(p.mobility, p.mobility) }}</td>
+      <td>{% for d in p.devices %}{{ card.device_label(d) }}{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">none</span>{% endfor %}</td>
+      <td><span class="badge {{ r.status }}">{{ r.status }}</span>
+        {% if r.text and r.text.needs_review %}<br><span class="needs">needs review</span>{% endif %}</td>
+      <td>{% if r.reviewed_at %}{{ r.reviewed_at[:10] }}<br><span class="muted">{{ r.reviewed_by }}</span>{% else %}<span class="muted">never</span>{% endif %}</td>
+      <td>{{ p.zone or '' }}{% if feed.state in ('live','cached') %}<br>{% if r.zone_status %}<span class="badge {{ r.zone_status }}">{{ r.zone_status }}</span>{% else %}<span class="muted">no status</span>{% endif %}{% endif %}</td>
+      <td>{% if feed.state in ('live','cached') %}{% if r.outage %}<span class="badge order">{{ r.outage.kind or 'outage' }}</span>{% if r.outage.est_restore %}<br><span class="muted">until {{ r.outage.est_restore }}</span>{% endif %}{% else %}<span class="muted">no</span>{% endif %}{% else %}<span class="muted">no feed</span>{% endif %}</td>
+      <td><a class="btn small" href="/clients/{{ r.id }}/edit">Edit</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">No clients yet. Add one, or import the registry CSV.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

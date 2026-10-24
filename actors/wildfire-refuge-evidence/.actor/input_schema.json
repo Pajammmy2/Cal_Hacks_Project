@@ -1,0 +1,68 @@
+{
+  "title": "Wildfire Refuge Evidence input",
+  "description": "Name a past wildfire and its year. The actor searches public news articles and Reddit for places where people sheltered and survived, and returns them as geocoded GeoJSON points with quotes.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "fire_name": {
+      "title": "Fire name",
+      "type": "string",
+      "editor": "textfield",
+      "description": "The fire's common name as used in news coverage, e.g. \"Camp Fire\" or \"Tubbs Fire\". Used verbatim in the search query \"<fire_name>\" survived OR sheltered OR \"took refuge\".",
+      "prefill": "Camp Fire",
+      "example": "Tubbs Fire"
+    },
+    "year": {
+      "title": "Year",
+      "type": "integer",
+      "editor": "number",
+      "description": "Year the fire started. Used to find the official perimeter (CAL FIRE FRAP / NIFC) and to give the extractor context.",
+      "prefill": 2018,
+      "example": 2017,
+      "minimum": 1900,
+      "maximum": 2100
+    },
+    "region_hint": {
+      "title": "Region hint",
+      "type": "string",
+      "editor": "textfield",
+      "description": "Optional. Appended to geocoding queries to bias results, e.g. \"Butte County, California\" or \"Santa Rosa, California\".",
+      "prefill": "Butte County, California",
+      "example": "Sonoma County, California"
+    },
+    "max_pages": {
+      "title": "Max pages",
+      "type": "integer",
+      "editor": "number",
+      "description": "Maximum number of pages (news articles plus Reddit posts) read and sent to extraction. About three quarters go to news articles, one quarter to Reddit posts. Lower it for a fast, cheap sample run.",
+      "default": 60,
+      "prefill": 60,
+      "example": 10,
+      "minimum": 1,
+      "maximum": 500
+    },
+    "perimeter_centroid": {
+      "title": "Perimeter centroid (optional)",
+      "type": "object",
+      "editor": "json",
+      "sectionCaption": "Advanced",
+      "description": "Optional {\"lat\": number, \"lon\": number}. Overrides the automatic CAL FIRE FRAP / NIFC perimeter lookup for the 50 km rule. Useful for fires outside California or not yet in FRAP.",
+      "example": {"lat": 39.7522, "lon": -121.5597}
+    },
+    "use_frap_perimeter": {
+      "title": "Look up fire perimeter",
+      "type": "boolean",
+      "editor": "checkbox",
+      "description": "Look up the fire perimeter in CAL FIRE FRAP (then NIFC) and keep only points within 50 km of its centroid. When no perimeter is found the filter is skipped and summary.json says so.",
+      "default": true
+    },
+    "anthropic_api_key": {
+      "title": "Anthropic API key (optional)",
+      "type": "string",
+      "editor": "textfield",
+      "isSecret": true,
+      "description": "Your Anthropic API key for the Claude extraction step. Optional when the actor has an ANTHROPIC_API_KEY environment variable."
+    }
+  },
+  "required": ["fire_name", "year"]
+}

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="{{ 'es' if H.leave.startswith('1. Salga') else 'en' }}">
+<head>
+<meta charset="utf-8">
+<title>Plan card: {{ p.name }}</title>
+<style>
+  @page { size: Letter; margin: {{ L.margin }}in; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; color: #000; margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: {{ body_pt }}pt; line-height: {{ L.lh }}; }
+  .sheet { width: {{ 8.5 - 2 * L.margin }}in; margin: 0 auto; }
+  {% if not for_print %}
+  .sheet { width: 8.5in; padding: {{ L.margin }}in; }
+  .page { min-height: {{ 11 - 2 * L.margin }}in; }
+  .page.front { border-bottom: 3px dashed #888; margin-bottom: {{ L.margin * 2 }}in; padding-bottom: 0.1in; }
+  {% if scale and scale != 1 %}body { zoom: {{ scale }}; }{% endif %}
+  {% endif %}
+  h1, h2 { font-size: {{ head_pt }}pt; line-height: 1.1; margin: 0; font-weight: 800; }
+  h2 { margin-top: {{ L.h2_top }}in; border-bottom: 3px solid #000; padding-bottom: 1pt; margin-bottom: {{ L.gap + 1 }}pt;
+       display: flex; justify-content: space-between; align-items: baseline; gap: 0.15in; }
+  h2 .aside { font-size: {{ body_pt }}pt; font-weight: 400; }
+  p { margin: 0 0 {{ L.gap }}pt 0; }
+  ol, ul { margin: 0; padding-left: 1.25em; }
+  li { margin: 0 0 {{ L.gap }}pt 0; }
+  .who { display: flex; justify-content: space-between; align-items: baseline; gap: 0.2in; }
+  .tag { border: 2px solid #000; padding: 0 6pt; white-space: nowrap; }
+  .refuge { display: grid; gap: 0.14in; align-items: start; margin-top: {{ L.gap + 2 }}pt; }
+  .refuge.a { grid-template-columns: {{ L.img_a }}in 1fr; }
+  .refuge.b { grid-template-columns: {{ L.img_b }}in 1fr; }
+  {% if L.flow %}
+  /* deepest levels: steps flow beside and then under the photo, reclaiming the column below it */
+  .refuge { display: flow-root; }
+  .refuge > .imgbox { float: left; margin: 0 0.14in 0.06in 0; }
+  .refuge.a > .imgbox { width: {{ L.img_a }}in; }
+  .refuge.b > .imgbox { width: {{ L.img_b }}in; }
+  .refuge > div:last-child { display: block; }
+  p.step { margin: 0 0 {{ L.gap }}pt 0; }
+  {% endif %}
+  .rname { font-weight: 800; margin-bottom: {{ L.gap }}pt; line-height: 1.15; }
+  .refuge.a .rname { font-size: {{ body_pt + 4 }}pt; }
+  .refuge.b .rname { font-size: {{ body_pt + 1 }}pt; }
+  .imgbox { position: relative; width: 100%; aspect-ratio: 1 / 1; border: 2px solid #000; overflow: hidden; background: #bbb; }
+  .imgbox > img, .imgbox > svg.route { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .imgbox > svg.inset { position: absolute; width: 42%; height: 42%; background: #fff; }
+  .imgbox > svg.inset.br { right: 0; bottom: 0; } .imgbox > svg.inset.bl { left: 0; bottom: 0; }
+  .imgbox > svg.inset.tr { right: 0; top: 0; }    .imgbox > svg.inset.tl { left: 0; top: 0; }
+  .back { {% if for_print %}break-before: page;{% endif %} }
+  .score { margin-bottom: {{ L.gap }}pt; }
+  .stamp { display: grid; grid-template-columns: 1fr auto; gap: 0.2in; align-items: end; margin-top: {{ L.h2_top + 0.04 }}in; }
+  .box { border: 3px solid #000; padding: 4pt 8pt; }
+  .fill { border-bottom: 2px solid #000; display: inline-block; min-width: 1.9in; padding: 0 4pt; }
+  .qr img { width: {{ L.qr }}in; height: auto; display: block; image-rendering: pixelated; }
+  .warn { border: 3px solid #000; padding: 4pt 8pt; font-weight: 800; }
+</style>
+</head>
+<body>
+{% macro refuge_block(R, steps, cls) %}
+  <div class="refuge {{ cls }}">
+    <div class="imgbox">
+      {% if R.thumb %}<img src="{{ R.thumb }}" alt="Satellite photo of {{ R.name }} with the route drawn on it">{% endif %}
+      <svg class="route" viewBox="0 0 {{ R.thumb_w }} {{ R.thumb_h }}" preserveAspectRatio="none" aria-hidden="true">
+        {% if R.route_pts %}
+        <polyline points="{{ R.route_pts }}" fill="none" stroke="#fff" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="{{ R.route_pts }}" fill="none" stroke="#000" stroke-width="18" stroke-linejoin="round" stroke-linecap="round"/>
+        {% if R.end_pt %}<circle cx="{{ R.end_pt[0] }}" cy="{{ R.end_pt[1] }}" r="30" fill="#000" stroke="#fff" stroke-width="10"/>{% endif %}
+        {% endif %}
+      </svg>
+      {% if R.off_thumb %}{{ R.inset | replace('class="inset"', 'class="inset ' ~ R.inset_corner ~ '"') | safe }}{% endif %}
+    </div>
+    <div>
+      <div class="rname">{% if cls == 'a' %}{{ H.go_to }}{% else %}{{ H.or }}{% endif %} {{ R.name }}. {{ R.minutes }} {{ H.minutes }}.</div>
+      {% if L.flow %}
+        {% for s in steps %}<p class="step"><b>{{ loop.index }}.</b> {{ s }}</p>{% endfor %}
+      {% else %}
+      <ol>
+        {% for s in steps %}<li>{{ s }}</li>{% endfor %}
+      </ol>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+<div class="sheet">
+<section class="page front">
+  <div class="who">
+    <h1>{{ p.name }}</h1>
+    <span class="tag">{{ mobility_label }}</span>
+  </div>
+  <div>{{ p.address or (plan.origin.matched if plan.origin else '') }}</div>
+
+  <h2>{{ H.leave }}{% if contacts %}<span class="aside">{{ H.contacts }}</span>{% endif %}</h2>
+  {% if contacts %}
+  <ol>
+    {% for c in contacts %}
+    <li><b>{{ c.name }}</b> {{ c.phone }}{% if c.accessible_vehicle %}, {{ H.accessible }}{% endif %}{% if c.distance %}, {{ c.distance }}{% endif %}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  <p><b>{{ H.zone }}:</b> {{ zone or '______' }}. <b>{{ H.alert }}:</b> {{ alert_line or '_____________' }}</p>
+
+  <h2>{{ H.noone }}</h2>
+  {% if no_route %}<p class="warn">{{ H.bedbound if p.mobility == 'bedbound' else H.no_route }}</p>{% endif %}
+  {% if A %}{{ refuge_block(A, steps_a, 'a') }}{% endif %}
+  {% if B and not L.b_on_back %}{{ refuge_block(B, steps_b, 'b') }}{% endif %}
+</section>
+
+<section class="page back">
+  {% if B and L.b_on_back %}
+  <h2>{{ H.noone }} <span class="aside">({{ H.cont }})</span></h2>
+  {{ refuge_block(B, steps_b, 'b') }}
+  {% endif %}
+  <h2>{{ H.cannot }}</h2>
+  <ol>
+    {% for s in shelter %}<li>{{ s }}</li>{% endfor %}
+  </ol>
+
+  <h2>{{ H.devices }}</h2>
+  {% if devices %}
+  <ul>
+    {% for s in devices %}<li>{{ s }}</li>{% endfor %}
+  </ul>
+  {% else %}<p>{{ H.no_devices }}</p>{% endif %}
+
+  <h2>{{ H.whoever }}</h2>
+  <p><b>{{ mobility_label }}.</b> <b>Transfer:</b> {{ transfer_label }}. {{ transfer_note }}
+     <b>{{ aid_label }} is kept:</b> {{ chair_location or 'not recorded' }}. <b>Pets:</b> {{ pets or 'none' }}.
+     <b>Getting in:</b> {{ entry or 'not recorded' }}. <b>Sleeps in:</b> {{ room or 'not recorded' }}.</p>
+
+  {% if A %}
+  {% for R in [A, B] if R %}
+  <div class="score">
+    <b>{{ R.which }}. {{ R.name }}: score {{ fmt_pts(R.score) }} of 100.</b>
+    {% for name, pts in R.score_parts %}{{ name }} {{ fmt_pts(pts) }}{% if not loop.last %}, {% endif %}{% endfor %}.
+    {% if R.claude and R.claude.reason %}Claude, satellite photo: {{ R.claude.reason }}{% endif %}
+    {% if R.flag == 'unsure' %}Satellite check unsure.{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="stamp">
+    <div>
+      <div class="box">Reviewed by <span class="fill">{{ reviewed_by or '' }}</span><br>on <span class="fill">{{ reviewed_at or '' }}</span></div>
+      {% if voice_line %}<p style="margin-top:{{ L.gap + 2 }}pt">{{ voice_line }}</p>{% endif %}
+    </div>
+    {% if qr %}<div class="qr"><img src="{{ qr }}" alt="QR code that opens this plan in the Ember app"></div>{% endif %}
+  </div>
+</section>
+</div>
+</body>
+</html>

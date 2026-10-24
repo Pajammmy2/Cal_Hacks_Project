@@ -1,0 +1,24 @@
+{% set a = row.audio or {} %}
+{% set v = p.voice or {} %}
+<h2 style="margin-top:0">Spoken audio (Cartesia)</h2>
+<p style="margin:4px 0">Voice: {% if v.kind == 'clone' and v.voice_id %}<b>{{ v.consent_name }}</b> (recorded {{ (v.recorded_at or '')[:10] }}, consent stored){% else %}default calm voice, speed 0.85{% endif %}.
+  <a href="/clients/{{ row.id }}/voice">Record a voice</a> (opt-in).</p>
+{% if a.state == 'running' %}
+  <div hx-get="/clients/{{ row.id }}/panel/audio" hx-trigger="every 3s" hx-target="#audio-panel" hx-swap="innerHTML">
+    <p>Generating… {% if a.total %}{{ a.generated or 0 }} of {{ a.to_generate }} new clips ({{ a.total }} strings){% endif %}</p>
+  </div>
+{% elif a.state in ('done', 'partial') %}
+  <p>{{ a.total }} strings: {{ a.existing }} already cached, {{ a.generated }} generated{% if a.failed %}, <span class="err">{{ a.failed }} failed</span>{% endif %}. {{ a.at }}
+    {% if not a.normalized %}<br><span class="warn">ffmpeg not found: clips are not peak-normalized.</span>{% endif %}
+    {% if a.model_note %}<br><span class="warn">{{ a.model_note }}</span>{% endif %}
+    {% for e in a.errors or [] %}<br><span class="err">{{ e }}</span>{% endfor %}</p>
+{% elif a.state == 'error' %}
+  <p class="err">{{ a.error }}</p>
+{% else %}
+  <p class="muted">Not generated yet. Runs after the stamp.</p>
+{% endif %}
+{% if a.state != 'running' %}
+<button class="small" hx-post="/clients/{{ row.id }}/audio" hx-target="#audio-panel"
+        {% if row.status not in ('stamped','printed') %}disabled title="Stamp the card first"{% endif %}>Generate audio</button>
+<a class="small btn" href="/clients/{{ row.id }}/audio/dry-run" target="_blank">Dry run (count strings)</a>
+{% endif %}

@@ -1,0 +1,7 @@
+{
+  "manual_chair": {"label": "Manual chair", "max_grade_pct": 8, "speed_flat_mps": 1.2, "uphill_slowdown": true, "forbid_steps": "all", "forbid_unpaved": true, "penalize_x3": ["curb_cut_unknown", "no_sidewalk_primary_secondary"], "battery_range": false, "shelter_only": false, "impassable": ["curb_cut_false"], "penalize_x2": []},
+  "manual_chair_pushed": {"label": "Manual chair, pushed", "max_grade_pct": 10, "speed_flat_mps": 1.4, "uphill_slowdown": true, "forbid_steps": "all", "forbid_unpaved": true, "penalize_x3": ["curb_cut_unknown", "no_sidewalk_primary_secondary"], "battery_range": false, "shelter_only": false, "impassable": ["curb_cut_false"], "penalize_x2": []},
+  "power_chair": {"label": "Power chair", "max_grade_pct": 10, "speed_flat_mps": 2.0, "uphill_slowdown": true, "forbid_steps": "all", "forbid_unpaved": true, "penalize_x3": ["curb_cut_unknown", "no_sidewalk_primary_secondary"], "battery_range": true, "full_range_m": 20000, "shelter_only": false, "impassable": ["curb_cut_false"], "penalize_x2": []},
+  "walker": {"label": "Walker / cane", "max_grade_pct": 12, "speed_flat_mps": 0.6, "uphill_slowdown": false, "forbid_steps": "gt3", "forbid_unpaved": false, "penalize_x3": ["grade_gt_6"], "battery_range": false, "shelter_only": false, "impassable": [], "penalize_x2": ["curb_cut_false"]},
+  "bedbound": {"label": "Bedbound", "max_grade_pct": 0, "speed_flat_mps": 0.0, "uphill_slowdown": false, "forbid_steps": "all", "forbid_unpaved": true, "penalize_x3": [], "battery_range": false, "shelter_only": true, "impassable": [], "penalize_x2": []}
+}

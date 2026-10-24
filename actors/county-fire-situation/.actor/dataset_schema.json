@@ -1,0 +1,68 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {
+      "county": {"type": "string"},
+      "fetched_at": {"type": "string"},
+      "incidents": {"type": "array", "items": {"type": "object"}},
+      "closures": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "lat": {"type": "number"}, "lon": {"type": "number"}, "road": {"type": "string"},
+            "kind": {"type": "string", "enum": ["full", "partial"]}, "since": {"type": ["string", "null"]}
+          },
+          "required": ["lat", "lon", "road", "kind", "since"]
+        }
+      },
+      "zones": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "status": {"type": "string", "enum": ["normal", "warning", "order"]},
+            "updated": {"type": ["string", "null"]}
+          },
+          "required": ["id", "status", "updated"]
+        }
+      },
+      "outages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "area": {"type": "object"},
+            "kind": {"type": "string", "enum": ["psps", "unplanned"]},
+            "est_restore": {"type": ["string", "null"]}
+          },
+          "required": ["area", "kind", "est_restore"]
+        }
+      },
+      "errors": {"type": "array", "items": {"type": "object"}}
+    },
+    "required": ["county", "fetched_at", "incidents", "closures", "zones", "outages", "errors"]
+  },
+  "views": {
+    "overview": {
+      "title": "Situation snapshot",
+      "transformation": {
+        "fields": ["county", "fetched_at", "incidents", "closures", "zones", "outages", "errors"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "county": {"label": "County", "format": "text"},
+          "fetched_at": {"label": "Fetched at", "format": "date"},
+          "incidents": {"label": "Incidents", "format": "array"},
+          "closures": {"label": "Closures", "format": "array"},
+          "zones": {"label": "Zones", "format": "array"},
+          "outages": {"label": "Outages", "format": "array"},
+          "errors": {"label": "Source notes", "format": "array"}
+        }
+      }
+    }
+  }
+}

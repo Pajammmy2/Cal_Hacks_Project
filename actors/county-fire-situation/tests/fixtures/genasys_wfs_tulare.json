@@ -1,0 +1,158 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105608",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105608,
+    "identifer": "US-CA-XTU-PVL-E039",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.016639887874 36.0549459513707,-119.007935344969 36.0564787732026)",
+    "status": "Evacuation Order"
+   },
+   "bbox": [
+    -13248871.748245,
+    4308184.486466,
+    -13247902.762961,
+    4308395.549594
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105314",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105314,
+    "identifer": "US-CA-XTU-PVL-E032",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.039243438114 36.0567017788688,-119.026131270894 36.0609830738796)",
+    "status": "Evacuation Order"
+   },
+   "bbox": [
+    -13251387.963947,
+    4308426.25688,
+    -13249928.324169,
+    4309015.79667
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105625",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105625,
+    "identifer": "US-CA-XTU-PVL-E034",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.039252381796 36.0553299365577,-119.016631422836 36.0602806020749)",
+    "status": "Evacuation Order"
+   },
+   "bbox": [
+    -13251388.959554,
+    4308237.359227,
+    -13248870.805921,
+    4308919.063206
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105628",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105628,
+    "identifer": "US-CA-XTU-TLC-E222",
+    "commonly_known_as": null,
+    "bbox": "BOX(-118.846201190837 36.0948157738197,-118.8210194 36.1023813)",
+    "status": "Normal"
+   },
+   "bbox": [
+    -13229898.599279,
+    4313675.731574,
+    -13227095.375146,
+    4314718.041037
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105170",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105170,
+    "identifer": "US-CA-XTU-VSA-5010A",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.309889895602 36.3201702767369,-119.30539209377 36.3269745950016)",
+    "status": "Normal"
+   },
+   "bbox": [
+    -13281516.18978,
+    4344766.211769,
+    -13281015.49677,
+    4345706.347895
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105567",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105567,
+    "identifer": "US-CA-XTU-TLC-E251",
+    "commonly_known_as": "",
+    "bbox": "BOX(-119.537789231749 35.8877518142495,-119.455909808099 36.0785585554267)",
+    "status": "Normal"
+   },
+   "bbox": [
+    -13306885.827832,
+    4285187.166607,
+    -13297771.052085,
+    4311436.299139
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105040",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105040,
+    "identifer": "US-CA-XTU-VSA-3008A",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.292099796468 36.3128689724252,-119.287411503838 36.3201357580588)",
+    "status": "Normal"
+   },
+   "bbox": [
+    -13279535.805003,
+    4343757.49957,
+    -13279013.906655,
+    4344761.442617
+   ]
+  },
+  {
+   "type": "Feature",
+   "id": "evacuation_zone.71105058",
+   "geometry": null,
+   "geometry_name": "geom",
+   "properties": {
+    "id": 71105058,
+    "identifer": "US-CA-XTU-VSA-1062A",
+    "commonly_known_as": null,
+    "bbox": "BOX(-119.331576877671 36.2983769642256,-119.322578955554 36.3056400077802)",
+    "status": "Normal"
+   },
+   "bbox": [
+    -13283930.373581,
+    4341755.63497,
+    -13282928.729472,
+    4342758.874526
+   ]
+  }
+ ],
+ "totalFeatures": 8
+}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Ember: {{ p.name if p else 'new client' }}{% endblock %}
+{% macro opt(name, value, label) -%}
+<option value="{{ value }}" {% if (form.get(name) or '') == value %}selected{% endif %}>{{ label }}</option>
+{%- endmacro %}
+{% macro radio(name, value, label, default=False) -%}
+<label style="font-weight:400;margin-right:14px"><input type="radio" name="{{ name }}" value="{{ value }}" {% if form.get(name) == value or (not form.get(name) and default) %}checked{% endif %}> {{ label }}</label>
+{%- endmacro %}
+{% block main %}
+<h1>{{ 'Client profile: ' ~ p.name if p else 'Add client' }}</h1>
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+{% if plan_error %}<p class="err">Last engine run: {{ plan_error }}</p>{% endif %}
+<form method="post" action="/clients/save" style="max-width:880px">
+  <input type="hidden" name="id" value="{{ form.get('id', '') }}">
+  <fieldset><legend>Who and where</legend>
+    <p><label for="name">Name</label><br><input id="name" type="text" name="name" value="{{ form.get('name','') }}" required style="width:100%"></p>
+    <p><label for="address">Address</label><br><input id="address" type="text" name="address" value="{{ form.get('address','') }}" style="width:100%" placeholder="1500 Pearson Rd"></p>
+    <div class="row">
+      <p><label for="lat">Latitude (optional)</label><br><input id="lat" type="text" inputmode="decimal" name="lat" value="{{ form.get('lat','') }}"></p>
+      <p><label for="lon">Longitude (optional)</label><br><input id="lon" type="text" inputmode="decimal" name="lon" value="{{ form.get('lon','') }}"></p>
+      <p><label for="zip">ZIP</label><br><input id="zip" type="text" name="zip" value="{{ form.get('zip','') }}" size="8"></p>
+      <p><label for="zone">Evacuation zone</label><br><input id="zone" type="text" name="zone" value="{{ form.get('zone','') }}" placeholder="BUT-E123"></p>
+    </div>
+    <p class="muted">Lat/lon overrides the address when the local address list cannot find it.</p>
+  </fieldset>
+
+  <fieldset><legend>Mobility (routing profile and speed)</legend>
+    {{ radio('mobility','manual_chair','Manual chair', True) }}{{ radio('mobility','power_chair','Power chair') }}{{ radio('mobility','walker','Walker') }}{{ radio('mobility','cane','Cane') }}{{ radio('mobility','bedbound','Bedbound') }}
+  </fieldset>
+  <fieldset><legend>Transfer (caregiver instructions)</legend>
+    {{ radio('transfer','independent','Independent', True) }}{{ radio('transfer','slide_board','Slide board') }}{{ radio('transfer','one_person_assist','One-person assist') }}{{ radio('transfer','two_person_lift','Two-person lift') }}{{ radio('transfer','hoyer','Hoyer') }}
+  </fieldset>
+  <fieldset><legend>Devices (runtime is a deadline)</legend>
+    <div class="row"><label style="font-weight:400"><input type="checkbox" name="dev_oxygen" {% if form.get('dev_oxygen') %}checked{% endif %}> Oxygen concentrator</label>
+      <label for="o2h" style="font-weight:400">battery hours</label><input id="o2h" type="number" step="0.5" min="0" name="dev_oxygen_hours" value="{{ form.get('dev_oxygen_hours','') }}" style="width:90px"></div>
+    <div class="row"><label style="font-weight:400"><input type="checkbox" name="dev_ventilator" {% if form.get('dev_ventilator') %}checked{% endif %}> Ventilator</label>
+      <label for="venh" style="font-weight:400">battery hours</label><input id="venh" type="number" step="0.5" min="0" name="dev_ventilator_hours" value="{{ form.get('dev_ventilator_hours','') }}" style="width:90px"></div>
+    <div class="row"><label style="font-weight:400"><input type="checkbox" name="dev_power_chair" {% if form.get('dev_power_chair') %}checked{% endif %}> Power chair</label>
+      <label for="pcb" style="font-weight:400">battery %</label><input id="pcb" type="number" step="1" min="0" max="100" name="dev_power_chair_battery_pct" value="{{ form.get('dev_power_chair_battery_pct','') }}" style="width:90px"></div>
+    <div class="row"><label style="font-weight:400"><input type="checkbox" name="dev_cpap" {% if form.get('dev_cpap') %}checked{% endif %}> CPAP</label></div>
+    <p class="muted">Leave all unticked for none.</p>
+  </fieldset>
+  <fieldset><legend>Vision and hearing (type size, audio vs text)</legend>
+    <p>Vision: {{ radio('vision','normal','Normal', True) }}{{ radio('vision','low_vision','Low vision (22 pt card)') }}{{ radio('vision','blind','Blind (22 pt card)') }}</p>
+    <p>Hearing: {{ radio('hearing','normal','Normal', True) }}{{ radio('hearing','hard_of_hearing','Hard of hearing') }}{{ radio('hearing','deaf','Deaf') }}</p>
+  </fieldset>
+  <fieldset><legend>Cognition (reading level; forces staff review)</legend>
+    {{ radio('cognition','none','None noted', True) }}{{ radio('cognition','simple_steps','Needs simple steps (grade 4; reviewer must read every sentence)') }}
+  </fieldset>
+  <fieldset><legend>Language (plan writer's second language)</legend>
+    {{ radio('language','en','English', True) }}{{ radio('language','es','Spanish') }}{{ radio('language','hmn','Hmong') }}{{ radio('language','other','Other:') }}
+    <input type="text" name="language_other" aria-label="Other language" value="{{ form.get('language_other','') }}" placeholder="e.g. Tagalog">
+  </fieldset>
+  <fieldset><legend>Contacts, in the order to call ("Leave early")</legend>
+    {% for i in [1,2,3] %}
+    <div class="row" style="margin-bottom:6px">
+      <b>{{ i }}.</b>
+      <input type="text" name="contact{{i}}_name" aria-label="Contact {{i}} name" placeholder="Name" value="{{ form.get('contact%d_name'|format(i),'') }}">
+      <input type="tel" name="contact{{i}}_phone" aria-label="Contact {{i}} phone" placeholder="Phone" value="{{ form.get('contact%d_phone'|format(i),'') }}">
+      <label style="font-weight:400"><input type="checkbox" name="contact{{i}}_accessible_vehicle" {% if form.get('contact%d_accessible_vehicle'|format(i)) %}checked{% endif %}> accessible vehicle</label>
+      <input type="text" name="contact{{i}}_distance" aria-label="Contact {{i}} distance" placeholder="Distance (10 min)" value="{{ form.get('contact%d_distance'|format(i),'') }}" size="14">
+    </div>
+    {% endfor %}
+  </fieldset>
+  <fieldset><legend>Home (survive-in-place and responder note)</legend>
+    <div class="row">
+      <p><label for="sleep_room">Room they sleep in</label><br><input id="sleep_room" type="text" name="sleep_room" value="{{ form.get('sleep_room','') }}" placeholder="back bedroom"></p>
+      <p><label for="chair_location">Where the chair is kept</label><br><input id="chair_location" type="text" name="chair_location" value="{{ form.get('chair_location','') }}"></p>
+    </div>
+    <p><label for="entry">Entry method (keypad code, key location, unlocked). Prints on the card, never in the QR.</label><br><input id="entry" type="text" name="entry" value="{{ form.get('entry','') }}" style="width:100%"></p>
+    <p><label for="pets">Pets</label><br><input id="pets" type="text" name="pets" value="{{ form.get('pets','') }}" style="width:100%"></p>
+  </fieldset>
+  <div class="row">
+    <button class="primary" type="submit" onclick="this.textContent='Planning…'">Save and plan</button>
+    <a class="btn" href="/">Cancel</a>
+  </div>
+</form>
+{% if p %}
+<form method="post" action="/clients/{{ p.id }}/delete" style="margin-top:30px" onsubmit="return document.getElementById('really').checked">
+  <label style="font-weight:400"><input type="checkbox" id="really"> Delete this client, their plan file, and any recorded voice (also deleted at Cartesia).</label>
+  <button type="submit">Delete client</button>
+</form>
+{% endif %}
+{% endblock %}

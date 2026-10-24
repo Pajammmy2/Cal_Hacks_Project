@@ -1,0 +1,11 @@
+[
+  {
+    "searchQuery": {"term": "\"Camp Fire\" survived OR sheltered OR \"took refuge\"", "page": 1},
+    "organicResults": [
+      {"title": "In Paradise, dozens rode out the Camp Fire in a Kmart parking lot", "url": "https://www.example-news.com/2018/11/12/camp-fire-kmart-lot", "source": "Example News", "date": "Nov 12, 2018", "description": "..."},
+      {"title": "How a Walgreens lot became a lifeboat", "url": "https://www.chico-daily.example.org/camp-fire-walgreens", "date": "Nov 15, 2018"},
+      {"title": "Camp Fire survivors share stories", "url": "https://www.facebook.com/groups/campfire/posts/1"},
+      {"title": "duplicate", "url": "https://www.example-news.com/2018/11/12/camp-fire-kmart-lot"}
+    ]
+  }
+]

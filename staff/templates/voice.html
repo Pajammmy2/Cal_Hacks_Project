@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Ember: record a voice for {{ p.name }}{% endblock %}
+{% block main %}
+{% set v = p.voice or {} %}
+{% set c = cardctx %}
+<h1>Record a voice for {{ p.name }}</h1>
+<p class="muted">Optional. Off by default. Do this with the caregiver or family member in the room.</p>
+{% if not has_key %}<p class="err">CARTESIA_API_KEY is not set: the clone cannot be created. The phone uses the default voice or Apple speech.</p>{% endif %}
+{% if v.kind == 'clone' and v.voice_id %}
+  <div class="flash">Current voice: <b>{{ v.consent_name }}</b>, recorded {{ (v.recorded_at or '')[:10] }}.
+    Consent: "{{ v.consent_text }}" (agreed {{ v.consent_at }}).
+    <form method="post" action="/clients/{{ row.id }}/voice/delete" style="display:inline" onsubmit="return document.getElementById('delv').checked">
+      <label style="font-weight:400"><input type="checkbox" id="delv"> delete this voice and its audio</label> <button class="small">Delete voice</button></form>
+  </div>
+{% endif %}
+
+<section style="max-width:760px">
+  <h2>Step 1. Read this aloud to the caregiver</h2>
+  <blockquote id="consent" style="font-size:22px;border-left:5px solid #111;margin:0;padding:6px 14px">{{ consent_text }}</blockquote>
+  <p><label for="cname">Caregiver's name</label><br><input id="cname" type="text" style="width:60%" autocomplete="off"></p>
+  <button id="agree" class="primary" type="button">I agree</button>
+  <p id="agreed" class="muted" hidden>Agreed. Next: record.</p>
+
+  <div id="rec" hidden>
+    <h2>Step 2. Record 30 seconds</h2>
+    <p>Start by saying your name and today's date: <b>"My name is <span id="sayname"></span>. Today is {{ today }}."</b> Then read:</p>
+    <div style="font-size:22px;line-height:1.5;border:2px solid #111;padding:10px 14px">
+      <p style="margin:0 0 8px"><b>{{ c.H.leave if c else '1. Leave early' }}.</b>
+        {% if c and c.zone %}Your zone is {{ c.zone }}.{% endif %}
+        {% if c %}{% for k in c.contacts %} Call {{ k.name }}{% if k.accessible_vehicle %}, who has an accessible van{% endif %}.{% endfor %}{% endif %}
+        Leave early. Do not wait for the fire.</p>
+      {% if c and c.A %}<p style="margin:0"><b>If no one comes:</b> go to {{ c.A.name }}. {{ c.steps_a|join(' ') }}</p>{% endif %}
+    </div>
+    <p class="row" style="margin-top:10px">
+      <button id="start" class="primary" type="button">Start recording</button>
+      <button id="stop" type="button" disabled>Stop</button>
+      <span id="timer" aria-live="polite" style="font-size:22px;font-weight:800">30</span><span>seconds</span>
+    </p>
+    <audio id="play" controls hidden></audio>
+    <p class="row"><button id="send" class="primary" type="button" disabled>Create the voice and generate the audio</button></p>
+    <p id="out" role="status"></p>
+  </div>
+</section>
+<script>
+(function () {
+  var cid = {{ row.id|tojson }};
+  var blob = null, rec = null, chunks = [], t = null;
+  var $ = function (id) { return document.getElementById(id); };
+  $('agree').onclick = function () {
+    var n = $('cname').value.trim();
+    if (!n) { $('cname').focus(); $('agreed').hidden = false; $('agreed').textContent = 'Type the caregiver’s name first.'; return; }
+    $('agreed').hidden = false; $('agreed').textContent = 'Agreed by ' + n + '. Next: record.';
+    $('sayname').textContent = n; $('rec').hidden = false; $('agree').disabled = true;
+  };
+  function stop() { if (rec && rec.state !== 'inactive') rec.stop(); clearInterval(t); $('stop').disabled = true; $('start').disabled = false; }
+  $('start').onclick = async function () {
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = []; rec = new MediaRecorder(stream);
+      rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (x) { x.stop(); });
+        blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+        $('play').src = URL.createObjectURL(blob); $('play').hidden = false; $('send').disabled = false;
+      };
+      rec.start(); $('start').disabled = true; $('stop').disabled = false;
+      var left = 30; $('timer').textContent = left;
+      t = setInterval(function () { left -= 1; $('timer').textContent = left; if (left <= 0) stop(); }, 1000);
+    } catch (e) { $('out').textContent = 'Microphone not available: ' + e.message; }
+  };
+  $('stop').onclick = stop;
+  $('send').onclick = async function () {
+    if (!blob) return;
+    var fd = new FormData();
+    fd.append('consent_name', $('cname').value.trim());
+    fd.append('agree', '1');
+    var ext = (blob.type.indexOf('ogg') >= 0) ? 'ogg' : (blob.type.indexOf('mp4') >= 0 ? 'mp4' : 'webm');
+    fd.append('audio', blob, 'consent.' + ext);
+    $('send').disabled = true; $('out').textContent = 'Creating the voice…';
+    var r = await fetch('/clients/' + cid + '/voice', { method: 'POST', body: fd });
+    var j = await r.json();
+    if (j.ok) { $('out').textContent = 'Voice created.' + (j.audio_started ? ' Generating the plan audio with it.' : ' Stamp the card to generate the audio.'); setTimeout(function () { location.href = '/clients/' + cid + '/review'; }, 1500); }
+    else { $('out').textContent = j.error; $('send').disabled = false; }
+  };
+})();
+</script>
+{% endblock %}

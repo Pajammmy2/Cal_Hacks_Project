@@ -1,0 +1,21 @@
+{
+  "actorSpecification": 1,
+  "name": "wildfire-refuge-evidence",
+  "title": "Wildfire Refuge Evidence",
+  "description": "Given a wildfire, finds the places where civilians sheltered and survived (parking lots, lakes, fields, buildings, roads) from news articles and Reddit, as geocoded GeoJSON points with quotes and sources. Person names are stripped.",
+  "version": "1.0",
+  "buildTag": "latest",
+  "meta": {
+    "templateId": "python-start"
+  },
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "dockerfile": "../Dockerfile",
+  "dockerContextDir": "../",
+  "readme": "../README.md",
+  "environmentVariables": {
+    "ANTHROPIC_API_KEY": "@anthropicApiKey"
+  }
+}

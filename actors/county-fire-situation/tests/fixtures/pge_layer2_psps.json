@@ -1,0 +1,4 @@
+{"geometryType": "esriGeometryPoint", "spatialReference": {"wkid": 4326}, "features": [
+ {"attributes": {"OUTAGE_ID": "900001", "CURRENT_ETOR": 1792882860000, "EST_CUSTOMERS": 412, "OUTAGE_CAUSE": "PUBLIC SAFETY", "OUTAGE_START": 1792780000000, "LAST_UPDATE": 1792816530000}, "geometry": {"x": -121.62, "y": 39.76}},
+ {"attributes": {"OUTAGE_ID": "900002", "CURRENT_ETOR": 1792882860000, "EST_CUSTOMERS": 30, "OUTAGE_CAUSE": "PUBLIC SAFETY", "OUTAGE_START": 1792780000000, "LAST_UPDATE": 1792816530000}, "geometry": {"x": -122.05, "y": 40.12}}
+]}
