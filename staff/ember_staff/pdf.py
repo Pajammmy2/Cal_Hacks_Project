@@ -7,7 +7,7 @@ import io
 from . import card
 from .templating import templates
 
-MAX_TIGHTEN = 5   # = len(card.LEVELS) - 1
+MAX_TIGHTEN = len(card.LEVELS) - 1
 
 
 class CardTooLong(Exception):

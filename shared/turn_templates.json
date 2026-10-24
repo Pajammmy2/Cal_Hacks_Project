@@ -13,6 +13,6 @@
   "arrived_building": "You are at {refuge}. Go inside. Stay away from windows. Keep the phone on.",
   "directions":   ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"],
   "unnamed_path": "the path",
-  "unnamed_street": "the street",
+  "unnamed_street": "the side road",
   "path_classes": ["footway", "path", "pedestrian", "cycleway", "sidewalk", "steps"]
 }
