@@ -51,7 +51,13 @@ public final class AppModel: ObservableObject {
 
     // MARK: launch
 
+    /// onAppear can fire again whenever the root view is rebuilt (e.g. the `.id(fontChoice)` key on font change);
+    /// setup must run once or it leaks a second minuteTimer and resets the state machine mid-session.
+    private var launched = false
+
     public func launch() {
+        guard !launched else { return }
+        launched = true
         Platform.activatePlaybackSession()
         profiles = profileStore.load()
         if selectedId == nil || !profiles.contains(where: { $0.id == selectedId }) { selectedId = profiles.first?.id }
@@ -279,7 +285,9 @@ public final class AppModel: ObservableObject {
                 if !leaveNowSpoken {
                     leaveNowSpoken = true
                     Platform.haptic()
-                    speaker.speak([Utterance("Leave now."), Utterance(leaveNow!, template: "leave_now_dev")])
+                    // the leave_now_dev sentence already starts with "Leave now."; speaking a standalone
+                    // "Leave now." clip first would say it twice
+                    speaker.speak([Utterance(leaveNow!, template: "leave_now_dev")])
                 }
             } else {
                 leaveNow = nil
@@ -307,6 +315,10 @@ public final class AppModel: ObservableObject {
         let here = location.location.flatMap { usable($0) ? $0 : nil }.map { ($0.coordinate.latitude, $0.coordinate.longitude) }
             ?? selected.flatMap { c in c.lat.flatMap { la in c.lon.map { (la, $0) } } }
         if let (la, lo) = here { m.feedBlocked = ApifyFeed.blockedEdges(s, graph: m.graph, lat: la, lon: lo) }
+        // a feed closure that lands on the active route re-plans immediately; the user should not have to hit Blocked
+        if m.state == .navigate, let p = m.progress, !m.feedBlocked.isDisjoint(with: p.route.edges) {
+            m.replan(origin: nil)
+        }
         if let o = ApifyFeed.outage(s, zip: selected?.zip), !powerIsOut {
             setPowerOut(true, at: r.fetchedAt ?? Date())
             feedNote = "Power outage reported for \(o.area)."

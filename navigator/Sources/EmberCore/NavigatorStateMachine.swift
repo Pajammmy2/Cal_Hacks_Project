@@ -182,16 +182,19 @@ public final class NavigatorStateMachine {
         sayChoice()
     }
 
-    func sayChoice() {
-        guard let a = currentChoice else { return }
-        var u = [Utterance(config.phrase("choose", ["refuge": a.refuge.name, "n": String(a.route.minutes)]),
-                           template: "choose", vars: ["refuge": a.refuge.name, "n": String(a.route.minutes)])]
+    func choiceUtterances() -> [Utterance] {
+        guard let a = currentChoice else { return [] }
+        // max(1, ...) like how_long: an origin at a refuge entry point yields a 0-minute route, and "0" has no clip
+        var u = [Utterance(config.phrase("choose", ["refuge": a.refuge.name, "n": String(max(1, a.route.minutes))]),
+                           template: "choose", vars: ["refuge": a.refuge.name, "n": String(max(1, a.route.minutes))])]
         if let b = alternateChoice {
-            u.append(Utterance(config.phrase("or_b", ["refuge": b.refuge.name, "n": String(b.route.minutes)]),
-                               template: "or_b", vars: ["refuge": b.refuge.name, "n": String(b.route.minutes)]))
+            u.append(Utterance(config.phrase("or_b", ["refuge": b.refuge.name, "n": String(max(1, b.route.minutes))]),
+                               template: "or_b", vars: ["refuge": b.refuge.name, "n": String(max(1, b.route.minutes))]))
         }
-        say(u)
+        return u
     }
+
+    func sayChoice() { say(choiceUtterances()) }
 
     // MARK: Choose
 
@@ -324,8 +327,7 @@ public final class NavigatorStateMachine {
         choices = fresh
         choiceIndex = 0
         if state == .choose {
-            sayChoice()
-            if let lead { say(lead + utterances) }
+            if let lead { say(lead + choiceUtterances()) } else { sayChoice() }
         } else {
             startNavigation(best, profile: profile, lead: lead ?? [Utterance("Rerouting.")])
         }

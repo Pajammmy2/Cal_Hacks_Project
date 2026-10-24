@@ -21,7 +21,8 @@
     "Switching to solo. Say yes to reroute.",
     "Find a new route? Say yes to reroute.",
     "Fire ahead. Turning away from it.",
-    "Fire ahead. Turning away from it. Say yes to reroute."
+    "Fire ahead. Turning away from it. Say yes to reroute.",
+    "That code is not an Ember card. Try again."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",

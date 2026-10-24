@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from . import cartesia, config, db, engine_client, plan_writer
 from ember_engine.core import cues as cuemod
-from ember_engine.core import hashing, router, shared
+from ember_engine.core import hashing, plan as plan_mod, router, shared
 
 CONCURRENCY = 2   # Cartesia's entry tier allows 2 concurrent requests; EMBER_CARTESIA_CONCURRENCY overrides
 MAX_REPLAN_EDGES = 400
@@ -131,8 +131,19 @@ def collect(row, bundle="auto", include_replans=True):
         if r.get("name") and r["name"] not in all_refuges:
             all_refuges.append(r["name"])
 
-    # every turn template with the streets and refuges on both routes (and their re-plans)
-    for s in sorted(cuemod.all_cue_texts_for_streets(streets, all_refuges)):
+    # every street in the county, not only route streets: a live reroute (fire wedge at any bearing, or the voice
+    # "blocked <street>" tool accepting any named street within 2 km) can leave the pre-computed routes, and
+    # whereAmI/currentStreet can name any edge the user is standing on. Uncovered streets would fall back to
+    # on-device TTS, so cue/blocking/where/fragment strings must exist for all of them.
+    all_streets = list(streets)
+    if bundle is not None:
+        for e in bundle.graph.edges:
+            s = cuemod.display_name(e)
+            if s not in all_streets:
+                all_streets.append(s)
+
+    # every turn template with every street and refuge the phone can ever mention
+    for s in sorted(cuemod.all_cue_texts_for_streets(all_streets, all_refuges)):
         add(s)
 
     # card steps, shelter steps, device sentences (engine text and the reviewed card text)
@@ -140,6 +151,10 @@ def collect(row, bundle="auto", include_replans=True):
         for s in (c or {}).get("card_steps", []):
             add(s)
     for s in (plan.get("shelter") or {}).get("steps", []):
+        add(s)
+    # the app falls back to the generic shelter steps when the bundle has no stamped plan for this client
+    _, fallback_shelter = plan_mod.shelter_steps(profile)
+    for s in fallback_shelter:
         add(s)
     for d in plan.get("devices") or []:
         add(d.get("sentence"))
@@ -161,12 +176,14 @@ def collect(row, bundle="auto", include_replans=True):
         add(tp["fire_dir"].format(direction=d))
         add(tp["fire_is"].format(direction=d))
         add(tp["which_way"].format(direction=d))
-    for s in streets:
+    for s in all_streets:
         add(tp["blocking"].format(street=s))
         add(tp["where"].format(street=s))
-    for s1, s2 in sorted(cross_pairs(bundle, [r["nodes"] for r in
-                                             [c["route"] for c in (plan.get("choices") or [])]])):
-        if s1 in streets:
+    node_lists = [r["nodes"] for r in [c["route"] for c in (plan.get("choices") or [])]]
+    if bundle is not None:
+        node_lists.append(range(len(bundle.graph.adj)))   # "<street> at <cross>" can name any intersection
+    for s1, s2 in sorted(cross_pairs(bundle, node_lists)):
+        if s1 in all_streets:
             add(tp["blocking_cross"].format(street=s1, cross_street=s2))
     max_min = max([m for _, m, _ in routes] + [0])
     for n in range(1, min(500, max(60, max_min + 15)) + 1):
@@ -187,7 +204,7 @@ def collect(row, bundle="auto", include_replans=True):
             if frag == "{n}":
                 continue
             if "{street}" in frag:
-                for s in streets:
+                for s in all_streets:
                     add(frag.format(street=s))
             elif "{refuge}" in frag:
                 for r in all_refuges:
@@ -196,6 +213,9 @@ def collect(row, bundle="auto", include_replans=True):
                 add(frag)
     for n in range(P["numbers"]["from"], P["numbers"]["to"] + 1):
         add(str(n))
+    # profile-added notice the app speaks when a QR card is scanned (AppModel.addProfile)
+    if profile.get("name"):
+        add("Added " + profile["name"].strip() + ".")
     return out
 
 
