@@ -145,6 +145,15 @@ public final class NavigatorStateMachine {
         planChoices()
     }
 
+    /// "Not sure": fire data is old and there is no compass (or the user cannot see smoke). Plan without a fire
+    /// bearing: the planned refuges are still ranked by safety score and distance, and "Fire"/"New fire" mid-route
+    /// still close the wedge later. Better than the old dead end on Which Way.
+    public func skipFireDirection() {
+        guard state == .whichWay else { return }
+        fireBearing = nil
+        planChoices()
+    }
+
     /// "Point": the compass bearing of the phone, pointed at the smoke.
     public func point(bearing: Double) {
         guard state == .whichWay else { return }

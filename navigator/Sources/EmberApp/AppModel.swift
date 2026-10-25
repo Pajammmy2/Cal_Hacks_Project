@@ -200,6 +200,7 @@ public final class AppModel: ObservableObject {
     }
 
     public func confirmFire() { machine?.confirmFire(); sync() }
+    public func skipFireDirection() { machine?.skipFireDirection(); sync() }
 
     public func pointAtSmoke() {
         guard let h = compass.heading else {

@@ -131,7 +131,7 @@ enum SatelliteCache {
             // Keep the picture between square and 16:10 so it still covers the phone's map once the route is fitted.
             let aspect = max(1.0, min(1.6, ((b.e - b.w) * k) / (b.n - b.s)))
             let o = MKMapSnapshotter.Options()
-            o.mapType = .hybrid
+            o.mapType = .satellite
             o.pointOfInterestFilter = .excludingAll
             o.showsBuildings = false
             o.scale = 2
@@ -178,7 +178,7 @@ enum SatelliteCache {
                 lonSpan = max(lonSpan, b.e - b.w)
             }
             let o = MKMapSnapshotter.Options()
-            o.mapType = .hybrid
+            o.mapType = .satellite
             o.pointOfInterestFilter = .excludingAll
             o.showsBuildings = false
             o.scale = 1

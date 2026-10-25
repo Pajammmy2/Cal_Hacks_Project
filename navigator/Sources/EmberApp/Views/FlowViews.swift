@@ -13,14 +13,20 @@ struct WhichWayView: View {
             CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-            if !fresh { NoteText(text: model.fireAgeText, systemImage: "clock.badge.exclamationmark") }
+            if !fresh { NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock.badge.exclamationmark") }
         } buttons: {
             if fresh {
                 EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
             }
-            EmberButton(title: compass.heading == nil ? "Point (no compass)" : "Point", systemImage: "location.north.line.fill",
-                        hint: "Hold the phone flat, point the top at the smoke, then tap") { model.pointAtSmoke() }
-                .disabled(compass.heading == nil)
+            if compass.heading != nil {
+                EmberButton(title: "Point", systemImage: "location.north.line.fill",
+                            hint: "Hold the phone flat, point the top at the smoke, then tap") { model.pointAtSmoke() }
+            }
+            if !fresh {
+                // Old data and no compass used to dead-end here. The plan's refuges are still safe choices.
+                EmberButton(title: "Not sure", systemImage: "questionmark.circle",
+                            hint: "Skip the fire direction and choose from the planned safe places") { model.skipFireDirection() }
+            }
         }
     }
 }
@@ -102,7 +108,7 @@ struct ChooseView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellite: SatelliteSnapshot.best(for: a.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
-                                 online: voice.online, thumbnail: true, height: 300)
+                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 300 : 360)
                 }
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
@@ -110,8 +116,8 @@ struct ChooseView: View {
                     HStack(spacing: 12) {
                         RouteMapView(graph: m.graph, route: b.route, position: m.position, refuge: b.refuge,
                                      satellite: SatelliteSnapshot.best(for: b.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
-                                     online: voice.online, thumbnail: true, height: 120)
-                            .frame(width: 130)
+                                     online: voice.online, thumbnail: true, height: 140)
+                            .frame(width: 150)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
                             Text(b.refuge.name).font(Theme.font(small * 1.3, .bold)).foregroundColor(Theme.text)
@@ -157,19 +163,18 @@ struct NavigateView: View {
                     StatTile(value: "\(Int((d / 10).rounded()) * 10)", unit: "m", caption: "to next turn", systemImage: "arrow.turn.up.right")
                 }
                 StatTile(value: "\(mins)", unit: "min", caption: "to go", systemImage: "figure.roll")
-                if let eta {
-                    StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire",
-                             systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
-                } else {
-                    StatTile(value: "?", unit: "", caption: "fire ETA unknown", systemImage: "flame")
-                }
+            }
+            // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
+            if let eta {
+                StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
+                         systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
             }
             if let m, let p {
                 RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
                              heading: compass.heading, walkedM: p.progressM,
                              satellite: SatelliteSnapshot.best(for: p.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
                              online: voice.online)
-                    .frame(height: typeSize.isAccessibilitySize ? 300 : 280)
+                    .frame(height: typeSize.isAccessibilitySize ? 320 : 400)
             }
             CaregiverInfo(client: m?.client)
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }

@@ -22,6 +22,8 @@ struct RouteMapView: View {
 
     @ScaledMetric(relativeTo: .body) var thumbHeight: CGFloat = 170
     @State private var liveRect: MKMapRect? = nil
+    /// Settings → Map: "satellite" (look A: photo under a dark veil) or "drawn" (look C: streets from graph.json).
+    @AppStorage(Theme.mapStyleKey) private var mapStyle = "satellite"
 
     struct Box {
         var s: Double, w: Double, n: Double, e: Double
@@ -57,12 +59,15 @@ struct RouteMapView: View {
     static let forceOffline = ProcessInfo.processInfo.arguments.contains("-ember-offline")
 
     var mode: Mode {
+        if mapStyle == "drawn" { return .drawn }
         #if os(iOS)
         if online && !RouteMapView.forceOffline { return .live }
         #endif
         if let s = satellite { return .snapshot(s) }
         return .drawn
     }
+
+    var isDrawn: Bool { if case .drawn = mode { return true } else { return false } }
 
     /// lat/lon -> canvas point, plus the ground resolution for the scale bar.
     struct Projection {
@@ -100,7 +105,7 @@ struct RouteMapView: View {
 
     var body: some View {
         ZStack {
-            Theme.land
+            isDrawn ? Theme.mapLand : Theme.land
             #if os(iOS)
             if case .live = mode {
                 SatelliteMapView(fit: box.region) { r in liveRect = r }
@@ -112,6 +117,10 @@ struct RouteMapView: View {
                     let b = box
                     ctx.draw(Image(decorative: s.image, scale: 1).resizable(), in: s.fitRect(s: b.s, w: b.w, n: b.n, e: b.e, in: size))
                 }
+                if !isDrawn {
+                    // The veil: the photo stays readable (roofs, lots, tree lines) but the route, pins and labels win.
+                    ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.mapVeil))
+                }
                 drawOverlays(ctx, size, proj)
             }
         }
@@ -119,7 +128,7 @@ struct RouteMapView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Color.white.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Map of the route to \(refuge?.name ?? "the refuge"). The green area is the destination, the arrow is you.")
+        .accessibilityLabel("Map of the route to \(refuge?.name ?? "the refuge"). The green area is the destination, the white dot is where you start.")
     }
 
     // MARK: drawing
@@ -132,10 +141,11 @@ struct RouteMapView: View {
         if case .drawn = mode { drawStreets(ctx, size, proj, skipping: routeEdges) }
         drawRefuge(ctx, size, pt)
         drawRoute(ctx, pt)
-        if !thumbnail { drawStreetNames(ctx, pt) }
-        drawPins(ctx, size, pt)
+        var avoid: [CGRect] = []
+        if size.height >= 200 { drawTurnStreetNames(ctx, size, pt, avoid: &avoid) }
+        drawPins(ctx, size, pt, avoid: &avoid)
         drawYou(ctx, pt)
-        if !thumbnail { drawCompassAndScale(ctx, size, proj.metersPerPoint) }
+        drawCompassAndScale(ctx, size, proj.metersPerPoint)
     }
 
     func drawStreets(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection, skipping: Set<Int>) {
@@ -155,15 +165,15 @@ struct RouteMapView: View {
             }
             drawn += 1
         }
-        let casing = Color(white: 0.06)
+        let casing = Theme.mapLand.opacity(0.9)
         let round = StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round)
         func road(_ path: Path, width: CGFloat, fill: Color) {
             ctx.stroke(path, with: .color(casing), style: StrokeStyle(lineWidth: (width + 2.5) * k, lineCap: round.lineCap, lineJoin: round.lineJoin))
             ctx.stroke(path, with: .color(fill), style: StrokeStyle(lineWidth: width * k, lineCap: round.lineCap, lineJoin: round.lineJoin))
         }
-        road(paths, width: 2, fill: Color(white: 0.34))
-        road(minor, width: 3.5, fill: Color(white: 0.46))
-        road(major, width: 5.5, fill: Color(white: 0.58))
+        road(paths, width: 2, fill: Theme.mapRoadMinor.opacity(0.6))
+        road(minor, width: 3.5, fill: Theme.mapRoadMinor)
+        road(major, width: 6, fill: Theme.mapRoadMajor)
     }
 
     func drawRefuge(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint) {
@@ -187,8 +197,8 @@ struct RouteMapView: View {
         ctx.stroke(Path(ellipseIn: CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)),
                    with: .color(Theme.safe), lineWidth: 2.5 * k)
         symbol(ctx, RouteMapView.symbolName(for: r.kind), at: c, size: badge * 1.15, color: Color(red: 0.05, green: 0.4, blue: 0.2))
-        pill(ctx, Text(r.name).font(Theme.font(16, .bold)).foregroundColor(.white),
-             at: CGPoint(x: c.x, y: c.y + badge + 5 * k), anchor: .top, in: size, fill: Color.black.opacity(0.78), stroke: Theme.safe)
+        pill(ctx, Text(r.name).font(Theme.font(thumbnail ? 15 : 17, .bold)).foregroundColor(.white),
+             at: CGPoint(x: c.x, y: c.y + badge + 6 * k), anchor: .top, in: size, fill: Color.black.opacity(0.82), stroke: Theme.safe)
     }
 
     static func symbolName(for kind: String?) -> String {
@@ -221,61 +231,69 @@ struct RouteMapView: View {
             walked.move(to: pts[0]); for p in pts[1...splitIndex] { walked.addLine(to: p) }; walked.addLine(to: split)
         }
         ahead.move(to: split); for p in pts[(splitIndex + 1)...] { ahead.addLine(to: p) }
-        let width = 7 * k
+        let width = 8 * k
         let style = StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
-        ctx.stroke(whole, with: .color(Color.black.opacity(0.85)), style: StrokeStyle(lineWidth: width + 5 * k, lineCap: .round, lineJoin: .round))
-        if w > 0 { ctx.stroke(walked, with: .color(Theme.accent.opacity(0.4)), style: style) }
-        ctx.stroke(ahead, with: .color(Theme.accent), style: style)
+        ctx.stroke(whole, with: .color(Color.black.opacity(0.9)), style: StrokeStyle(lineWidth: width + 6 * k, lineCap: .round, lineJoin: .round))
+        if w > 0 { ctx.stroke(walked, with: .color(Theme.route.opacity(0.45)), style: style) }
+        ctx.stroke(ahead, with: .color(Theme.route), style: style)
     }
 
-    /// Street names once each along the longest on-screen route edge carrying that name.
-    func drawStreetNames(_ ctx: GraphicsContext, _ pt: (Double, Double) -> CGPoint) {
-        var best: [String: (CGPoint, CGPoint, CGFloat)] = [:]
-        for ei in route.edges where ei < graph.edges.count {
-            let e = graph.edges[ei]
-            guard let name = e.name, !name.isEmpty else { continue }
-            let p = pt(graph.lat[e.a], graph.lon[e.a]), q = pt(graph.lat[e.b], graph.lon[e.b])
-            let len = hypot(q.x - p.x, q.y - p.y)
-            if len > (best[name]?.2 ?? 0) { best[name] = (p, q, len) }
+    /// The street you turn onto, labelled once at each turn (plus the first street), as pills that never overlap
+    /// each other, the Start pill or the refuge name. At most `maxTurnLabels`; the rest of the route stays clean.
+    static let maxTurnLabels = 4
+
+    func drawTurnStreetNames(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint, avoid: inout [CGRect]) {
+        let edges = route.edges.filter { $0 < graph.edges.count }
+        guard edges.count >= 1, route.nodes.count == edges.count + 1 else { return }
+        var labels: [(String, Int)] = []   // (street, node index where it begins)
+        var lastName: String? = nil
+        for (i, ei) in edges.enumerated() {
+            let name = graph.edges[ei].name ?? ""
+            if !name.isEmpty, name != lastName {
+                labels.append((name, i))
+            }
+            if !name.isEmpty { lastName = name }
         }
-        for (name, seg) in best {
-            let t = ctx.resolve(Text(name).font(Theme.font(13, .semibold)).foregroundColor(.white))
-            let w = t.measure(in: CGSize(width: 400, height: 40)).width
-            guard seg.2 >= w + 12 else { continue }
-            var angle = atan2(seg.1.y - seg.0.y, seg.1.x - seg.0.x)
-            if angle > .pi / 2 || angle < -.pi / 2 { angle += .pi }
-            let mid = CGPoint(x: (seg.0.x + seg.1.x) / 2, y: (seg.0.y + seg.1.y) / 2)
-            ctx.drawLayer { l in
-                l.translateBy(x: mid.x, y: mid.y)
-                l.rotate(by: .radians(angle))
-                l.addFilter(.shadow(color: .black, radius: 2.5))
-                l.draw(t, at: CGPoint(x: 0, y: -11), anchor: .center)
+        // Keep the first street and the turns onto the longest stretches; drop the rest.
+        var lengthByLabel: [Int: Double] = [:]
+        for (li, (name, startIdx)) in labels.enumerated() {
+            var total = 0.0
+            for j in startIdx..<edges.count {
+                let e = graph.edges[edges[j]]
+                if (e.name ?? "") != name { break }
+                total += e.lengthM
+            }
+            lengthByLabel[li] = total
+        }
+        let keep = Set(labels.indices.sorted { (lengthByLabel[$0] ?? 0) > (lengthByLabel[$1] ?? 0) }.prefix(RouteMapView.maxTurnLabels))
+        for (li, (name, startIdx)) in labels.enumerated() where keep.contains(li) {
+            let n0 = route.nodes[startIdx], n1 = route.nodes[min(startIdx + 1, route.nodes.count - 1)]
+            let p = pt(graph.lat[n0], graph.lon[n0]), q = pt(graph.lat[n1], graph.lon[n1])
+            let mid = CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2)
+            let dx = q.x - p.x, dy = q.y - p.y
+            // Offset the pill to the side of the segment so it does not sit on the line.
+            let len = max(hypot(dx, dy), 1)
+            let off = CGPoint(x: -dy / len * 16 * k, y: dx / len * 16 * k)
+            let anchor: UnitPoint = off.x >= 0 ? .leading : .trailing
+            let at = CGPoint(x: mid.x + off.x, y: mid.y + off.y)
+            let t = Text(name).font(Theme.font(thumbnail ? 13 : 15, .bold)).foregroundColor(.white)
+            if let r = pillRect(ctx, t, at: at, anchor: anchor, in: size), !avoid.contains(where: { $0.insetBy(dx: -4, dy: -4).intersects(r) }) {
+                pill(ctx, t, at: at, anchor: anchor, in: size, fill: Color.black.opacity(0.78), stroke: Color.white.opacity(0.6))
+                avoid.append(r)
             }
         }
     }
 
-    func drawPins(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint) {
-        if let n = route.nodes.first {
-            let p = pt(graph.lat[n], graph.lon[n])
-            let r = 6 * k
-            ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.white))
-            ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.black), lineWidth: 2.5 * k)
-            pill(ctx, Text("Start").font(Theme.font(thumbnail ? 11 : 13, .bold)).foregroundColor(.black),
-                 at: CGPoint(x: p.x + r + 4, y: p.y), anchor: .leading, in: size, fill: .white, stroke: .black)
-        }
-        if let ep = refuge?.entryPoints.first {
-            let p = pt(ep.lat, ep.lon)
-            let r = 7 * k, h = 20 * k
-            var pin = Path()
-            pin.move(to: p)
-            pin.addLine(to: CGPoint(x: p.x - r, y: p.y - h + r))
-            pin.addArc(center: CGPoint(x: p.x, y: p.y - h + r), radius: r, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
-            pin.closeSubpath()
-            ctx.stroke(pin, with: .color(.black), style: StrokeStyle(lineWidth: 3 * k, lineJoin: .round))
-            ctx.fill(pin, with: .color(.white))
-            let dot = 2.5 * k
-            ctx.fill(Path(ellipseIn: CGRect(x: p.x - dot, y: p.y - h + r - dot, width: 2 * dot, height: 2 * dot)), with: .color(Theme.safe))
-        }
+    func drawPins(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint, avoid: inout [CGRect]) {
+        guard let n = route.nodes.first else { return }
+        let p = pt(graph.lat[n], graph.lon[n])
+        let r = 8 * k
+        ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.white))
+        ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.black), lineWidth: 3 * k)
+        let t = Text("Start").font(Theme.font(thumbnail ? 13 : 15, .bold)).foregroundColor(.black)
+        let at = CGPoint(x: p.x + r + 5, y: p.y)
+        pill(ctx, t, at: at, anchor: .leading, in: size, fill: .white, stroke: .black)
+        if let rect = pillRect(ctx, t, at: at, anchor: .leading, in: size) { avoid.append(rect) }
     }
 
     func drawYou(_ ctx: GraphicsContext, _ pt: (Double, Double) -> CGPoint) {
@@ -343,6 +361,19 @@ struct RouteMapView: View {
         var img = ctx.resolve(Image(systemName: name))
         img.shading = .color(color)
         ctx.draw(img, in: CGRect(x: c.x - s / 2, y: c.y - s / 2, width: s, height: s))
+    }
+
+    /// Where `pill` would draw, for overlap checks.
+    func pillRect(_ ctx: GraphicsContext, _ text: Text, at p: CGPoint, anchor: UnitPoint, in size: CGSize) -> CGRect? {
+        let t = ctx.resolve(text)
+        let m = t.measure(in: CGSize(width: size.width - 24, height: 200))
+        let padX = 9 * k, padY = 4 * k
+        var rect = CGRect(x: 0, y: 0, width: m.width + 2 * padX, height: m.height + 2 * padY)
+        rect.origin = CGPoint(x: p.x - rect.width * anchor.x, y: p.y - rect.height * anchor.y)
+        let edge = 6 * k
+        rect.origin.x = min(max(rect.origin.x, edge), max(edge, size.width - edge - rect.width))
+        rect.origin.y = min(max(rect.origin.y, edge), max(edge, size.height - edge - rect.height))
+        return rect
     }
 
     /// A rounded label kept inside the canvas (never clipped at an edge).

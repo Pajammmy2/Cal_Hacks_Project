@@ -12,7 +12,17 @@ public enum Theme {
     public static let cardRaised = Color(red: 0.09, green: 0.16, blue: 0.29)
     public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
+    /// The route on the map: bright sky blue with a black casing, unmistakable on the veiled photo and on the drawn map.
+    public static let route = Color(red: 0.55, green: 0.85, blue: 1.0)
+    /// Dark navy veil over the satellite photo (look A "Signal"): photo still readable, overlays win.
+    public static let mapVeil = Color(red: 0.01, green: 0.03, blue: 0.08).opacity(0.42)
+    /// Look C "Blueprint": navy land, steel roads, drawn from graph.json (offline / no photo / Settings → Map).
+    public static let mapLand = Color(red: 0.04, green: 0.08, blue: 0.16)
+    public static let mapRoadMinor = Color(red: 0.36, green: 0.46, blue: 0.58)
+    public static let mapRoadMajor = Color(red: 0.62, green: 0.72, blue: 0.84)
     public static let minButtonHeight: CGFloat = 64
+    /// "satellite" (default, look A) | "drawn" (look C). Settings → Map.
+    public static let mapStyleKey = "ember.mapStyle"
 
     /// "inter" (default, bundled) | "system" | "rounded" | "hyperlegible" (Atkinson Hyperlegible, bundled). Both custom fonts are OFL. Settings → Font.
     public static let fontKey = "ember.font"

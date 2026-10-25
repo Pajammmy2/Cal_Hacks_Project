@@ -31,7 +31,7 @@ struct SatelliteMapView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> FittedMapView {
         let v = FittedMapView()
-        v.mapType = .hybrid
+        v.mapType = .satellite
         v.pointOfInterestFilter = .excludingAll
         v.showsBuildings = false
         v.showsTraffic = false

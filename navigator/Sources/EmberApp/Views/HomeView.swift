@@ -59,7 +59,7 @@ struct HomeView: View {
                 .disabled(model.selected == nil || model.bundle == nil)
             ButtonRow {
                 EmberButton(title: "Add profile", systemImage: "qrcode.viewfinder", hint: "Scan the QR code on the plan card") { scanning = true }
-                EmberButton(title: "Settings", systemImage: "gearshape", hint: "API keys, entered once at install") { settings = true }
+                EmberButton(title: "Settings", systemImage: "gearshape", hint: "Map style, font and keys") { settings = true }
             }
         }
         .sheet(isPresented: $scanning) {
@@ -123,22 +123,21 @@ struct SettingsView: View {
     ]
 
     static let fonts = [("inter", "Inter"), ("system", "Apple"), ("hyperlegible", "Hyperlegible")]
+    static let mapStyles = [("satellite", "Satellite", "photo.fill"), ("drawn", "Drawn", "map.fill")]
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
+    @AppStorage(Theme.mapStyleKey) private var mapStyle = "satellite"
 
     var body: some View {
         Screen {
-            InstructionText(text: "Keys stay on this phone.")
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(KeychainStore.Key.allCases, id: \.self) { k in
-                    VStack(alignment: .leading, spacing: 6) {
-                        SecondaryText(text: SettingsView.labels[k] ?? k.rawValue)
-                        SecureField(SettingsView.labels[k] ?? k.rawValue, text: Binding(get: { values[k] ?? "" }, set: { values[k] = $0 }))
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 12)
-                            .frame(minHeight: 48)
-                            .background(Theme.cardRaised)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .accessibilityLabel(SettingsView.labels[k] ?? k.rawValue)
+            InstructionText(text: "Settings")
+            VStack(alignment: .leading, spacing: 10) {
+                SecondaryText(text: "Map")
+                Text("Satellite photo when the phone has signal or a saved picture; Drawn streets always work offline.")
+                    .font(Theme.font(17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                ButtonRow {
+                    ForEach(SettingsView.mapStyles, id: \.0) { m in
+                        EmberButton(title: m.1, systemImage: mapStyle == m.0 ? "checkmark.circle.fill" : m.2,
+                                    hint: "Show the \(m.1.lowercased()) map") { mapStyle = m.0 }
                     }
                 }
             }
@@ -149,6 +148,22 @@ struct SettingsView: View {
                     ForEach(SettingsView.fonts, id: \.0) { f in
                         EmberButton(title: f.1, systemImage: fontChoice == f.0 ? "checkmark.circle.fill" : "circle",
                                     hint: "Use the \(f.1) font everywhere") { fontChoice = f.0 }
+                    }
+                }
+            }
+            .card()
+            VStack(alignment: .leading, spacing: 14) {
+                SecondaryText(text: "Keys (stay on this phone)")
+                ForEach(KeychainStore.Key.allCases, id: \.self) { k in
+                    VStack(alignment: .leading, spacing: 6) {
+                        SecondaryText(text: SettingsView.labels[k] ?? k.rawValue)
+                        SecureField(SettingsView.labels[k] ?? k.rawValue, text: Binding(get: { values[k] ?? "" }, set: { values[k] = $0 }))
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 48)
+                            .background(Theme.cardRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .accessibilityLabel(SettingsView.labels[k] ?? k.rawValue)
                     }
                 }
             }
