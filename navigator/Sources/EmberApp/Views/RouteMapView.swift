@@ -263,8 +263,8 @@ struct RouteMapView: View {
         drawRefuge(ctx, size, pt)
         drawRoute(ctx, pt)
         var avoid: [CGRect] = []
+        drawPins(ctx, size, pt, avoid: &avoid)              // Start first: street labels keep clear of it
         if size.height >= 200 { drawTurnStreetNames(ctx, size, pt, avoid: &avoid) }
-        drawPins(ctx, size, pt, avoid: &avoid)
         drawYou(ctx, pt)
         drawCompassAndScale(ctx, size, proj.metersPerPoint)
     }

@@ -30,10 +30,12 @@ public enum Theme {
     public static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         let bold: Set<Font.Weight> = [.semibold, .bold, .heavy, .black]
         switch fontChoice {
-        case "hyperlegible": return .custom(bold.contains(weight) ? "AtkinsonHyperlegible-Bold" : "AtkinsonHyperlegible-Regular", size: size)
+        // fixedSize: callers already scale `size` with @ScaledMetric; `.custom(_, size:)` would scale it a second
+        // time with Dynamic Type, which is what blew Inter up to "Bloc…" buttons at AX5 while Apple stayed sane.
+        case "hyperlegible": return .custom(bold.contains(weight) ? "AtkinsonHyperlegible-Bold" : "AtkinsonHyperlegible-Regular", fixedSize: size)
         case "system": return .system(size: size, weight: weight)
         case "rounded": return .system(size: size, weight: weight, design: .rounded)
-        default: return .custom(bold.contains(weight) ? "Inter-Bold" : "Inter-Regular", size: size)
+        default: return .custom(bold.contains(weight) ? "Inter-Bold" : "Inter-Regular", fixedSize: size)
         }
     }
     public static let corner: CGFloat = 18
@@ -141,7 +143,7 @@ struct InstructionText: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.font(size, .bold))
+            .font(Theme.font(min(size, 56), .bold))     // bounded: a 6-word instruction must stay on one screen at AX5
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
