@@ -109,8 +109,11 @@ public struct Refuge: Codable, Sendable, Equatable, Identifiable {
     public var shortName: String {
         var n = name.trimmingCharacters(in: .whitespaces)
         if n.lowercased().hasPrefix("the ") { n = String(n.dropFirst(4)) }
-        if let r = n.range(of: "parking lot on ", options: .caseInsensitive) { n = String(n[r.upperBound...]) + " lot" }
-        else if let r = n.range(of: "parking lot at ", options: .caseInsensitive) { n = String(n[r.upperBound...]) + " lot" }
+        for prefix in ["parking lot on ", "parking lot at ", "parking lot of ", "lot at ", "lot on "] where n.lowercased().hasPrefix(prefix) {
+            n = String(n.dropFirst(prefix.count)) + " lot"
+            break
+        }
+        if let f = n.first { n = f.uppercased() + n.dropFirst() }
         return n
     }
 
