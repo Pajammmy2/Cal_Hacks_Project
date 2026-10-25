@@ -167,6 +167,13 @@ struct SettingsView: View {
             }
             .card()
             VStack(alignment: .leading, spacing: 10) {
+                ToggleRow(title: "Demo: step through route", isOn: $model.demoStepping)
+                Text("For rehearsals. Moves your position along the route without GPS.")
+                    .font(Theme.font(17)).foregroundColor(Theme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .card()
+            VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Font")
                 // two per row at most: three across truncated "Hyperlegible" to "Hyp…" on a 390 pt phone
                 ButtonRow {

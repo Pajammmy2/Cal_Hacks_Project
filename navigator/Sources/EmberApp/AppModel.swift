@@ -57,6 +57,7 @@ public final class AppModel: ObservableObject {
 
     public init() {
         caregiverMode = UserDefaults.standard.bool(forKey: "caregiverMode")
+        demoStepping = UserDefaults.standard.bool(forKey: AppModel.demoSteppingKey)
         selectedId = UserDefaults.standard.string(forKey: "selectedId")
         let t = UserDefaults.standard.double(forKey: "powerOutSince")
         powerOutSince = t > 0 ? Date(timeIntervalSince1970: t) : nil
@@ -299,6 +300,7 @@ public final class AppModel: ObservableObject {
         speaker.slower = false
         speaker.volume = Speaker.normalVolume
         course.reset()
+        m.demoStepping = demoStepping
         do { try m.start(client: c, caregiver: caregiverMode) } catch { notice = "\(error)" }
         sync()
     }
@@ -397,8 +399,31 @@ public final class AppModel: ObservableObject {
         bundle?.contains(lat: l.coordinate.latitude, lon: l.coordinate.longitude) ?? false
     }
 
+    // MARK: demo stepping (Settings: "Demo: step through route")
+
+    public static let demoSteppingKey = "demoStepping"
+    /// Rehearsal mode: real GPS is ignored while navigating; "Next" moves the position to the next cue point.
+    @Published public var demoStepping = false {
+        didSet {
+            UserDefaults.standard.set(demoStepping, forKey: AppModel.demoSteppingKey)
+            machine?.demoStepping = demoStepping
+        }
+    }
+
+    /// The "Next" button: the same path as a GPS fix at the next cue point (cue speech, haptic, strip, follow camera,
+    /// Arrived after the last cue).
+    public func demoNext() {
+        guard let m = machine, demoStepping else { return }
+        m.demoStepping = true
+        guard m.demoStep(), let p = m.position else { return }
+        course.add(lat: p.lat, lon: p.lon)
+        Platform.haptic()
+        sync()
+    }
+
     func gotFix(_ l: CLLocation) {
         guard let m = machine, usable(l) else { return }
+        if demoStepping, m.state == .navigate { return }       // the stepped position must not snap back to the desk
         m.updatePosition(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
         course.add(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
         sync()

@@ -225,6 +225,28 @@ public final class NavigatorStateMachine {
 
     public func setPosition(lat: Double, lon: Double) { position = (lat, lon) }
 
+    /// Where the next demo step lands: the point on the route where the next cue group is announced (exactly where
+    /// a walking GPS fix would first speak it — if two groups announce within the same lookahead they merge the same
+    /// way GPS does), or the route's final node (the chosen entry point, never the centroid) once the arrival cue is
+    /// current. Nil outside Navigate.
+    public var demoNextPoint: (lat: Double, lon: Double)? {
+        guard state == .navigate, let p = progress else { return nil }
+        if let s = p.nextAnnounceM {
+            return p.point(atM: max(s + 1, p.progressM + 1), graph: graph)   // 1 m past the threshold, like the first fix past it
+        }
+        guard let last = p.route.nodes.last else { return nil }
+        return (graph.lat[last], graph.lon[last])
+    }
+
+    /// One demo step: the same code path as a GPS fix at the next cue point (cue speech, progress, Arrived at the
+    /// end). Returns false when there is nothing to step (not navigating).
+    @discardableResult
+    public func demoStep() -> Bool {
+        guard let t = demoNextPoint else { return false }
+        updatePosition(lat: t.lat, lon: t.lon, source: .demo)
+        return true
+    }
+
     // MARK: WhichWay
 
     /// "OK": accept the cached fire direction (only offered when the data is under 6 h old).
@@ -341,7 +363,14 @@ public final class NavigatorStateMachine {
     }
 
     /// GPS fix. In Navigate: arrival within 25 m of an entry point, else advance the cue by progress.
-    public func updatePosition(lat: Double, lon: Double) {
+    /// Demo stepping (Settings): while on, real GPS fixes are ignored and `demoStep()` moves the position along the
+    /// route instead, so a rehearsal on a desk fires exactly what arriving there would.
+    public var demoStepping = false
+
+    public enum PositionSource { case gps, demo }
+
+    public func updatePosition(lat: Double, lon: Double, source: PositionSource = .gps) {
+        if demoStepping, source == .gps, state == .navigate { return }
         position = (lat, lon)
         guard state == .navigate, var p = progress, let c = currentChoice else { return }
         if Router.arrived(lat: lat, lon: lon, refuge: c.refuge) {
