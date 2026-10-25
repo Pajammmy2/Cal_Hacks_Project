@@ -190,8 +190,10 @@ public final class AppModel: ObservableObject {
     public var selected: ClientProfile? { profiles.first { $0.id == selectedId } }
 
     public func addProfile(fromCode code: String) {
+        var spoken = CardScanSpeech.notACard
         do {
             let p = try QRPayload.parse(code)
+            spoken = CardScanSpeech.spoken(card: p, bundleCounty: bundle?.county)
             profiles.removeAll { $0.id == p.id }
             profiles.append(p)
             profileStore.save(profiles)
@@ -202,9 +204,9 @@ public final class AppModel: ObservableObject {
             if let b = bundle, let c = p.county, c != b.county { notice = "Added \(p.name). The map on this phone is for \(b.county), not \(c)." }
             speaker.configure(bundle: bundle, clientId: selectedId)
         } catch {
-            notice = "That code is not an Ember card. Try again."
+            notice = CardScanSpeech.notACard
         }
-        speaker.speak([Utterance(notice ?? "Okay.")])
+        speaker.speak([Utterance(spoken)])   // only recorded sentences; the notice may say more (bug 3)
     }
 
     public func handleURL(_ url: URL) {
