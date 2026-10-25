@@ -208,6 +208,50 @@ import Testing
         #expect(Geo.angdiff(bearingTo(m, m.currentChoice!.refuge, from: 112), 90) > Router.fireSideHalfAngle)
     }
 
+    // "New fire" with no compass: report -> history prior -> straight ahead, each said aloud; never silent.
+    @Test func newFireWithoutCompassUsesTheFireReportAndSaysSo() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        #expect(m.state == .navigate)
+        let b = try #require(m.dataFireBearing)            // the stale report still has a bearing (wind from 45)
+        #expect(m.newFireWithoutCompass() == "report")
+        #expect(m.fireBearing == b)
+        #expect(m.utterances.first?.text == NavigatorStateMachine.noCompassReport)
+        #expect(m.utterances.dropFirst().first?.text == "Fire is to the northeast.")
+        #expect(m.utterances.count >= 3)                    // + "Rerouting." / the no-route shelter lead
+        #expect(m.state == .navigate || m.state == .shelter)
+    }
+
+    @Test func newFireWithoutCompassFallsBackToStraightAheadWhenNothingIsKnown() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        m.fireData = FireData(perimeter: nil, wind: nil)
+        #expect(m.dataFireBearing == nil)
+        #expect(m.historyPrior == nil)                      // the fake bundle has no history.json
+        let heading = try #require(m.travelHeading)
+        #expect(m.newFireWithoutCompass() == "ahead")
+        #expect(m.fireBearing == heading)
+        #expect(m.utterances.first?.text == NavigatorStateMachine.noCompassAhead)
+        #expect(m.utterances.count >= 2)
+    }
+
+    @Test func newFireWithoutCompassOutsideNavigateAsksAgain() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        #expect(m.newFireWithoutCompass() == "none")
+        #expect(m.utterances.map(\.text) == [NavigatorStateMachine.sayAgain])
+        #expect(m.state == .whichWay)
+    }
+
+    @Test func noCompassLeadsArePreRecordedPhrases() {
+        let fixed = Fixtures.config.phrases.fixed
+        for t in [NavigatorStateMachine.noCompassReport, NavigatorStateMachine.noCompassHistory, NavigatorStateMachine.noCompassAhead] {
+            #expect(fixed.contains(t), "\(t) must be in shared/phrases.json so Henry, not the Apple voice, says it")
+        }
+    }
+
     @Test func fireOutsideNavigateAsksAgain() throws {
         let m = machine(stale)
         try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
