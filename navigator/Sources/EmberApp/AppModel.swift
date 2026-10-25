@@ -341,7 +341,7 @@ public final class AppModel: ObservableObject {
     /// New fire, no compass and the person cannot tell where: report -> history -> straight ahead, said aloud.
     public func newFireUnknownDirection() { machine?.newFireWithoutCompass(); sync() }
 
-    public func confirmFire() { machine?.confirmFire(); sync() }
+    public func confirmFire() { machine?.confirmFire(); Platform.haptic(.fire); sync() }
     public func skipFireDirection() { machine?.skipFireDirection(); sync() }
 
     public func pointAtSmoke() {
@@ -354,7 +354,7 @@ public final class AppModel: ObservableObject {
     public func pointAtNewFire() { newFireTapped() }
 
     /// "Fire ahead" without a bearing: the fire is where the user is heading (compass, else the route edge).
-    public func fireAhead() { machine?.fireAhead(heading: compass.heading); sync() }
+    public func fireAhead() { machine?.fireAhead(heading: compass.heading); Platform.haptic(.fire); sync() }
 
     public func go() { machine?.go(); sync() }
     public func other() { machine?.other(); sync() }
@@ -415,9 +415,24 @@ public final class AppModel: ObservableObject {
 
     func gotFix(_ l: CLLocation) {
         guard let m = machine, usable(l) else { return }
+        let before = (m.progress?.groupIndex, m.progress?.route.nodes)
         m.updatePosition(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
         course.add(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
+        directionalHaptic(before: before)
         sync()
+    }
+
+    /// W1: left / right / straight / new-route patterns in the hand (Harold is hard of hearing). Fires for a real fix
+    /// and for a demo step alike, because both arrive through the same progress change.
+    func directionalHaptic(before: (Int?, [Int]?), fallback: Bool = false) {
+        guard let m = machine, let p = m.progress, m.state == .navigate else { if fallback { Platform.haptic() }; return }
+        if before.1 != nil, before.1 != p.route.nodes {
+            Platform.haptic(.offRoute)                      // the route changed under the person: new route
+        } else if before.0 != p.groupIndex, let first = p.currentGroup.first, let h = HapticCue.forCue(first) {
+            Platform.haptic(h)                              // new corner: left / right / straight in the hand
+        } else if fallback {
+            Platform.haptic()                               // a demo step with no new corner still answers the tap
+        }
     }
 
     func periodic() {
@@ -585,7 +600,11 @@ public final class AppModel: ObservableObject {
         guard let m = machine else { state = .home; leaveNavigateCamera(); return }
         let was = state
         state = m.state
-        if m.state == .navigate, was != .navigate { enterNavigateCamera() }
+        if m.state == .navigate, was != .navigate {
+            enterNavigateCamera()
+            if let first = m.progress?.currentGroup.first, let h = HapticCue.forCue(first) { Platform.haptic(h) }
+        }
+        if m.state == .arrived, was != .arrived { Platform.haptic(.arrived) }
         if m.state != .navigate, was == .navigate { leaveNavigateCamera() }
         if m.state == .navigate { updateFollowCamera() }
         Platform.keepScreenOn(m.state == .navigate)
