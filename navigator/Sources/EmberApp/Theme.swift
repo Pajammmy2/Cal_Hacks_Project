@@ -251,10 +251,12 @@ struct StatLine<Trailing: View>: View {
     var body: some View {
         Group {
             if typeSize.isAccessibilitySize {
+                // icon-only "Next" at AX sizes: beside the full label "119 min" at 66 pt had no room and broke
+                // into "119" / "min"; the stats column keeps the width a number and its unit need
                 HStack(spacing: 10) {
                     stats(fixed: false)
                     Spacer(minLength: 0)
-                    trailing(false)
+                    trailing(true)
                 }
             } else {
                 // Stats never truncate: full words + full "Next" if it fits, else icon-only "Next", else the stats
@@ -275,6 +277,9 @@ struct StatLine<Trailing: View>: View {
     }
 
     func stats(fixed: Bool, scale: CGFloat = 1) -> some View {
+        // AX sizes: the value is capped (title2 26 → 66 pt at AX5) so "119 min" fits the column beside its icon and
+        // the demo "Next" as one word; the same cap pattern as the instruction (44) and CaregiverInfo (22).
+        let big = typeSize.isAccessibilitySize ? min(self.big, WordFit.stripBigAXCap) : self.big
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
         return layout {
             ForEach(Array(items.enumerated()), id: \.offset) { _, it in

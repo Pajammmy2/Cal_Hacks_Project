@@ -126,11 +126,15 @@ import CoreGraphics
     @Test func navigateStripKeepsNumberAndUnitTogetherAtAX5() throws {
         let v = WordFit.stripValue(710, unit: "m")
         #expect(!v.contains(" ") && v.contains(WordFit.nbsp))
-        let big = try #require(WordFit.font(url: Self.bold, size: 66))
+        let big = try #require(WordFit.font(url: Self.bold, size: WordFit.stripBigAXCap))
         #expect(WordFit.widestWord("\(v) to next turn", font: big).0 == v)
+        // beside the demo "Next" (icon-only at AX sizes: 44 pt + 10 pt gap) and the item's SF icon (body 17 → 53 pt
+        // at AX5, ≈ 1.1 em wide, 6 pt gap) the unit must still have its room; uncapped 66 pt did not ("119" / "min")
+        let column = Self.card - 54 - (53 * 1.1 + 6)
+        #expect(WordFit.widestWord(WordFit.stripValue(119, unit: "min"), font: try #require(WordFit.font(url: Self.bold, size: 66))).1 > column)
         for value in [WordFit.stripValue(1450, unit: "m"), WordFit.stripValue(119, unit: "min")] {
             let (w, px) = WordFit.widestWord(value + " to next turn", font: big)
-            #expect(w == value && px <= Self.card, "\(w) is \(Int(px)) pt at 66 pt, column \(Int(Self.card))")
+            #expect(w == value && px <= column, "\(w) is \(Int(px)) pt at 66 pt, column \(Int(column))")
         }
     }
 }

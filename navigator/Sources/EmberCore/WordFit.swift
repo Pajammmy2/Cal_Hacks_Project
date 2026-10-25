@@ -44,6 +44,8 @@ public enum WordFit {
     public static let stripScales: [CGFloat] = [1, 0.85, 0.7, 0.6]
     public static let stripBig: CGFloat = 26, stripSmall: CGFloat = 17, stripIconGap: CGFloat = 6, stripItemGap: CGFloat = 18
     public static let stripTrailingGap: CGFloat = 10
+    /// Cap of the value font at accessibility sizes (uncapped title2 reaches 66 pt at AX5).
+    public static let stripBigAXCap: CGFloat = 48
 
     /// Width of the strip at `scale` with the layout's own metrics: per item an SF icon (≈ 1.1 em of the caption
     /// font), the value in the big font and the caption in the small one; `trailing` is the control at the end.
