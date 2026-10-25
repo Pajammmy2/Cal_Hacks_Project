@@ -252,6 +252,34 @@ import Testing
         }
     }
 
+    // The bundle's plan file is the single source: the card's refuge_ids must match it, and live routing keeps
+    // the plan's A first whenever the router still allows it, so phone and printed card say the same place.
+    @Test func cardMatchesPlanFileOrSaysSo() throws {
+        #expect(NavigatorStateMachine.cardMatchesPlan(cardIds: ["r1", "r2"], planIds: ["r1", "r2"]))
+        #expect(NavigatorStateMachine.cardMatchesPlan(cardIds: nil, planIds: ["r1", "r2"]))      // old card without ids
+        #expect(NavigatorStateMachine.cardMatchesPlan(cardIds: ["r1"], planIds: []))             // bundle without a plan file
+        #expect(!NavigatorStateMachine.cardMatchesPlan(cardIds: ["r9", "r2"], planIds: ["r1", "r2"]))
+        #expect(!NavigatorStateMachine.cardMatchesPlan(cardIds: ["r2", "r1"], planIds: ["r1", "r2"]))  // A/B swapped by staff
+        #expect(Fixtures.config.phrases.fixed.contains(NavigatorStateMachine.cardMismatch))
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        #expect(m.planRefugeIds.isEmpty && !m.cardMismatch)                                       // fake bundle: no plan file
+    }
+
+    @Test func liveChoicesKeepThePlanFilesRefugeFirst() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.point(bearing: 200)
+        let live = m.choices
+        try #require(live.count > 1)
+        let b = live[1].refuge.id
+        let re = NavigatorStateMachine.ordered(live, planIds: [b, live[0].refuge.id])
+        #expect(re.first?.refuge.id == b)
+        #expect(Set(re.map(\.refuge.id)) == Set(live.map(\.refuge.id)))
+        #expect(NavigatorStateMachine.ordered(live, planIds: ["not-a-refuge"]).map(\.refuge.id) == live.map(\.refuge.id))
+        #expect(NavigatorStateMachine.ordered(live, planIds: []).map(\.refuge.id) == live.map(\.refuge.id))
+    }
+
     @Test func fireOutsideNavigateAsksAgain() throws {
         let m = machine(stale)
         try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)

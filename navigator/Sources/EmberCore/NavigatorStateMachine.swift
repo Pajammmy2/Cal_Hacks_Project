@@ -25,6 +25,7 @@ public final class NavigatorStateMachine {
     public static let noRoute = "No route. Stay where you are. Start the shelter steps."
     public static let sayAgain = "Say again?"
     public static let fireAhead = "Fire ahead. Turning away from it."
+    public static let cardMismatch = "This card does not match the phone's plan. Ask staff for a new card."
     public static let noCompassReport = "No compass. Using the last fire report."
     public static let noCompassHistory = "No compass. Using where past fires came from."
     public static let noCompassAhead = "No compass. Treating the fire as straight ahead. Turning away from it."
@@ -123,7 +124,10 @@ public final class NavigatorStateMachine {
         arrivedRefuge = nil
         stopped = false
         fireBearing = nil
-        shelter = bundle.plan(clientId: client.id)?.shelter ?? PlanText.shelterSteps(client)
+        let planFile = bundle.plan(clientId: client.id)
+        shelter = planFile?.shelter ?? PlanText.shelterSteps(client)
+        planRefugeIds = (planFile?.choices ?? []).prefix(2).map { $0.refuge.id }
+        cardMismatch = !NavigatorStateMachine.cardMatchesPlan(cardIds: client.refugeIds, planIds: planRefugeIds)
         if client.isBedbound || profile?.shelterOnly == true {
             enterShelter(lead: nil)
             return
@@ -139,6 +143,28 @@ public final class NavigatorStateMachine {
         } else {
             say("Point the phone at the smoke and tap.")
         }
+    }
+
+    /// Refuge ids A, B of the bundle's plan file for this client (plans/<id>.json, written by the staff tool when it
+    /// plans and when it prints): the single source the printed card and the phone both follow.
+    public private(set) var planRefugeIds: [String] = []
+    /// True when the scanned card names other refuges than the plan file (an old card or a stale bundle).
+    public private(set) var cardMismatch = false
+
+    /// Card (QR refuge_ids) vs plan file: equal, or one side unknown, is a match.
+    public static func cardMatchesPlan(cardIds: [String]?, planIds: [String]) -> Bool {
+        guard let cardIds, !cardIds.isEmpty, !planIds.isEmpty else { return true }
+        return Array(cardIds.prefix(2)) == Array(planIds.prefix(2))
+    }
+
+    /// Live routing may order refuges differently from the plan file (a slightly different bearing, a newer graph).
+    /// When the plan's A is still an allowed choice it goes first, so the phone says what the card says; the router's
+    /// own order (fire side, time) is kept for everything else.
+    public static func ordered(_ choices: [Choice], planIds: [String]) -> [Choice] {
+        guard let a = planIds.first, let i = choices.firstIndex(where: { $0.refuge.id == a }), i > 0 else { return choices }
+        var out = choices
+        out.insert(out.remove(at: i), at: 0)
+        return out
     }
 
     /// Baked historical spread direction (history.json), used only when live data is stale and nothing better exists.
@@ -191,14 +217,18 @@ public final class NavigatorStateMachine {
     }
 
     func planChoices() {
-        choices = route(from: originNode())
+        choices = NavigatorStateMachine.ordered(route(from: originNode()), planIds: planRefugeIds)
         choiceIndex = 0
         if choices.isEmpty {
             enterShelter(lead: NavigatorStateMachine.noRoute)
             return
         }
         state = .choose
-        sayChoice()
+        if cardMismatch {
+            say([Utterance(NavigatorStateMachine.cardMismatch)] + choiceUtterances())
+        } else {
+            sayChoice()
+        }
     }
 
     func choiceUtterances() -> [Utterance] {
