@@ -19,7 +19,7 @@ import CoreGraphics
 
     /// (name, AX5 point size after the code's cap, allowed minimumScaleFactor, column, bold)
     struct Element { let name: String; let size: CGFloat; let minScale: CGFloat; let column: CGFloat; let bold: Bool }
-    static let instruction = Element(name: "InstructionText", size: 56, minScale: 0.7, column: card, bold: true)        // title 28→58, cap 56
+    static let instruction = Element(name: "InstructionText", size: 44, minScale: 0.7, column: card, bold: true)        // title 28→58, cap 44 at AX
     static let homeName = Element(name: "Home name", size: 66, minScale: 0.6, column: card, bold: true)                 // title2 26→66
     static let chooseName = Element(name: "Choose refuge name", size: 40, minScale: 0.7, column: card, bold: true)     // cap 40
     static let orRow = Element(name: "Choose Or row", size: 28, minScale: 0.7, column: card - 40, bold: true)          // cap 28, after "Or"
@@ -82,6 +82,14 @@ import CoreGraphics
         var bad = check(Self.chooseName, short) + check(Self.orRow, short) + check(Self.pill, short)
         bad += check(Self.instruction, names.map { "Arrive at \($0)." } + Self.headings)
         bad += check(Self.shelterRoom, ["bedroom", "bathroom", "kitchen", "living room", "hallway"])
+        #expect(bad.isEmpty, "\(bad)")
+    }
+
+    @Test func caregiverInfoNeverBreaks() {
+        // CaregiverInfo rows: body-relative 17 → 53 at AX5, icon + 8 pt gap, shrink 0.6
+        let e = Element(name: "CaregiverInfo", size: 53, minScale: 0.6, column: Self.card - 60, bold: false)
+        let bad = check(e, ["Transfers independently", "Slide board transfer", "One-person assist", "Two-person assist",
+                            "Oxygen (4 h battery), Power chair", "Ventilator, CPAP", "Chair: by the front door", "No powered devices on file."])
         #expect(bad.isEmpty, "\(bad)")
     }
 

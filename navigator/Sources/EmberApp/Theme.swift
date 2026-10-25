@@ -145,10 +145,12 @@ extension View {
 struct InstructionText: View {
     let text: String
     @ScaledMetric(relativeTo: .title) var size: CGFloat = 28
+    @Environment(\.dynamicTypeSize) var typeSize
 
     var body: some View {
         Text(text)
-            .font(Theme.font(min(size, 56), .bold))     // bounded: a 6-word instruction must stay on one screen at AX5
+            // bounded: at AX sizes 44 pt keeps a 6-word instruction to ~3 lines so the distance strip stays on screen
+            .font(Theme.font(min(size, typeSize.isAccessibilitySize ? 44 : 56), .bold))
             .minimumScaleFactor(0.7)                    // rule #4: a long word ("Supermarket" at 56 pt) shrinks whole, never breaks
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)

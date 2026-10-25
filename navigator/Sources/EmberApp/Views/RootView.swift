@@ -81,6 +81,8 @@ struct CaregiverInfo: View {
                 if let chair = c.home?.chairLocation, !chair.isEmpty { Label("Chair: \(chair)", systemImage: "house") }
             }
             .font(Theme.font(size, .medium))
+            .minimumScaleFactor(0.6)                        // rule #4: "independently" shrinks whole at AX5, never breaks
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundColor(Theme.text)
             .card(padding: 12)
             .accessibilityElement(children: .combine)
