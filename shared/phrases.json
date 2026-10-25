@@ -26,7 +26,12 @@
     "No compass. Using the last fire report.",
     "No compass. Using where past fires came from.",
     "No compass. Treating the fire as straight ahead. Turning away from it.",
-    "This card does not match the phone's plan. Ask staff for a new card."
+    "This card does not match the phone's plan. Ask staff for a new card.",
+    "Using the last fire report.",
+    "No fire information. Showing the nearest safe places.",
+    "That is the last step. Stay in the room and keep the phone on.",
+    "Which way is the smoke?",
+    "Which way is the new fire?"
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",

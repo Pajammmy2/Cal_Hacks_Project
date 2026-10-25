@@ -549,12 +549,12 @@ struct RouteMapView: View {
         tri.addLine(to: CGPoint(x: r * 0.32, y: -r * 0.05))
         tri.addLine(to: CGPoint(x: -r * 0.32, y: -r * 0.05))
         tri.closeSubpath()
-        ctx.drawLayer { l in           // the arrow turns with the map so it keeps pointing north
+        ctx.drawLayer { l in           // the arrow turns with the map so it keeps pointing north; the letter stays upright
             l.translateBy(x: c.x, y: c.y)
             l.rotate(by: .degrees(-rotation))
             l.fill(tri, with: .color(.white))
-            l.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: 0, y: r * 0.42), anchor: .center)
         }
+        ctx.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
         guard let s = scaleGeometry(ctx, size, metersPerPoint) else { return }
         ctx.fill(Path(roundedRect: s.box, cornerRadius: 6 * k), with: .color(Color.black.opacity(0.7)))
         var bar = Path()
