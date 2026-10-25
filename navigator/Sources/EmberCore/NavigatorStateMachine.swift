@@ -185,6 +185,12 @@ public final class NavigatorStateMachine {
             enterShelter(lead: nil)
             return
         }
+        if client.vision == "blind" {
+            // Which-way is a visual compass: skip it, go to Choose and speak the first option.
+            fireBearing = fireIsFresh ? dataFireBearing : historyPrior
+            planChoices()
+            return
+        }
         state = .whichWay
         if fireIsFresh, let b = dataFireBearing {
             say(Utterance(config.phrase("fire_dir", ["direction": Geo.directionWord(b, config.templates.directions)]),
@@ -512,12 +518,10 @@ public final class NavigatorStateMachine {
         say(u)
     }
 
+    /// "Next"; on the last step the button reads "Done" and goes back to Home, never a dead end.
     public func shelterNext() {
         guard state == .shelter, !shelter.steps.isEmpty else { return }
-        if shelterIndex >= shelter.steps.count - 1 {        // past the end: say so instead of going silent (v2, B15)
-            say([Utterance(NavigatorStateMachine.shelterLast), Utterance(shelter.steps[shelterIndex])])
-            return
-        }
+        if shelterIsLastStep { goHome(); return }               // "Done" on the last step: back to Home, never a dead end
         shelterIndex += 1
         say(shelter.steps[shelterIndex])
     }

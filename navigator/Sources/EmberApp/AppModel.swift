@@ -194,6 +194,7 @@ public final class AppModel: ObservableObject {
             profiles.removeAll { $0.id == p.id }
             profiles.append(p)
             profileStore.save(profiles)
+            resetPowerOut()                         // a new card: its devices start from full
             selectedId = p.id
             checkPowerScope()
             notice = "Added \(p.name)."
@@ -216,6 +217,7 @@ public final class AppModel: ObservableObject {
     }
 
     public func select(_ id: String) {
+        if id != selectedId { resetPowerOut() }     // the battery clock belongs to one person's devices
         selectedId = id
         checkPowerScope()
         speaker.configure(bundle: bundle, clientId: id)
@@ -225,6 +227,14 @@ public final class AppModel: ObservableObject {
     // MARK: power out
 
     public var powerIsOut: Bool { powerOutSince != nil }
+
+    /// New card scanned or profile switched: the "Power is out" clock no longer applies.
+    public func resetPowerOut() {
+        powerOutSince = nil
+        UserDefaults.standard.set(0, forKey: "powerOutSince")
+        leaveNowSpoken = false
+        leaveNow = nil
+    }
 
     public func setPowerOut(_ on: Bool, at date: Date = Date()) {
         powerOutSince = on ? (powerOutSince ?? date) : nil
@@ -269,9 +279,15 @@ public final class AppModel: ObservableObject {
 
     // MARK: derived for views
 
+    /// "checking…" while the county source is being asked, "updated" once it answered (online only).
+    @Published public private(set) var feedStatus: String?
+
     public var fireAgeText: String {
         guard let t = fireDataTimestamp else { return "Fire data: none on this phone" }
-        return "Fire data from \(Timestamps.ageText(Date().timeIntervalSince(t)))"
+        let age = "Fire data from \(Timestamps.ageText(Date().timeIntervalSince(t)))"
+        if !voice.online { return age + " — no connection" }
+        if let s = feedStatus { return age + " — " + s }
+        return age
     }
 
     public var fireIsStale: Bool { !(machine?.fireIsFresh ?? false) }
@@ -437,8 +453,10 @@ public final class AppModel: ObservableObject {
         guard let feed, voice.online else { return }
         if !force, let t = lastFeedFetch, Date().timeIntervalSince(t) < 60 { return }
         lastFeedFetch = Date()
+        feedStatus = "checking…"
         Task { @MainActor in
             let r = await feed.fetch()
+            self.feedStatus = r.situation != nil ? "updated" : "no answer"
             self.applyFeed(r)
         }
     }

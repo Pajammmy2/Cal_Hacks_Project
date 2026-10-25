@@ -48,7 +48,7 @@
     "or_b": "Or {refuge}. {n} minutes.",
     "leave_now_dev": "Leave now. {device} has {n} minutes left.",
     "leave_now_dev_one": "Leave now. {device} has 1 minute left.",
-    "device_out": "{device} battery is out. Leave now."
+    "device_out": "{device} battery may be out. Leave now."
   },
   "fragments": {
     "keep_blocks": [

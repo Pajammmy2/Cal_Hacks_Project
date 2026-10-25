@@ -112,8 +112,9 @@ import Testing
         let s = m.serial
         m.repeatCurrent()
         #expect(m.serial == s + 1 && m.utterances.map(\.text) == ["Close every window and door. Close the vents."])
-        for _ in 0..<10 { m.shelterNext() }
+        for _ in 0..<4 { m.shelterNext() }                 // step 6 of 6
         #expect(m.shelterStep == "Call 911. Say: I am in the back bedroom.")
+        #expect(m.shelterIsLastStep)
         for _ in 0..<5 { m.shelterBack() }
         #expect(m.shelterIndex == 0 && m.state == .shelter)
         m.shelterBack()
@@ -402,15 +403,17 @@ import Testing
         #expect(m.utterances.first?.text == NavigatorStateMachine.noFireInfo)
     }
 
-    @Test func shelterPastTheLastStepSaysSoInsteadOfGoingSilent() throws {
+    @Test func shelterLastStepIsDoneAndNeverADeadEnd() throws {
         let m = machine(stale)
         try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
         m.cantMove()
         #expect(m.state == .shelter)
-        for _ in 0..<20 { m.shelterNext() }
+        let n = m.shelter.steps.count
+        for _ in 1..<n { m.shelterNext() }
         #expect(m.shelterIsLastStep)
-        #expect(m.utterances.first?.text == NavigatorStateMachine.shelterLast)
-        #expect(m.utterances.count == 2)
+        #expect(m.shelterStep == m.shelter.steps.last)
+        m.shelterNext()                                      // "Done" on step n of n
+        #expect(m.state == .home)
     }
 
     @Test func pickerDirectionIsAPointOnWhichWayAndANewFireMidRoute() throws {

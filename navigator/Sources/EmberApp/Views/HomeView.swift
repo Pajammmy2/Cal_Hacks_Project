@@ -51,6 +51,9 @@ struct HomeView: View {
             NoteText(text: model.fireStatusText, systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
             if let built = model.bundleBuiltText { NoteText(text: built, systemImage: "map") }
             if let note = model.feedNote { NoteText(text: note, systemImage: "antenna.radiowaves.left.and.right") }
+            if let l = model.selected?.language, l != "en" {   // the card is in their language; the voice is not (yet)
+                NoteText(text: "Spoken instructions are in English.", systemImage: "speaker.wave.2")
+            }
             if let err = model.loadError { NoteText(text: err, systemImage: "exclamationmark.triangle") }
             if let n = model.notice { NoteText(text: n, systemImage: "info.circle") }
         } buttons: {

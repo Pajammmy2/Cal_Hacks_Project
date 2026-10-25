@@ -337,9 +337,9 @@ struct ShelterView: View {
             if let m { NoteText(text: "Step \(m.shelterIndex + 1) of \(m.shelter.steps.count)", systemImage: "list.number") }
             CaregiverInfo(client: m?.client)
         } buttons: {
-            EmberButton(title: model.machine?.shelterIsLastStep == true ? "Stay here" : "Next",
+            EmberButton(title: model.machine?.shelterIsLastStep == true ? "Done" : "Next",
                         systemImage: model.machine?.shelterIsLastStep == true ? "checkmark" : "arrow.forward",
-                        hint: model.machine?.shelterIsLastStep == true ? "This is the last step: stay in the room" : "Next step") { model.shelterNext() }
+                        hint: model.machine?.shelterIsLastStep == true ? "Last step done: back to the start screen" : "Next step") { model.shelterNext() }
             ButtonRow {
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say this step again") { model.repeatInstruction() }
                 EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Previous step") { model.shelterBack() }

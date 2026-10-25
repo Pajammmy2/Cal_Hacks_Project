@@ -14,7 +14,7 @@ import Testing
         #expect(DeviceTimer.leaveNowSentence(two, config: Fixtures.config) == "Leave now. Oxygen has 2 minutes left.")
         let out = dt.leaveNow(routeTimeS: 600, now: t0 + 5 * 3600)!
         #expect(out.hoursLeft == 0)
-        #expect(DeviceTimer.leaveNowSentence(out, config: Fixtures.config) == "Oxygen battery is out. Leave now.")
+        #expect(DeviceTimer.leaveNowSentence(out, config: Fixtures.config) == "Oxygen battery may be out. Leave now.")
         for s in ["Power is back."] { #expect(Fixtures.config.phrases.fixed.contains(s)) }
     }
 

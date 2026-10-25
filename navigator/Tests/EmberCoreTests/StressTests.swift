@@ -73,11 +73,15 @@ import Testing
         m.cantMove()
         #expect(m.state == .shelter)
         let steps = m.shelter.steps.count
-        for _ in 0..<(steps + 5) { m.shelterNext() } // clamps on the last step, never crashes
-        #expect(m.shelterIndex == steps - 1)
+        for _ in 1..<steps { m.shelterNext() }       // to the last step
+        #expect(m.shelterIndex == steps - 1 && m.shelterIsLastStep)
         m.cantMove()                               // cantMove in shelter is a no-op (no re-enter/re-speak)
-        #expect(m.state == .shelter)
+        #expect(m.state == .shelter && m.shelterIndex == steps - 1)
         for _ in 0..<(steps + 5) { m.shelterBack() }
+        #expect(m.state == .home)
+        try navigating(m)
+        m.cantMove()
+        for _ in 0..<(steps + 5) { m.shelterNext() } // "Done" on the last step goes Home; extra taps never crash
         #expect(m.state == .home)
     }
 
