@@ -67,7 +67,14 @@ public final class NavigatorStateMachine {
 
     /// "Start over" tapped on Navigate / Choose: back to Home only after a Yes.
     public func requestStartOver() {
-        guard state != .home else { return }
+        guard state != .home else {
+            // Settings -> Start over on Home (the only screen that reaches Settings): nothing to stop, but never a
+            // silent tap, and a rehearsal's stepped position and blocked roads are forgotten here as on Start.
+            if positionSource == .demo { position = nil; positionSource = .gps }
+            blocked = []
+            say(NavigatorStateMachine.okay)
+            return
+        }
         pending = .startOver
         say(NavigatorStateMachine.startOverQuestion)
     }

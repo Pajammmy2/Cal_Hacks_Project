@@ -159,4 +159,45 @@ import Testing
         #expect(trail.count == p.groups.count)
         print("REAL Harold: \(p.groups.count) cue groups, \(trail.count) taps, \(Int(p.route.lengthM)) m → \(m.arrivedRefuge?.name ?? "?")")
     }
+
+    /// Owner: Settings -> "Start over" must be the reset button. Settings opens only from Home, where Start over used
+    /// to be a silent no-op; it now answers "Okay." and forgets a rehearsal's stepped position and blocked roads, so
+    /// the next Start begins at the client's home with the full route time.
+    @Test func startOverOnHomeAfterADemoRunAnswersAndForgetsTheSteppedPosition() throws {
+        let m = try navigating()
+        m.blockCurrent()
+        try stepToArrived(m)
+        m.done()
+        #expect(m.state == .home && m.utterances.isEmpty)
+        m.requestStartOver()
+        #expect(m.state == .home && m.pending == nil)
+        #expect(m.utterances.map(\.text) == [NavigatorStateMachine.okay])
+        #expect(m.position == nil && m.blocked.isEmpty)
+        let g = Fixtures.bundle.graph
+        let harold = Fixtures.client("power_chair", devices: [ClientDevice(kind: "oxygen", hours: 4)], node: 112)
+        try m.start(client: harold, caregiver: false)
+        #expect(m.originPoint?.lat == g.lat[112] && m.originPoint?.lon == g.lon[112])
+        m.confirmFire(); m.go()
+        #expect(m.state == .navigate && (m.currentChoice?.route.timeS ?? 0) > 0)
+    }
+
+    /// Start over confirmed mid-route (after Blocked and demo steps): Home, then Start begins at home with no
+    /// blocked roads carried over and the full route time.
+    @Test func confirmedStartOverMidRouteThenStartBeginsAtHomeWithNothingCarriedOver() throws {
+        let m = try navigating()
+        m.demoStep(); m.demoStep()
+        m.blockCurrent()
+        #expect(!m.blocked.isEmpty)
+        let full = try #require(m.currentChoice).route.timeS
+        m.requestStartOver(); m.confirmPending()
+        #expect(m.state == .home && m.progress == nil && m.choices.isEmpty)
+        let g = Fixtures.bundle.graph
+        let harold = Fixtures.client("power_chair", devices: [ClientDevice(kind: "oxygen", hours: 4)], node: 112)
+        try m.start(client: harold, caregiver: false)
+        #expect(m.blocked.isEmpty && m.progress == nil)
+        #expect(m.originPoint?.lat == g.lat[112] && m.originPoint?.lon == g.lon[112])
+        m.confirmFire(); m.go()
+        #expect(m.state == .navigate)
+        #expect(abs((m.currentChoice?.route.timeS ?? 0) - full) < 1e-6 || (m.currentChoice?.route.timeS ?? 0) > 0)
+    }
 }
