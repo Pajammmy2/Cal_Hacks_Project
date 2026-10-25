@@ -222,28 +222,46 @@ def replay(bundle, plans):
             burned_ref = {i for i in inside_refuges if along(*rpts[i]) >= reach}
             refs = [r for i, r in enumerate(bundle.refuges) if i not in burned_ref]
             cut = rerouted = home_burned = 0
-            deltas = []
+            deltas, deltas_m = [], []
+            prof = {}                                     # per mobility profile: the same counts (dashboard "by profile" table)
             for p in plans:
                 if p["no_route"]:
                     continue
+                pk = prof.setdefault(p["profile_key"], {"n": 0, "cut": 0, "rerouted": 0, "home_burned": 0, "d": [], "dm": []})
+                pk["n"] += 1
                 ch = p["choices"][0]
                 o = p["origin"]["node"]
                 if along(g.lat[o], g.lon[o]) >= reach and o in inside_nodes:
                     home_burned += 1          # the front reached the home itself: too late to start, not a routing failure
+                    pk["home_burned"] += 1
                     continue
                 if not any(ei in burned_edges for ei in ch["route"]["edges"]):
                     continue
                 cut += 1
+                pk["cut"] += 1
                 alt = router.choose(g, refs, router.Profile(p["profile_key"]), p["origin"]["node"], blocked=frozenset(burned_edges))
                 if alt:
                     rerouted += 1
+                    pk["rerouted"] += 1
                     deltas.append(alt[0]["route"]["minutes"] - ch["route"]["minutes"])
+                    pk["d"].append(deltas[-1])
+                    if alt[0]["route"].get("length_m") is not None and ch["route"].get("length_m") is not None:
+                        deltas_m.append(alt[0]["route"]["length_m"] - ch["route"]["length_m"])
+                        pk["dm"].append(deltas_m[-1])
             d = sorted(deltas)
+            dm = sorted(deltas_m)
+            by_profile = {}
+            for k, v in prof.items():
+                vd, vdm = sorted(v["d"]), sorted(v["dm"])
+                by_profile[k] = {"n": v["n"], "cut": v["cut"], "rerouted": v["rerouted"], "home_burned": v["home_burned"],
+                                 "delta_median_min": vd[len(vd) // 2] if vd else None,
+                                 "delta_median_m": round(vdm[len(vdm) // 2]) if vdm else None}
             row["hours"][str(hours)] = {"cut": cut, "cut_pct": pct(cut, len(plans)), "rerouted": rerouted, "home_burned": home_burned,
                                         "home_burned_pct": pct(home_burned, len(plans)),
                                         "rerouted_pct": pct(rerouted, cut), "delta_median_min": d[len(d) // 2] if d else None,
+                                        "delta_median_m": round(dm[len(dm) // 2]) if dm else None,
                                         "burned_edges": len(burned_edges), "burned_edges_pct": pct(len(burned_edges), len(g.edges)),
-                                        "refuges_left": len(refs)}
+                                        "refuges_left": len(refs), "by_profile": by_profile}
         row["sources"] = [u["fire"] for u in used]
         out["fires"].append(row)
     return out
@@ -492,7 +510,27 @@ def render(m):
                          f"<td>{'final perimeter' if hk == 'final' else hk + ' h'}</td><td class='n'>{hv['burned_edges_pct']}%</td><td class='n'>{hv['home_burned']} ({hv['home_burned_pct']}%)</td><td class='n'>{hv['cut']} ({hv['cut_pct']}%)</td>"
                          f"<td class='n {'ok' if hv['rerouted'] == hv['cut'] else ('warn' if hv['rerouted'] else 'bad')}'>{hv['rerouted']}/{hv['cut']}</td><td class='n'>{'' if hv['delta_median_min'] is None else f'+{hv['delta_median_min']} min'}</td><td class='n'>{hv['refuges_left']}</td></tr>")
             first = False
-    parts.append(f"</table><p class='muted'>Honest reading: the Camp Fire's final perimeter contains all of Paradise, so at the end every home, route and in-town refuge is inside it; the hour columns show how the plans and the reroute logic hold up while the front crosses town. The front bearing is the engine's centroid proxy ({', '.join(str(round(f['front_from_deg'])) + '° for ' + f['fire'] for f in rp['fires'])}); the documented Camp Fire wind was north-easterly. Refuges outside the perimeter would need a wider bundle than this 10 km one.</p></div>"
+    parts.append("</table>")
+    # by mobility profile at hours 1 / 2 / 3: who gets cut, who can still be rerouted, and what it costs them
+    hour_keys = [k for k in ("1", "2", "3") if any(k in f["hours"] for f in rp["fires"])]
+    if hour_keys:
+        parts.append("<h3>By mobility profile</h3><table><tr><th>Fire</th><th>Profile</th>" + "".join(
+            f"<th class='n'>{k} h cut</th><th class='n'>{k} h rerouted</th><th class='n'>{k} h Δ</th>" for k in hour_keys) + "</tr>")
+        for f in rp["fires"]:
+            profs = sorted({pk for k in hour_keys for pk in (f["hours"].get(k) or {}).get("by_profile", {})})
+            for pk in profs:
+                cells = []
+                for k in hour_keys:
+                    v = ((f["hours"].get(k) or {}).get("by_profile") or {}).get(pk)
+                    if not v:
+                        cells.append("<td class='n'>–</td><td class='n'>–</td><td class='n'>–</td>")
+                        continue
+                    dl = "" if v["delta_median_min"] is None else f"+{v['delta_median_min']} min" + ("" if v["delta_median_m"] is None else f" / +{v['delta_median_m']:,} m")
+                    cls = "ok" if v["rerouted"] == v["cut"] else ("warn" if v["rerouted"] else "bad")
+                    cells.append(f"<td class='n'>{v['cut']}/{v['n']}</td><td class='n {cls}'>{v['rerouted']}/{v['cut']}</td><td class='n'>{dl}</td>")
+                parts.append(f"<tr><td>{e(f['fire'])}</td><td>{e(pk.replace('_', ' '))}</td>{''.join(cells)}</tr>")
+        parts.append("</table><p class='muted'>Δ = median extra minutes / metres for the plans that could be rerouted; a walker's reroute costs more than a power chair's because the detours are the same streets at a slower pace.</p>")
+    parts.append(f"<p class='muted'>Honest reading: the Camp Fire's final perimeter contains all of Paradise, so at the end every home, route and in-town refuge is inside it; the hour columns show how the plans and the reroute logic hold up while the front crosses town. The front bearing is the engine's centroid proxy ({', '.join(str(round(f['front_from_deg'])) + '° for ' + f['fire'] for f in rp['fires'])}); the documented Camp Fire wind was north-easterly. Refuges outside the perimeter would need a wider bundle than this 10 km one.</p></div>"
                  f"<div>{m['replay_svg'].replace('<svg ', '<svg class=\"map\" ', 1)}<p class='legend'><span><i class='dot' style='background:#ff5a3c'></i>perimeter since {history.RECENT_YEAR}</span><span><i class='dot' style='background:#8a7a66'></i>older perimeter</span><span><i class='dot' style='background:#8dd9ff'></i>primary routes</span><span><i class='dot' style='background:#4ccc73'></i>refuges</span></p></div></div></section>")
 
     # audio + accessibility
