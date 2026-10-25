@@ -40,9 +40,9 @@ public enum Theme {
         public static let mapRoadMajor = Color(red: 0.23, green: 0.28, blue: 0.33)
     }
 
-    /// "navy" (default) | "offwhite". Settings → Colours.
+    /// "offwhite" (default) | "navy". Settings → Colours.
     public static let paletteKey = "ember.palette"
-    public static var palette: String { UserDefaults.standard.string(forKey: paletteKey) ?? "navy" }
+    public static var palette: String { UserDefaults.standard.string(forKey: paletteKey) ?? "offwhite" }
     public static var isLight: Bool { palette == "offwhite" }
 
     public static var background: Color { isLight ? OffWhite.background : Navy.background }

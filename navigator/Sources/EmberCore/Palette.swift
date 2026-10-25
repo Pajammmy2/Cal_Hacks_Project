@@ -60,8 +60,8 @@ public struct Palette: Equatable, Sendable {
         veil: RGB(0.01, 0.03, 0.08), veilOpacity: 0.42,
         mapLand: RGB(0.04, 0.08, 0.16), mapRoadMinor: RGB(0.36, 0.46, 0.58), mapRoadMajor: RGB(0.62, 0.72, 0.84))
 
-    public static let all = [navy, offWhite]
+    public static let all = [offWhite, navy]
 
     /// Unknown or missing choice → navy (the default).
-    public static func named(_ id: String?) -> Palette { all.first { $0.id == id } ?? navy }
+    public static func named(_ id: String?) -> Palette { all.first { $0.id == id } ?? offWhite }
 }
