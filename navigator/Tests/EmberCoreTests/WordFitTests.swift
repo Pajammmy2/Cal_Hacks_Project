@@ -86,8 +86,8 @@ import CoreGraphics
     }
 
     @Test func caregiverInfoNeverBreaks() {
-        // CaregiverInfo rows: body-relative 17 → 53 at AX5, icon + 8 pt gap, shrink 0.6
-        let e = Element(name: "CaregiverInfo", size: 53, minScale: 0.6, column: Self.card - 60, bold: false)
+        // CaregiverInfo rows: body-relative 18 → capped at 22 at AX sizes, icon + 8 pt gap, no shrink
+        let e = Element(name: "CaregiverInfo", size: 22, minScale: 1.0, column: Self.card - 60, bold: false)
         let bad = check(e, ["Transfers independently", "Slide board transfer", "One-person assist", "Two-person assist",
                             "Oxygen (4 h battery), Power chair", "Ventilator, CPAP", "Chair: by the front door", "No powered devices on file."])
         #expect(bad.isEmpty, "\(bad)")

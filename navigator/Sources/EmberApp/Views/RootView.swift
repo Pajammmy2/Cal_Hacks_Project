@@ -72,6 +72,7 @@ struct LeaveNowBanner: View {
 struct CaregiverInfo: View {
     let client: ClientProfile?
     @ScaledMetric(relativeTo: .body) var size: CGFloat = 18
+    @Environment(\.dynamicTypeSize) var typeSize
 
     var body: some View {
         if let c = client {
@@ -80,8 +81,8 @@ struct CaregiverInfo: View {
                 Label(c.equipmentLabel, systemImage: "bolt.heart")
                 if let chair = c.home?.chairLocation, !chair.isEmpty { Label("Chair: \(chair)", systemImage: "house") }
             }
-            .font(Theme.font(size, .medium))
-            .minimumScaleFactor(0.6)                        // rule #4: "independently" shrinks whole at AX5, never breaks
+            // rule #4: at AX sizes cap so "independently" (widest helper word) fits the column whole, never breaks mid-word
+            .font(Theme.font(min(size, typeSize.isAccessibilitySize ? 22 : 56), .medium))
             .fixedSize(horizontal: false, vertical: true)
             .foregroundColor(Theme.text)
             .card(padding: 12)
