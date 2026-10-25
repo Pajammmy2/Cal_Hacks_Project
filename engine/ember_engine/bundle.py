@@ -31,6 +31,22 @@ def addresses(features):
     return out
 
 
+def extra_address_rows(csv_path):
+    """Rows for addresses.json from a CSV with address,lat,lon (house number + street split off the address)."""
+    if not csv_path:
+        return []
+    import csv, re
+    out = []
+    with open(csv_path, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            m = re.match(r"^\s*(\S+)\s+(.+?)\s*$", (r.get("address") or "").split(",")[0])
+            if not m or not r.get("lat") or not r.get("lon"):
+                continue
+            out.append({"house_number": m.group(1), "street": m.group(2), "city": r.get("city") or "",
+                        "lat": round(float(r["lat"]), 7), "lon": round(float(r["lon"]), 7), "source": "registry"})
+    return out
+
+
 def zip_bundle(bundle_dir):
     bundle_dir = Path(bundle_dir)
     zpath = bundle_dir.parent / f"{bundle_dir.name}.zip"
@@ -60,7 +76,7 @@ def _prepare_dir(out):
         (out / "audio" / "index.json").write_text("{}")
 
 
-def build(county, bbox, out_root, fuel_path=None, dem_path=None, perimeters_path=None, current_perimeter=None,
+def build(county, bbox, out_root, extra_addresses=None, fuel_path=None, dem_path=None, perimeters_path=None, current_perimeter=None,
           evidence_path=None, skip_vision=False, fuel_version="LF2024", osm_date=None, min_component_nodes=50,
           extra_candidates=None):
     util.load_env()
@@ -164,7 +180,7 @@ def build(county, bbox, out_root, fuel_path=None, dem_path=None, perimeters_path
         util.write_json(out / "excluded.json", {"excluded": dropped}, indent=1)
         util.write_json(out / "perimeters.json", {"current": current, "historical": hist})
         util.write_json(out / "wind.json", w, indent=1)
-        addrs = addresses(features)
+        addrs = addresses(features) + extra_address_rows(extra_addresses)
         util.write_json(out / "addresses.json", addrs)
         if (out / "shared").exists():
             shutil.rmtree(out / "shared")

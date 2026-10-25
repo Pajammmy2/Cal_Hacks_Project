@@ -200,7 +200,7 @@ class Context:
 
 
 # Spelling slips seen in OSM names of real refuges (engineer #5): a card or a voice must never teach the wrong name.
-NAME_FIXES = {"Preforming": "Performing", "Preformance": "Performance", "Elementry": "Elementary", "Comunity": "Community"}
+NAME_FIXES = {"Preforming": "Performing", "Performing Art Center": "Performing Arts Center", "Preformance": "Performance", "Elementry": "Elementary", "Comunity": "Community"}
 
 
 def clean_name(name):

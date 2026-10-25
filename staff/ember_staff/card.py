@@ -270,6 +270,106 @@ def refuge_view(choice, bundle_dir, graph, which):
     }
 
 
+# --- whole-route card map (owner rule 6b): the phone's Choose-screen look on paper, rule 1 on paper ---
+def _seg_dist(p, a, b):
+    (px, py), (ax, ay), (bx, by) = p, a, b
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    t = 0.0 if L == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def route_rect_gap(pts, rect):
+    """Distance from a polyline to a rect (0 when they touch)."""
+    x, y, w, h = rect
+    cs = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    best = float("inf")
+    for i in range(len(pts)):
+        if x <= pts[i][0] <= x + w and y <= pts[i][1] <= y + h:
+            return 0.0
+        if i + 1 < len(pts):
+            a, b = pts[i], pts[i + 1]
+            for j in range(4):
+                c, d = cs[j], cs[(j + 1) % 4]
+                best = min(best, _seg_dist(c, a, b), _seg_dist(d, a, b), _seg_dist(a, c, d), _seg_dist(b, c, d))
+    return best
+
+
+def _rect_gap(a, b):
+    dx = max(b[0] - (a[0] + a[2]), a[0] - (b[0] + b[2]), 0)
+    dy = max(b[1] - (a[1] + a[3]), a[1] - (b[1] + b[3]), 0)
+    return math.hypot(dx, dy)
+
+
+def place_pill(anchor, offset, w, h, routes, taken, size, clearance):
+    """Nearest free spot around the anchor (8 directions, three distances), fully on the image, clear of every route and
+    other mark by `clearance`. None when nothing fits (the phone hides the pill too)."""
+    ax, ay = anchor
+    dirs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, -1), (1, 1), (-1, 1)]
+    best = None
+    for ring, dist in enumerate((offset, offset * 2, offset * 3.5)):
+        for dx, dy in dirs:
+            cx, cy = ax + dx * (dist + w / 2 * abs(dx)), ay + dy * (dist + h / 2 * abs(dy))
+            x, y = cx - w / 2, cy - h / 2
+            if x < 2 or y < 2 or x + w > size - 2 or y + h > size - 2:
+                continue
+            r = (x, y, w, h)
+            d = min([route_rect_gap(pts, r) for pts in routes] + [_rect_gap(t, r) for t in taken] + [float("inf")])
+            if d >= clearance and (best is None or d > best[0]):
+                best = (d, r)
+        if best:
+            return best[1]
+    return None
+
+
+def corridor_view(plan, bundle_dir, choices, pill_names):
+    """Template data for the main card map: both routes, both refuge outlines/badges, Start dot + pill, refuge pills."""
+    from . import corridor
+    meta = plan.get("corridor")
+    if not meta or not choices:
+        return None
+    path = Path(bundle_dir) / meta["image"]
+    if not path.exists():
+        return None
+    bbox, px = meta["bbox"], meta["px"]
+    k = px / 151.0                                     # px per printed point in a 2.1 in column
+    P = lambda lat, lon: corridor.project(bbox, px, lat, lon)
+    routes, rings, badges = [], [], []
+    for c in choices[:2]:
+        pts = [P(lat, lon) for lat, lon in (c["route"].get("coords") or [])]
+        poly = c["refuge"].get("polygon") or []
+        ring = [P(p[1], p[0]) for p in poly] if len(poly) >= 3 else []
+        drawn = trim_to_outline(pts, ring, clearance=4 * k) if ring else pts
+        if drawn:
+            drawn = trim_start(drawn, 4 * k + 1.5 * k + 2.5 * k)
+        routes.append(drawn)
+        rings.append(ring)
+        cx, cy = P(c["refuge"]["centroid"][1], c["refuge"]["centroid"][0])
+        badges.append((cx, cy))
+    home = P(*(plan["choices"][0]["route"]["coords"][0])) if plan["choices"][0]["route"].get("coords") else None
+    taken = [(bx - 7 * k, by - 7 * k, 14 * k, 14 * k) for bx, by in badges]
+    if home:
+        taken.append((home[0] - 4 * k, home[1] - 4 * k, 8 * k, 8 * k))
+    font = 8.5 * k
+    pills = []
+    # Only the Start pill is lettered on paper: the A/B badges name the refuges through the headlines beside the map.
+    if home:
+        w, h = font * 0.58 * 5 + 12 * k, 13 * k
+        others = [t for t in taken if t[:2] != (home[0] - 4 * k, home[1] - 4 * k)]
+        r = place_pill(home, 6 * k, w, h, routes, others, px, clearance=3 * k)
+        if r:
+            taken.append(r)
+            pills.append(dict(x=r[0], y=r[1], w=r[2], h=r[3], text="Start"))
+    return {
+        "src": "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode(), "px": px, "k": k,
+        "routes": [" ".join(f"{x},{y}" for x, y in r) for r in routes], "routes_xy": routes,
+        "rings": [" ".join(f"{x},{y}" for x, y in r) for r in rings],
+        "badges": [dict(x=bx, y=by, letter=lt) for (bx, by), lt in zip(badges, ["A", "B"])],
+        "home": dict(x=home[0], y=home[1]) if home else None, "pills": pills, "font": font,
+        "m_per_px": meta.get("m_per_px"), "scale_vs_native": round(meta.get("native_m_per_px", 0.3) / meta["m_per_px"], 2),
+    }
+
+
 def score_parts(t):
     if not t:
         return []
@@ -397,6 +497,7 @@ def context(row, tighten=0, for_print=False):
         "steps_a_en": S.get("steps_en") if bilingual else None, "steps_b_en": S.get("steps_b_en") if bilingual else None,
         "shelter_en": S.get("shelter_en") if bilingual else None, "devices_en": S.get("devices_en") if bilingual else None,
         "L": LEVELS[min(tighten, len(LEVELS) - 1)], "aid_label": AID_KEPT.get(profile.get("mobility"), "Wheelchair"),
+        "corridor": corridor_view(plan, bdir, [c for c in (a, b) if c], [c["refuge"].get("short_name") or c["refuge"]["name"] for c in (a, b) if c]) if a else None,
         "A": refuge_view(a, bdir, graph, "A") if a else None,
         "B": refuge_view(b, bdir, graph, "B") if b else None,
         "steps_a": sec("steps", (a or {}).get("card_steps", [])),

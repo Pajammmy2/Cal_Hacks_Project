@@ -135,6 +135,12 @@ def print_card(cid):
         raise Forbidden("Print is disabled until the card is stamped (reviewed by + date).")
     if row["profile"].get("cognition") == "simple_steps" and not row.get("attested"):
         raise Forbidden("Cognition-flagged client: the reviewer must tick \"I read every sentence.\"")
+    plan = row.get("plan") or {}
+    if plan.get("choices"):
+        from . import corridor
+        if corridor.ensure(config.bundle_dir(plan.get("county") or config.county()), plan, cid):
+            db.update(cid, plan=plan)
+            row = db.get(cid)
     data, pages, level = pdf.render_pdf(row, allow_long=True)
     db.update(cid, printed_at=db.now())
     write_plan_file(db.get(cid))
