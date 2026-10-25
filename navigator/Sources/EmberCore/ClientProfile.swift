@@ -223,7 +223,7 @@ public enum PlanText {
             case "oxygen", "ventilator":
                 let h = d.hours ?? 0
                 out.append(PlanDevice(kind: d.kind, hours: h, batteryPct: nil, sentence:
-                    "Your \(d.kind) battery lasts about \(fmtHours(h)) hours. If the power goes out, leave while it has \(fmtHours(need)) hours left."))
+                    "Your \(d.kind) battery lasts about \(fmtHours(h)) hours. If the power goes out, leave while it has \(fmtHours(need)) \(need == 1 ? "hour" : "hours") left."))
             case "power_chair":
                 let pct = d.batteryPct ?? 100
                 let km = fullRangeM * pct / 100.0 / 1000.0
