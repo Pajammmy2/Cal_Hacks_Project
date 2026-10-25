@@ -197,7 +197,7 @@ def refuge_view(choice, bundle_dir, graph, which):
     return {
         "which": which, "id": r["id"], "name": r["name"], "kind": r.get("kind"),
         "minutes": choice["route"]["minutes"], "length_m": choice["route"].get("length_m"),
-        "score": r.get("score"), "terms": t, "claude": r.get("claude"), "flag": r.get("flag"),
+        "score": r.get("score"), "terms": t, "claude": r.get("claude"), "flag": r.get("flag"), "history": r.get("history"),
         "thumb": uri, "thumb_w": tw, "thumb_h": th,
         "route_pts": " ".join(f"{x},{y}" for x, y in pts),
         "home_pt": pts[0] if pts else None, "end_pt": pts[-1] if pts else None,

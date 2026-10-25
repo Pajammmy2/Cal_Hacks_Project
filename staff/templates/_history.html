@@ -1,0 +1,18 @@
+{% if hist %}
+<h2 style="margin-top:0">Past fires here</h2>
+<p class="muted" style="margin:0 0 8px">{{ hist.fires|length }} recorded perimeter{{ 's' if hist.fires|length != 1 }} touch this county{% if hist.source %} ({{ hist.source }}){% endif %}.
+  Red = since {{ 2017 }}. Routes: A black, B grey. Green = refuge.</p>
+{{ hist.map|safe }}
+<ul style="margin:8px 0 0; padding-left:18px">
+  <li>{% if hist.home_fires %}<b>Home burned</b> in {{ hist.home_fires|join(', ') }}.{% else %}Home is not inside any recorded perimeter.{% endif %}</li>
+  {% for r in hist.routes %}
+  <li><b>{{ r.which }}. {{ r.name }}</b>:
+    {% if r.route_fires %}route inside {{ r.route_fires|join(', ') }}{% else %}route outside every recorded perimeter{% endif %};
+    refuge {% if r.recent %}<span class="warn">ranked down ×{{ r.factor }}</span> (inside {{ r.recent }} fire{{ 's' if r.recent != 1 }} since 2017: {{ r.refuge_fires|join(', ') }}){% else %}never inside a recent perimeter (×{{ r.factor }}){% endif %}.</li>
+  {% endfor %}
+  {% if hist.both_cut %}<li class="needs">Both routes run through a recent perimeter. Normal for a town that burned whole (Camp 2018); confirm the refuge is a large paved lot and keep the phone's "New fire" reroute in mind.</li>{% endif %}
+  {% if hist.prior_word %}<li>Without live fire data the phone assumes fire from the <b>{{ hist.prior_word }}</b> ({{ hist.prior_bearing_deg }}°), from {% for f in hist.prior_from %}{{ f.fire }} ({{ f.bearing_deg }}°){% if not loop.last %}, {% endif %}{% endfor %}.</li>{% endif %}
+</ul>
+<details style="margin-top:6px"><summary>All recorded perimeters</summary>
+<table class="terms">{% for f in hist.fires %}<tr><td>{{ f.fire }}</td><td>{{ f.date }}</td><td class="n">{{ f.acres|round|int if f.acres else '' }} acres</td></tr>{% endfor %}</table></details>
+{% endif %}

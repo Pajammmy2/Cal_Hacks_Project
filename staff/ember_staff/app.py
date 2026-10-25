@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import card, cartesia, config, db, feed, pdf, plan_writer, pregen, profiles, workflow
+from . import card, cartesia, config, db, engine_client, feed, history_view, pdf, plan_writer, pregen, profiles, workflow
 from .templating import templates
 
 OPEN_PATHS = ("/login", "/static/")
@@ -160,7 +160,20 @@ def create_app():
             text = plan_writer.finish(text)   # re-run the deterministic checks so older records get newer ones
         return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": text, "clips": pregen.samples(row),
                 "cardctx": card.context(row) if row.get("plan") else None, "editable": EDITABLE,
+                "hist": _history(row),
                 "consent_text": CONSENT_TEXT.format(client=row["profile"]["name"])}
+
+    def _history(row):
+        if not row.get("plan") or row["plan"].get("origin") is None:
+            return None
+        try:
+            b = engine_client.bundle(row["plan"].get("county"))
+            h = history_view.flags(row, b)
+            h["map"] = history_view.overview_svg(row, b)
+            return h
+        except Exception as e:  # history is advisory; never block the review
+            return {"error": f"{type(e).__name__}: {e}", "fires": [], "routes": [], "home_fires": [], "home_recent": 0,
+                    "both_cut": False, "prior_word": None, "map": ""}
 
     @app.get("/clients/{cid}/review", response_class=HTMLResponse)
     def review(request: Request, cid: str):

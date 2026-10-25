@@ -9,7 +9,7 @@
   .refuges { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
   .thumb { position:relative; width:100%; aspect-ratio:1/1; border:2px solid #111; overflow:hidden; background:#ccc; }
   .thumb img, .thumb svg { position:absolute; inset:0; width:100%; height:100%; }
-  .overview { width:100%; height:auto; margin-top:6px; }
+  .overview, .histmap { width:100%; height:auto; margin-top:6px; }
   table.terms td { padding:2px 6px; border-bottom:1px solid #eee; font-size:14px; }
   table.terms td.n { text-align:right; font-variant-numeric: tabular-nums; }
   table.text { width:100%; border-collapse:collapse; }
@@ -42,6 +42,9 @@
     </section>
     <section id="refuges-panel">
       {% include "_refuges.html" %}
+    </section>
+    <section id="history-panel">
+      {% include "_history.html" %}
     </section>
     <section id="text-panel">
       {% include "_text.html" %}
