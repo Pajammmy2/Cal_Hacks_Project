@@ -48,8 +48,8 @@ struct HomeView: View {
                     .accessibilityHint("Starts the battery timer for oxygen and other devices")
             }
             .card(padding: 14)
-            NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
-                .accessibilityLabel(model.fireAgeText + (model.fireIsStale ? ", old" : ""))
+            NoteText(text: model.fireStatusText, systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
+            if let built = model.bundleBuiltText { NoteText(text: built, systemImage: "map") }
             if let note = model.feedNote { NoteText(text: note, systemImage: "antenna.radiowaves.left.and.right") }
             if let err = model.loadError { NoteText(text: err, systemImage: "exclamationmark.triangle") }
             if let n = model.notice { NoteText(text: n, systemImage: "info.circle") }
@@ -131,6 +131,13 @@ struct SettingsView: View {
     var body: some View {
         Screen {
             InstructionText(text: "Settings")
+            VStack(spacing: 0) {
+                ToggleRow(title: "Power is out", isOn: Binding(get: { model.powerIsOut }, set: { model.setPowerOut($0) }))
+                    .accessibilityHint("Off means power is back: stops the battery timer")
+                if let built = model.bundleBuiltText { NoteText(text: built, systemImage: "map") }
+                NoteText(text: model.fireStatusText, systemImage: "clock")
+            }
+            .card(padding: 14)
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Map")
                 Text("Satellite photo when the phone has signal or a saved picture; Drawn streets always work offline.")

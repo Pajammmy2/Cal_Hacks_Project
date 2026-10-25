@@ -47,6 +47,11 @@ public final class AppModel: ObservableObject {
     private var leaveNowSpoken = false
     private var feed: ApifyFeed?
     private var lastFeedFetch: Date?
+    private var fireFeed: FireFeed?
+    private var lastFireFetch: Date?
+    /// The newest successful keyless fire check (NIFC WFIGS + NWS); nil = the bundle snapshot is all we have.
+    @Published public private(set) var liveFire: FireFeed.Check?
+    @Published public private(set) var fireCheckFailed = false
     let store = BundleStore()
     private lazy var profileStore = ProfileStore(support: store.support)
 
@@ -56,6 +61,8 @@ public final class AppModel: ObservableObject {
         let t = UserDefaults.standard.double(forKey: "powerOutSince")
         powerOutSince = t > 0 ? Date(timeIntervalSince1970: t) : nil
     }
+
+    static let powerScopeKey = "powerOutScope"
 
     // MARK: launch
 
@@ -91,6 +98,7 @@ public final class AppModel: ObservableObject {
             processor = VoiceCommandProcessor(matcher: IntentMatcher(b.config.intents), config: b.config)
             loadError = nil
             configureFeed()
+            configureFireFeed()
         } catch {
             loadError = "\(error)"
         }
@@ -127,7 +135,53 @@ public final class AppModel: ObservableObject {
 
     func networkChanged(_ up: Bool) {
         speaker.online = up
-        if up { speaker.cartesia?.open(); refreshFeed(force: true) } else { speaker.cartesia?.close() }
+        if up { speaker.cartesia?.open(); refreshFeed(force: true); refreshFire(force: true) } else { speaker.cartesia?.close() }
+    }
+
+    // MARK: live fire data (keyless; the bundle stays the offline truth)
+
+    var fireCacheURL: URL? { bundle.map { store.support.appendingPathComponent("fire-\($0.county).json") } }
+
+    func configureFireFeed() {
+        liveFire = nil; lastFireFetch = nil; fireCheckFailed = false
+        guard let b = bundle, let bbox = b.manifest?.bbox, bbox.count == 4 else { fireFeed = nil; return }
+        fireFeed = FireFeed(bbox: bbox, windSource: b.wind?.source)
+        if let u = fireCacheURL, let d = try? Data(contentsOf: u), let c = try? JSONDecoder().decode(FireFeed.Check.self, from: d) {
+            applyFireCheck(c, cache: false)
+        }
+    }
+
+    func refreshFire(force: Bool) {
+        guard let fireFeed, voice.online else { return }
+        if !force, let t = lastFireFetch, Date().timeIntervalSince(t) < 60 { return }
+        lastFireFetch = Date()
+        Task { @MainActor in
+            if let c = await fireFeed.fetch() { self.applyFireCheck(c, cache: true) } else { self.fireCheckFailed = true }
+        }
+    }
+
+    /// Newer than what the phone has -> the state machine's fire inputs change; older (a stale cache) is ignored.
+    func applyFireCheck(_ c: FireFeed.Check, cache: Bool) {
+        fireCheckFailed = false
+        let have = liveFire?.checkedAt ?? bundle?.fireDataTimestamp ?? .distantPast
+        guard c.checkedAt >= have else { return }
+        liveFire = c
+        machine?.fireData = FireData(perimeter: c.perimeter, wind: c.wind ?? bundle?.wind)
+        if cache, let u = fireCacheURL, let d = try? JSONEncoder().encode(c) { try? d.write(to: u, options: .atomic) }
+        sync()
+    }
+
+    /// Newest fire inputs the phone has (live check or bundle snapshot).
+    public var fireDataTimestamp: Date? { machine?.fireData.timestamp ?? bundle?.fireDataTimestamp }
+
+    public var fireStatusText: String {
+        FireFeed.statusText(dataAge: fireDataTimestamp.map { Date().timeIntervalSince($0) }, stale: fireIsStale, online: voice.online,
+                            lastCheck: liveFire?.checkedAt, checkFailed: fireCheckFailed, now: Date())
+    }
+
+    /// "Map and voice from Oct 24": when staff last synced this bundle.
+    public var bundleBuiltText: String? {
+        Timestamps.dayText(bundle?.manifest?.builtAt).map { "Map and voice from \($0)" }
     }
 
     // MARK: profiles
@@ -141,6 +195,7 @@ public final class AppModel: ObservableObject {
             profiles.append(p)
             profileStore.save(profiles)
             selectedId = p.id
+            checkPowerScope()
             notice = "Added \(p.name)."
             if let b = bundle, let c = p.county, c != b.county { notice = "Added \(p.name). The map on this phone is for \(b.county), not \(c)." }
             speaker.configure(bundle: bundle, clientId: selectedId)
@@ -162,6 +217,7 @@ public final class AppModel: ObservableObject {
 
     public func select(_ id: String) {
         selectedId = id
+        checkPowerScope()
         speaker.configure(bundle: bundle, clientId: id)
         speaker.voiceId = selected?.voice?.voiceId ?? KeychainStore.get(.cartesiaVoiceId)
     }
@@ -173,14 +229,34 @@ public final class AppModel: ObservableObject {
     public func setPowerOut(_ on: Bool, at date: Date = Date()) {
         powerOutSince = on ? (powerOutSince ?? date) : nil
         UserDefaults.standard.set(powerOutSince?.timeIntervalSince1970 ?? 0, forKey: "powerOutSince")
+        UserDefaults.standard.set(on ? powerScope : nil, forKey: AppModel.powerScopeKey)
         leaveNowSpoken = false
         periodic()
+    }
+
+    /// "Power is back": clears the timer and the Leave-now banner, and says so.
+    public func powerBack() {
+        setPowerOut(false)
+        speaker.speak([Utterance("Power is back.")])
+    }
+
+    var powerScope: String { DeviceTimer.scope(clientId: selectedId, county: bundle?.county, builtAt: bundle?.manifest?.builtAt) }
+
+    /// A timer started for another card or another bundle build does not carry over (field report: "Oxygen has 1
+    /// minute left" pinned for hours after testing with a different bundle).
+    func checkPowerScope() {
+        guard powerIsOut, UserDefaults.standard.string(forKey: AppModel.powerScopeKey) != powerScope else { return }
+        powerOutSince = nil
+        UserDefaults.standard.set(0, forKey: "powerOutSince")
+        UserDefaults.standard.removeObject(forKey: AppModel.powerScopeKey)
+        leaveNow = nil
+        leaveNowSpoken = false
     }
 
     // MARK: derived for views
 
     public var fireAgeText: String {
-        guard let t = bundle?.fireDataTimestamp else { return "Fire data: none on this phone" }
+        guard let t = fireDataTimestamp else { return "Fire data: none on this phone" }
         return "Fire data from \(Timestamps.ageText(Date().timeIntervalSince(t)))"
     }
 
@@ -316,6 +392,7 @@ public final class AppModel: ObservableObject {
 
     func periodic() {
         let now = Date()
+        checkPowerScope()
         if let c = selected {
             // Before Start there is no live route: use the stamped plan's route A time if the bundle has it.
             let routeS = machine?.remainingRouteTimeS ?? bundle?.plan(clientId: c.id)?.choices.first?.route.timeS ?? 0
@@ -335,6 +412,9 @@ public final class AppModel: ObservableObject {
         }
         if voice.online, lastFeedFetch.map({ now.timeIntervalSince($0) > AppModel.feedRefreshS }) ?? true {
             refreshFeed(force: false)
+        }
+        if voice.online, lastFireFetch.map({ now.timeIntervalSince($0) > AppModel.feedRefreshS }) ?? true {
+            refreshFire(force: false)
         }
         tick += 1
     }

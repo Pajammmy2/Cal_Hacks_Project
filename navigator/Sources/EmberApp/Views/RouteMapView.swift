@@ -544,6 +544,8 @@ struct RouteMapView: View {
     func chromeRects(_ ctx: GraphicsContext, _ size: CGSize, _ metersPerPoint: Double) -> [CGRect] {
         var r = [compassRect(size)]
         if let s = scaleGeometry(ctx, size, metersPerPoint) { r.append(s.box) }
+        // Apple's " Maps / Legal" attribution sits bottom-left of the satellite view and must stay readable.
+        if case .drawn = mode {} else { r.append(CGRect(x: 0, y: size.height - 28 * k, width: 150 * k, height: 28 * k)) }
         return r
     }
 

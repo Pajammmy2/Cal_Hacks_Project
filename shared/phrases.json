@@ -32,7 +32,8 @@
     "That is the last step. Stay in the room and keep the phone on.",
     "Which way is the smoke?",
     "Which way is the new fire?",
-    "Stop and go back to the start? Say yes to stop."
+    "Stop and go back to the start? Say yes to stop.",
+    "Power is back."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
@@ -45,7 +46,9 @@
     "which_way": "Go {direction}.",
     "choose": "Go to {refuge}. {n} minutes.",
     "or_b": "Or {refuge}. {n} minutes.",
-    "leave_now_dev": "Leave now. {device} has {n} minutes left."
+    "leave_now_dev": "Leave now. {device} has {n} minutes left.",
+    "leave_now_dev_one": "Leave now. {device} has 1 minute left.",
+    "device_out": "{device} battery is out. Leave now."
   },
   "fragments": {
     "keep_blocks": [
