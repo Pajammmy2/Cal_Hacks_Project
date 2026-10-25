@@ -243,7 +243,8 @@ struct StatLine: View {
                     Text(it.0).font(Theme.font(big, .heavy))
                     Text(it.1).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
                 }
-                .lineLimit(1).minimumScaleFactor(0.6)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)   // AX: wrap at words, never "…"
+                .fixedSize(horizontal: false, vertical: true)
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }

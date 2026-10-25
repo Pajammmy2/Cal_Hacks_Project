@@ -84,8 +84,10 @@ struct CompassArrow: View {
     let fireBearing: Double?
     let heading: Double?
     @ScaledMetric(relativeTo: .largeTitle) var scaled: CGFloat = 170
-    /// Capped so the dial always fits the screen width at accessibility sizes.
-    var size: CGFloat { min(scaled, 200) }
+    @Environment(\.dynamicTypeSize) var typeSize
+    /// Capped so the dial fits the screen width, and at accessibility sizes stays whole above the five stacked
+    /// buttons instead of being scroll-cut by the panel (AX5 finding).
+    var size: CGFloat { min(scaled, typeSize.isAccessibilitySize ? 120 : 200) }
 
     var angle: Double {
         guard let f = fireBearing else { return 0 }
