@@ -128,7 +128,7 @@ def print_card(cid):
         raise Forbidden("Print is disabled until the card is stamped (reviewed by + date).")
     if row["profile"].get("cognition") == "simple_steps" and not row.get("attested"):
         raise Forbidden("Cognition-flagged client: the reviewer must tick \"I read every sentence.\"")
-    data, pages, level = pdf.render_pdf(row)
+    data, pages, level = pdf.render_pdf(row, allow_long=True)
     db.update(cid, printed_at=db.now())
     write_plan_file(db.get(cid))
     threading.Thread(target=_rezip, args=(row["plan"].get("county") or config.county(),), daemon=True).start()

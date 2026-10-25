@@ -77,8 +77,37 @@ public struct Cues {
             let grade = fwd ? e.gradePct : -e.gradePct
             out[li].riseM += grade / 100.0 * e.lengthM
         }
+        out = mergePingpong(out)
         for i in out.indices {
             out[i].blocks = max(1, out[i].nodes.dropFirst().filter { graph.degree[$0] >= 3 }.count)
+        }
+        return out
+    }
+
+    public static let pingpongMaxM = 120.0
+
+    /// A short unnamed leg between two legs of the same named street is that street to a person
+    /// (OSM sidewalks and service stubs). Mirrors cues.py `_merge_pingpong` exactly.
+    func mergePingpong(_ legs: [Leg]) -> [Leg] {
+        let t = config.templates
+        let unnamed: Set<String> = [t.unnamedStreet, t.unnamedPath]
+        var out = legs
+        var i = 1
+        while i < out.count - 1 {
+            let mid = out[i], prev = out[i - 1], nxt = out[i + 1]
+            if unnamed.contains(mid.street) && mid.lengthM < Cues.pingpongMaxM && prev.street == nxt.street
+                && !unnamed.contains(prev.street) {
+                for leg in [mid, nxt] {
+                    out[i - 1].edges += leg.edges
+                    out[i - 1].fwd += leg.fwd
+                    out[i - 1].nodes += leg.nodes.dropFirst()
+                    out[i - 1].lengthM += leg.lengthM
+                    out[i - 1].riseM += leg.riseM
+                }
+                out.removeSubrange(i...(i + 1))
+            } else {
+                i += 1
+            }
         }
         return out
     }
@@ -140,34 +169,99 @@ public struct Cues {
         return "\(turnText) Keep going for \(n) meters."
     }
 
-    /// 4-7 plain steps for the printed card: drop slope cues, fold each keep cue into its turn.
-    public static func cardSteps(_ cues: [Cue], maxSteps: Int = 7) -> [String] {
-        var steps: [(String, Int)] = []
+    public static let cardMaxWords = 90
+    public static let cardMinSteps = 4
+    public static let chainHopM = 200
+    static let ontoRe = try! NSRegularExpression(pattern: "^(?:Turn (?:slight |sharp )?(?:left|right)|Continue) onto (.+?)\\.?$")
+
+    struct Seg { var turn: String; var keepText: String?; var keepM: Int; var arrive: Bool }
+
+    static func onto(_ text: String) -> String? {
+        let r = NSRange(text.startIndex..., in: text)
+        guard let m = ontoRe.firstMatch(in: text, range: r), let g = Range(m.range(at: 1), in: text) else { return nil }
+        return String(text[g])
+    }
+
+    static func segments(_ cues: [Cue]) -> [Seg] {
+        var segs: [Seg] = []
         let core = cues.filter { $0.template != "downhill" && $0.template != "uphill" }
         var i = 0
         while i < core.count {
             let c = core[i]
             let nxt: Cue? = i + 1 < core.count ? core[i + 1] : nil
-            if c.template != "arrive", let nxt, nxt.template == "keep_blocks" || nxt.template == "keep_meters" {
+            var seg = Seg(turn: c.text, keepText: nil, keepM: 0, arrive: c.template == "arrive")
+            if !seg.arrive, let nxt, nxt.template == "keep_blocks" || nxt.template == "keep_meters" {
                 let n = nxt.vars["n"]?.intValue ?? 0
-                steps.append((mergeKeep(c.text, nxt), nxt.template == "keep_meters" ? n : n * 100))
-                i += 2
-            } else {
-                steps.append((c.text, c.template == "arrive" ? 1_000_000_000 : 0))
+                seg.keepText = mergeKeep("", nxt).trimmingCharacters(in: .whitespaces)
+                seg.keepM = nxt.template == "keep_meters" ? n : n * 100
                 i += 1
             }
+            segs.append(seg)
+            i += 1
         }
-        while steps.count > maxSteps {
-            var bestJ = -1, bestW = 0
-            for j in 1..<(steps.count - 1) {
-                let w = steps[j - 1].1 + steps[j].1
-                if bestJ < 0 || w < bestW { bestJ = j; bestW = w }
+        return segs
+    }
+
+    static func weight(_ step: [Seg]) -> Int {
+        step.last!.arrive ? 1_000_000_000 : step.reduce(0) { $0 + $1.keepM }
+    }
+
+    static func flush(_ chain: [String], _ last: Seg) -> String {
+        var text = chain[0] + chain.dropFirst().map { ", then " + $0 }.joined() + "."
+        if let k = last.keepText, last.keepM >= chainHopM || chain.count == 1 { text += " " + k }
+        return text
+    }
+
+    static func render(_ step: [Seg], compact: Bool) -> String {
+        if !compact {
+            return step.map { $0.turn + ($0.keepText.map { " " + $0 } ?? "") }.joined(separator: " ")
+        }
+        var out: [String] = []
+        var chain: [String]? = nil
+        var prev: Seg? = nil
+        var headOnto = false
+        for s in step {
+            let m = prev != nil ? onto(s.turn) : nil
+            if let m, headOnto, let p = prev, p.keepM < chainHopM {
+                chain!.append(m)
+            } else {
+                if let ch = chain, let p = prev { out.append(flush(ch, p)) }
+                var head = s.turn
+                if head.hasSuffix(".") { head.removeLast() }
+                chain = [head]
+                headOnto = onto(s.turn) != nil
             }
-            let a = steps[bestJ - 1], b = steps[bestJ]
-            steps[bestJ - 1] = (a.0 + " " + b.0, a.1 + b.1)
-            steps.remove(at: bestJ)
+            prev = s
         }
-        return steps.map(\.0)
+        out.append(flush(chain!, prev!))
+        return out.joined(separator: " ")
+    }
+
+    static func words(_ steps: [[Seg]], compact: Bool) -> Int {
+        steps.reduce(0) { $0 + render($1, compact: compact).split(separator: " ").count }
+    }
+
+    static func mergeShortest(_ steps: inout [[Seg]]) {
+        var bestJ = -1, bestW = 0
+        for j in 1..<(steps.count - 1) {
+            let w = weight(steps[j - 1]) + weight(steps[j])
+            if bestJ < 0 || w < bestW { bestJ = j; bestW = w }
+        }
+        steps[bestJ - 1] += steps[bestJ]
+        steps.remove(at: bestJ)
+    }
+
+    /// 4-7 plain steps for the printed card. Port of cues.py `card_steps`: merge the shortest hops first; long OSM
+    /// routes are held to a word budget by chaining short hops ("Turn left onto Gate Lane, then Cabernet Lane.").
+    public static func cardSteps(_ cues: [Cue], maxSteps: Int = 7, maxWords: Int? = cardMaxWords) -> [String] {
+        var steps: [[Seg]] = segments(cues).map { [$0] }
+        while steps.count > maxSteps { mergeShortest(&steps) }
+        var compact = false
+        if let maxWords, words(steps, compact: false) > maxWords {
+            compact = true
+            while words(steps, compact: true) > maxWords && steps.count > cardMinSteps { mergeShortest(&steps) }
+        }
+        return steps.map { render($0, compact: compact) }
     }
 
     /// Every turn template instantiated with these street names (what Cartesia pre-generates after a re-plan).

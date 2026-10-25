@@ -137,6 +137,8 @@ def make_plan(bundle, address, client, blocked=frozenset(), client_id=None):
             "cues": cl,
             "card_steps": cuemod.card_steps(cl),
         })
+    if len(choices) >= 2:
+        choices[1]["card_steps"] = cuemod.card_steps_after(choices[0]["cues"], choices[1]["cues"])
     minutes = choices[0]["route"]["minutes"] if choices else 0
     return {
         "version": 1,

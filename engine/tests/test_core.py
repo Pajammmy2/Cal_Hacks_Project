@@ -285,3 +285,59 @@ def test_fire_intent_synonyms_are_not_physical():
         assert s not in intents["blocked"]
     for s in ("tree down", "road closed", "car blocking", "gate locked"):
         assert s in intents["blocked"]
+
+
+def test_card_steps_hold_a_word_budget_for_long_osm_routes():
+    from ember_engine.core import cues as cm
+    t = cm.shared.templates()
+    cl = [{"template": "start", "text": t["start"].format(street="the side road", direction="northeast"), "vars": {}},
+          {"template": "keep_blocks", "text": "", "vars": {"n": 2}}]
+    for k in range(14):
+        cl.append({"template": "turn", "text": t["turn"].format(side="left" if k % 2 else "right", street=f"Oak {k} Lane"), "vars": {}})
+        cl.append({"template": "keep_meters", "text": "", "vars": {"n": 20 + 10 * k}})
+    cl.append({"template": "arrive", "text": t["arrive"].format(refuge="the Save Mart Supermarket lot"), "vars": {}})
+    steps = cm.card_steps(cl)
+    assert 4 <= len(steps) <= 7
+    assert sum(len(s.split()) for s in steps) <= cm.CARD_MAX_WORDS
+    assert steps[0].startswith("Start on the side road") and steps[-1].startswith("Arrive at")
+    assert "Keep going for 20 meters" not in " ".join(steps)       # short hop folded away
+    assert "Oak 13 Lane" in " ".join(steps)              # every turn still named
+    short = cm.card_steps(cl[:4] + cl[-1:])
+    assert short == cm.card_steps(cl[:4] + cl[-1:], max_words=None)  # short routes untouched
+
+
+def test_legs_fold_short_unnamed_pingpong_into_the_named_street():
+    from ember_engine.core import cues as cm
+    t = cm.shared.templates()
+    legs = [
+        {"street": "Skyway", "edges": [0], "fwd": [True], "nodes": [0, 1], "length_m": 300.0, "rise_m": 0.0},
+        {"street": t["unnamed_street"], "edges": [1], "fwd": [True], "nodes": [1, 2], "length_m": 40.0, "rise_m": 1.0},
+        {"street": "Skyway", "edges": [2], "fwd": [True], "nodes": [2, 3], "length_m": 200.0, "rise_m": 0.0},
+        {"street": t["unnamed_street"], "edges": [3], "fwd": [True], "nodes": [3, 4], "length_m": 400.0, "rise_m": 0.0},
+        {"street": "Skyway", "edges": [4], "fwd": [True], "nodes": [4, 5], "length_m": 100.0, "rise_m": 0.0},
+    ]
+    out = cm._merge_pingpong([dict(l) for l in legs], t)
+    assert [l["street"] for l in out] == ["Skyway", t["unnamed_street"], "Skyway"]   # the 400 m side road stays
+    assert out[0]["edges"] == [0, 1, 2] and out[0]["nodes"] == [0, 1, 2, 3] and out[0]["length_m"] == 540.0 and out[0]["rise_m"] == 1.0
+
+
+def test_route_b_card_steps_reuse_the_shared_start(bundle):
+    from ember_engine.core import cues as cm, plan as pm
+    t = cm.shared.templates()
+    assert "same_way" in t
+    # two routes that share start + Pearson Rd, then split
+    def cue(tpl, text, node, **v):
+        return {"template": tpl, "text": text, "vars": v, "node": node}
+    shared_part = [cue("start", t["start"].format(street="Bille Rd", direction="west"), 1, street="Bille Rd", direction="west"),
+                   cue("keep_blocks", "", 1, street="Bille Rd", n=3),
+                   cue("turn", t["turn"].format(side="left", street="Pearson Rd"), 2, side="left", street="Pearson Rd"),
+                   cue("keep_blocks", "", 2, street="Pearson Rd", n=4)]
+    a = shared_part + [cue("turn", t["turn"].format(side="right", street="Clark Rd"), 3, side="right", street="Clark Rd"),
+                       cue("keep_blocks", "", 3, street="Clark Rd", n=2), cue("arrive", t["arrive"].format(refuge="the Walgreens lot"), 4, refuge="the Walgreens lot")]
+    b = shared_part + [cue("turn", t["turn"].format(side="left", street="Elliott Rd"), 3, side="left", street="Elliott Rd"),
+                       cue("keep_blocks", "", 3, street="Elliott Rd", n=5), cue("arrive", t["arrive"].format(refuge="the park"), 5, refuge="the park")]
+    steps = cm.card_steps_after(a, b)
+    assert steps[0] == "Same way as A until Pearson Rd."
+    assert steps[1].startswith("Turn left onto Elliott Rd") and steps[-1] == "Arrive at the park."
+    # nothing shared beyond the start: B printed in full
+    assert cm.card_steps_after(a, [a[0], a[1]] + b[4:]) == cm.card_steps([a[0], a[1]] + b[4:])

@@ -125,7 +125,7 @@
      <b>{{ aid_label }} is kept:</b> {{ chair_location or 'not recorded' }}. <b>Pets:</b> {{ pets or 'none' }}.
      <b>Getting in:</b> {{ entry or 'not recorded' }}. <b>Sleeps in:</b> {{ room or 'not recorded' }}.</p>
 
-  {% if A %}
+  {% if A and not for_print %}
   {% for R in [A, B] if R %}
   <div class="score">
     <b>{{ R.which }}. {{ R.name }}: score {{ fmt_pts(R.score) }} of 100.</b>

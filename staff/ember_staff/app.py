@@ -311,10 +311,7 @@ def create_app():
     @app.get("/clients/{cid}/print")
     def print_pdf(cid: str):
         row = must(cid)
-        try:
-            data, pages, level = workflow.print_card(cid)
-        except pdf.CardTooLong as e:
-            raise workflow.Forbidden(str(e))
+        data, pages, level = workflow.print_card(cid)
         safe = "".join(ch for ch in row["profile"]["name"] if ch.isalnum() or ch in " -_").strip().replace(" ", "_")
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition": f'inline; filename="ember_card_{safe or cid}.pdf"',

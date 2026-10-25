@@ -38,8 +38,9 @@ def html_to_pdf(html, page=None):
             browser.close()
 
 
-def render_pdf(row):
-    """Returns (pdf_bytes, pages, tighten_level). Raises CardTooLong if even the tightest layout exceeds 2 pages."""
+def render_pdf(row, allow_long=False):
+    """Returns (pdf_bytes, pages, tighten_level). Raises CardTooLong if even the tightest layout exceeds 2 pages,
+    unless allow_long: then the tightest layout is returned with its real page count (a 3-page card beats no card)."""
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -54,4 +55,6 @@ def render_pdf(row):
                     return last
         finally:
             browser.close()
+    if allow_long:
+        return last
     raise CardTooLong(f"Card needs {last[1]} pages even with the tightest spacing. Shorten the text (edit sentences).")

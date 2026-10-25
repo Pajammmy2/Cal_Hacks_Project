@@ -1,18 +1,35 @@
 {
-  "start":        "Start on {street}. Go {direction}.",
-  "continue":     "Continue onto {street}.",
-  "turn_slight":  "Turn slight {side} onto {street}.",
-  "turn":         "Turn {side} onto {street}.",
-  "turn_sharp":   "Turn sharp {side} onto {street}.",
-  "keep_blocks":  "Keep going on {street} for {n} blocks.",
-  "keep_meters":  "Keep going on {street} for {n} meters.",
-  "downhill":     "Downhill for {n} meters.",
-  "uphill":       "Uphill for {n} meters.",
-  "arrive":       "Arrive at {refuge}.",
-  "arrived":      "You are at {refuge}. Stay in the middle, away from the cars. Keep the phone on.",
+  "start": "Start on {street}. Go {direction}.",
+  "continue": "Continue onto {street}.",
+  "turn_slight": "Turn slight {side} onto {street}.",
+  "turn": "Turn {side} onto {street}.",
+  "turn_sharp": "Turn sharp {side} onto {street}.",
+  "keep_blocks": "Keep going on {street} for {n} blocks.",
+  "keep_meters": "Keep going on {street} for {n} meters.",
+  "downhill": "Downhill for {n} meters.",
+  "uphill": "Uphill for {n} meters.",
+  "arrive": "Arrive at {refuge}.",
+  "arrived": "You are at {refuge}. Stay in the middle, away from the cars. Keep the phone on.",
   "arrived_building": "You are at {refuge}. Go inside. Stay away from windows. Keep the phone on.",
-  "directions":   ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"],
+  "directions": [
+    "north",
+    "northeast",
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest"
+  ],
   "unnamed_path": "the path",
   "unnamed_street": "the side road",
-  "path_classes": ["footway", "path", "pedestrian", "cycleway", "sidewalk", "steps"]
+  "path_classes": [
+    "footway",
+    "path",
+    "pedestrian",
+    "cycleway",
+    "sidewalk",
+    "steps"
+  ],
+  "same_way": "Same way as {which} until {street}."
 }
