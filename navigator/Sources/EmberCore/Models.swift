@@ -105,6 +105,15 @@ public struct Refuge: Codable, Sendable, Equatable, Identifiable {
     public var flag: String?
     public var thumb: String?
 
+    /// Map-pill form of the name ("the parking lot on Nunneley Road" -> "Nunneley Road lot"); never truncated.
+    public var shortName: String {
+        var n = name.trimmingCharacters(in: .whitespaces)
+        if n.lowercased().hasPrefix("the ") { n = String(n.dropFirst(4)) }
+        if let r = n.range(of: "parking lot on ", options: .caseInsensitive) { n = String(n[r.upperBound...]) + " lot" }
+        else if let r = n.range(of: "parking lot at ", options: .caseInsensitive) { n = String(n[r.upperBound...]) + " lot" }
+        return n
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, name, kind, polygon, centroid, score, terms, claude, flag, thumb
         case entryPoints = "entry_points"
