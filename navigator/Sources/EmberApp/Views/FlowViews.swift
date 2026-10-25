@@ -174,7 +174,6 @@ struct ChooseView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Or \(b.refuge.name), \(b.route.minutes) minutes. Tap Other to choose it.")
                 }
-                }
             }
         } buttons: {
             EmberButton(title: "Go", systemImage: "arrow.forward", hint: "Start directions to \(a?.refuge.name ?? "")") { model.go() }
