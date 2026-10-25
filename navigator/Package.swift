@@ -12,5 +12,6 @@ let package = Package(
         .target(name: "EmberCore"),
         .target(name: "EmberApp", dependencies: ["EmberCore"]),
         .testTarget(name: "EmberCoreTests", dependencies: ["EmberCore"]),
+        .testTarget(name: "EmberAppTests", dependencies: ["EmberApp"]),
     ]
 )
