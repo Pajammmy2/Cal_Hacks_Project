@@ -262,3 +262,23 @@ def test_listen_clips_appear_once_the_mp3_exists(app_client, sample):
         assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.content == b"ID3fake"
     finally:
         fake.unlink()   # the bundle copy is shared by the whole test session
+
+
+def test_workflow_summary_filter_and_print_queue(app_client, sample):
+    r = app_client.get("/")
+    assert "Next: review and stamp" in r.text and 'class="steps"' in r.text
+    assert app_client.get("/?status=printed").text.count("<td><a href=\"/clients/") == 0
+    assert "Rosa Delgado" in app_client.get("/?status=draft").text
+    q = app_client.get("/print-queue")
+    assert q.status_code == 200 and "Nothing stamped yet" in q.text
+    app_client.post("/clients/c_rosa/stamp", data={"reviewed_by": "Pat"})
+    q = app_client.get("/print-queue")
+    assert "Rosa Delgado" in q.text and "Print card (PDF)" in q.text
+    home = app_client.get("/").text
+    assert "<b>1</b>stamped, to print" in home and "Next: review and stamp 5 cards" in home
+
+
+def test_review_shows_past_fires(app_client, sample):
+    r = app_client.get("/clients/c_rosa/review")
+    assert r.status_code == 200
+    assert "Past fires here" in r.text and "histmap" in r.text

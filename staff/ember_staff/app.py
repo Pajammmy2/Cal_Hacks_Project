@@ -83,15 +83,71 @@ def create_app():
         return RedirectResponse("/login", status_code=303)
 
     # ------------------------------------------------------------ 1. clients list
+    def _home_fires(r):
+        plan = r.get("plan") or {}
+        o = plan.get("origin")
+        if not o:
+            return []
+        try:
+            b = engine_client.bundle(plan.get("county"))
+            return history_view.flags_home(o["lat"], o["lon"], b)
+        except Exception:
+            return []
+
+    def _summary(rows):
+        s = {"total": len(rows)}
+        s["unplanned"] = sum(1 for r in rows if not r.get("plan"))
+        s["errors"] = sum(1 for r in rows if r.get("plan_error"))
+        s["needs"] = sum(1 for r in rows if r["status"] == "draft" and (r.get("text") or {}).get("needs_review"))
+        s["draft"] = sum(1 for r in rows if r["status"] == "draft") - s["needs"]
+        s["stamped"] = sum(1 for r in rows if r["status"] == "stamped")
+        s["printed"] = sum(1 for r in rows if r["status"] == "printed")
+        s["cards"] = [("unplanned", "no plan yet", s["unplanned"]), ("needs", "needs review", s["needs"]),
+                      ("draft", "to review", s["draft"]), ("stamped", "stamped, to print", s["stamped"]),
+                      ("printed", "printed", s["printed"])]
+        if not rows:
+            s["next"] = "import the registry CSV (or add a client) to begin."
+        elif s["errors"]:
+            s["next"] = f"{s['errors']} client{'s' if s['errors'] != 1 else ''} could not be planned: fix the address (or enter lat,lon) and run again."
+        elif s["unplanned"]:
+            s["next"] = f"press Run all to plan {s['unplanned']} client{'s' if s['unplanned'] != 1 else ''}."
+        elif s["needs"]:
+            s["next"] = f"{s['needs']} card{'s' if s['needs'] != 1 else ''} need a person to read the red notes before stamping."
+        elif s["draft"]:
+            s["next"] = f"review and stamp {s['draft']} card{'s' if s['draft'] != 1 else ''}."
+        elif s["stamped"]:
+            s["next"] = f"print {s['stamped']} stamped card{'s' if s['stamped'] != 1 else ''} (Print queue)."
+        else:
+            s["next"] = None
+        return s
+
+    def _filter(rows, status):
+        if status == "unplanned":
+            return [r for r in rows if not r.get("plan")]
+        if status == "needs":
+            return [r for r in rows if r["status"] == "draft" and (r.get("text") or {}).get("needs_review")]
+        if status == "draft":
+            return [r for r in rows if r["status"] == "draft" and not (r.get("text") or {}).get("needs_review")]
+        if status in ("stamped", "printed"):
+            return [r for r in rows if r["status"] == status]
+        return rows
+
     @app.get("/", response_class=HTMLResponse)
-    def clients(request: Request, msg: str = ""):
+    def clients(request: Request, msg: str = "", status: str = ""):
         f = feed.get_feed()
         rows = db.list_clients()
         for r in rows:
             r["zone_status"] = feed.zone_status(f["situation"], r["profile"].get("zone"))
             r["outage"] = feed.outage_for(f["situation"], r["profile"])
-        return page(request, "clients.html", rows=rows, feed=f, feed_age=feed.age_text(f.get("age_s")), msg=msg,
-                    card=card, profiles=profiles)
+            r["home_fires"] = _home_fires(r)
+        sm = _summary(rows)
+        return page(request, "clients.html", rows=_filter(rows, status), feed=f, feed_age=feed.age_text(f.get("age_s")), msg=msg,
+                    card=card, profiles=profiles, sm=sm, status=status)
+
+    @app.get("/print-queue", response_class=HTMLResponse)
+    def print_queue(request: Request):
+        rows = [r for r in db.list_clients() if r["status"] in ("stamped", "printed")]
+        return page(request, "print_queue.html", rows=rows, card=card)
 
     @app.post("/clients/import")
     async def import_csv(request: Request, file: UploadFile = File(...)):

@@ -8,7 +8,17 @@
 <style>
   :root { --ink:#111; --muted:#555; --line:#ccc; --bg:#fff; --soft:#f4f4f2; --red:#b00020; --amber:#8a5a00; --ok:#1b5e20; --focus:#1a4fd6; }
   * { box-sizing: border-box; }
-  body { margin:0; font: 16px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  body { margin:0; font: 17px/1.5 Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  .steps { display:flex; gap:0; margin:0 0 14px; padding:0; list-style:none; border:2px solid var(--ink); border-radius:8px; overflow:hidden; }
+  .steps li { flex:1; padding:8px 12px; border-right:2px solid var(--ink); font-weight:700; background:#fff; }
+  .steps li:last-child { border-right:0; } .steps li .n { display:inline-block; min-width:26px; height:26px; line-height:22px; text-align:center; border:2px solid var(--ink); border-radius:50%; margin-right:6px; }
+  .steps li.done { background:#dff3e2; } .steps li.now { background:var(--ink); color:#fff; } .steps li.now .n { border-color:#fff; }
+  .steps li small { display:block; font-weight:400; color:var(--muted); } .steps li.now small { color:#ddd; }
+  .summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin:0 0 14px; }
+  .summary a { display:block; border:2px solid var(--ink); border-radius:8px; padding:10px 12px; color:var(--ink); text-decoration:none; }
+  .summary a.on { background:var(--ink); color:#fff; } .summary a b { font-size:28px; display:block; line-height:1.1; }
+  .next { border:2px solid var(--focus); border-radius:8px; padding:10px 14px; margin:0 0 14px; background:#eef3ff; font-weight:600; }
+  .btn, button { min-height:40px; }
   header.top { display:flex; align-items:center; gap:16px; padding:10px 20px; border-bottom:2px solid var(--ink); }
   header.top a.brand { font-weight:800; font-size:20px; color:var(--ink); text-decoration:none; }
   header.top nav { margin-left:auto; display:flex; gap:12px; align-items:center; }
@@ -42,9 +52,10 @@
 <body>
 {% if gate_open %}<div class="banner">No passphrase is set (EMBER_PASSPHRASE). Anyone on this laptop can open the tool.</div>{% endif %}
 <header class="top">
-  <a class="brand" href="/">Ember</a><span class="muted">plan cards for clients who use wheelchairs</span>
+  <a class="brand" href="/">Ember</a><span class="muted">evacuation cards for clients who cannot just drive away</span>
   <nav>
     <a href="/">Clients</a>
+    <a href="/print-queue">Print queue</a>
     <form method="post" action="/logout" style="margin:0"><button class="small" type="submit">Lock</button></form>
   </nav>
 </header>

@@ -65,6 +65,11 @@ def flags(row, bundle=None):
     }
 
 
+def flags_home(lat, lon, bundle):
+    """Names of recorded fires whose perimeter contains the home (clients list)."""
+    return history.burn_history(lat, lon, _hist(bundle))["fires"]
+
+
 def geo_word(bearing):
     words = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"]
     return words[int(((bearing % 360) + 22.5) // 45) % 8]
