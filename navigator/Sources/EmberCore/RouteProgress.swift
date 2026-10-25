@@ -80,6 +80,28 @@ public struct RouteProgress: Sendable {
         return advanceGroups()
     }
 
+    /// Route distance at which the next cue group is first spoken (nil when the current group is the last).
+    public var nextAnnounceM: Double? {
+        guard groupIndex + 1 < groups.count else { return nil }
+        let next = groups[groupIndex + 1][0]
+        let ahead = next.template == "arrive" ? RouteProgress.arriveAnnounceM : RouteProgress.announceAheadM
+        return next.distanceM - ahead
+    }
+
+    /// The point `s` metres along the route (clamped to the route's ends).
+    public func point(atM s: Double, graph: Graph) -> (lat: Double, lon: Double) {
+        let n = route.nodes
+        guard n.count > 1 else { return (graph.lat[n[0]], graph.lon[n[0]]) }
+        if s <= 0 { return (graph.lat[n[0]], graph.lon[n[0]]) }
+        for i in 0..<(n.count - 1) where s <= cumM[i + 1] {
+            let len = cumM[i + 1] - cumM[i]
+            let t = len > 0 ? (s - cumM[i]) / len : 0
+            let a = n[i], b = n[i + 1]
+            return (graph.lat[a] + t * (graph.lat[b] - graph.lat[a]), graph.lon[a] + t * (graph.lon[b] - graph.lon[a]))
+        }
+        return (graph.lat[n[n.count - 1]], graph.lon[n[n.count - 1]])
+    }
+
     mutating func advanceGroups() -> Bool {
         var g = groupIndex
         while g + 1 < groups.count {

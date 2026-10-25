@@ -228,29 +228,57 @@ struct StatTile: View {
 }
 
 /// Distance and time on one line: "130 m to next turn · 33 min to go". Wraps to two lines at accessibility sizes.
-struct StatLine: View {
+struct StatLine<Trailing: View>: View {
     let items: [(String, String, String)]
+    /// Optional control at the right end (the demo "Next"); `compact` asks for its icon-only form.
+    @ViewBuilder var trailing: (_ compact: Bool) -> Trailing
     @ScaledMetric(relativeTo: .title2) var big: CGFloat = 26
     @ScaledMetric(relativeTo: .body) var small: CGFloat = 17
     @Environment(\.dynamicTypeSize) var typeSize
 
     var body: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
-        layout {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, it in
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: it.2).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                    Text(it.0).font(Theme.font(big, .heavy))
-                    Text(it.1).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+        Group {
+            if Trailing.self == EmptyView.self || typeSize.isAccessibilitySize {
+                HStack(spacing: 10) {
+                    stats(fixed: false)
+                    if typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    trailing(false)
                 }
-                .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)   // AX: wrap at words, never "…"
-                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                // Stats never truncate: full words + full "Next" if it fits, else icon-only "Next", else the stats
+                // shrink (as they already may without the button).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { stats(fixed: true); trailing(false) }
+                    HStack(spacing: 10) { stats(fixed: true); trailing(true) }
+                    HStack(spacing: 10) { stats(fixed: true, scale: 0.85); trailing(true) }
+                    HStack(spacing: 10) { stats(fixed: true, scale: 0.7); trailing(true) }
+                    HStack(spacing: 10) { stats(fixed: false); trailing(true) }
+                }
             }
-            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
         .foregroundColor(Theme.text)
         .card(padding: 12)
+    }
+
+    func stats(fixed: Bool, scale: CGFloat = 1) -> some View {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
+        return layout {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, it in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: it.2).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                    Text(it.0).font(Theme.font(big * scale, .heavy))
+                    Text(it.1).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                }
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .fixedSize(horizontal: fixed, vertical: false)
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(items.map { "\($0.0) \($0.1)" }.joined(separator: ", "))
     }
+}
+
+extension StatLine where Trailing == EmptyView {
+    init(items: [(String, String, String)]) { self.init(items: items, trailing: { _ in EmptyView() }) }
 }

@@ -228,7 +228,9 @@ struct NavigateView: View {
         StatLine(items: [
             p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
             ("\(mins) min", "to go", model.machine?.client?.mobilityIcon ?? "figure.walk"),
-        ].compactMap { $0 })
+        ].compactMap { $0 }) { compact in
+            if model.demoStepping { DemoNextButton(compact: compact) { model.demoNext() } }   // in the strip at every size
+        }
         // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
         if let eta {
             StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
@@ -263,8 +265,8 @@ struct NavigateView: View {
         Screen(scrolls: false) {
             if typeSize.isAccessibilitySize {
                 // Accessibility sizes (owner pass 3): the instruction is never truncated and the distance/time strip
-                // stays under it; the map keeps a minimum height below them and the whole column scrolls when the words
-                // need the room. Nothing sits under the pinned buttons.
+                // (with the demo "Next" at its end) stays under it; the map keeps a minimum height below them and the
+                // whole column scrolls when the words need the room. Nothing sits under the pinned buttons.
                 ScrollView(showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 12) {
                         navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
@@ -359,3 +361,28 @@ struct ArrivedView: View {
     }
 }
 
+/// Settings → "Demo: step through route": a small secondary button at the end of the distance/time strip. Slate
+/// outline, ≥ 44 pt, never wraps; the approved layout and the map are untouched.
+struct DemoNextButton: View {
+    var compact = false
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if compact { Image(systemName: "forward.end").padding(.horizontal, 10) }
+                else { Label("Next", systemImage: "forward.end").padding(.horizontal, 12) }
+            }
+                .font(Theme.font(min(size, 24), .bold))
+                .lineLimit(1)
+                .fixedSize()
+                .frame(minWidth: 44, minHeight: 44)
+                .foregroundColor(Theme.text)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.text, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Next step, demo")
+        .accessibilityHint("Moves you to the next instruction without walking")
+    }
+}
