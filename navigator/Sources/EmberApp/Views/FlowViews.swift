@@ -295,25 +295,20 @@ struct NavigateView: View {
                     EmberButton(title: "No", systemImage: "xmark", hint: "No, keep going as before") { model.cancelPending() }
                 }
             } else {
+            // Owner reference structure: Blocked / Repeat, Can't move / Speak, then a full-width New fire. "Louder" stays
+            // a voice command (and Repeat speaks at full volume when the user asked for louder before).
             ButtonRow {
                 EmberButton(title: "Blocked", systemImage: "xmark.octagon.fill", hint: "Find a way around; asks first") { model.blocked() }
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
             }
             ButtonRow {
-                // At accessibility sizes the rows stack: Louder leaves the pinned panel (voice "louder" and Repeat remain)
-                // so the instruction and the map stay on screen (engineer #2's finding).
-                if !typeSize.isAccessibilitySize {
-                    EmberButton(title: "Louder", systemImage: "speaker.wave.3.fill", hint: "Full volume, then the instruction again") { model.louder() }
-                }
+                EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
                 EmberButton(title: voice.listening ? "Done" : "Speak", systemImage: voice.listening ? "mic.fill" : "mic",
                             hint: "Say blocked, fire, repeat, louder, where am I, or how long") { model.micTapped() }
             }
-            ButtonRow {
-                EmberButton(title: "New fire", systemImage: "flame.fill",
-                            hint: compass.heading != nil ? "Point the phone at the fire, then tap; asks first" : "Choose the direction of the fire from a list") {
-                    if compass.heading != nil { model.newFireTapped() } else { pickingFire = true }
-                }
-                EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
+            EmberButton(title: "New fire", systemImage: "flame.fill",
+                        hint: compass.heading != nil ? "Point the phone at the fire, then tap; asks first" : "Choose the direction of the fire from a list") {
+                if compass.heading != nil { model.newFireTapped() } else { pickingFire = true }
             }
             }
         }

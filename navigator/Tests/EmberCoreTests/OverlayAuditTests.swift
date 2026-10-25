@@ -89,10 +89,15 @@ import CoreGraphics
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Resources/overlay_audit")
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "json" } ?? []
         #expect(files.count >= 8, "expected the simulator audit dumps in \(dir.path)")
+        var worstImagery = 0.0
         for f in files {
             let rec = try JSONDecoder().decode(OverlayAuditRecord.self, from: Data(contentsOf: f))
             let findings = OverlayAudit.findings(rec)
             #expect(findings.isEmpty, "\(f.lastPathComponent): \(findings)")
+            worstImagery = max(worstImagery, rec.imageryScale ?? 0)
         }
+        // Owner rule #3: imagery scale is recorded for every shipped map (the report states the worst value); the
+        // satellite look is the owner's choice, so this does not gate on 1.5 yet.
+        print("overlay audit: worst imagery upscale \(worstImagery)")
     }
 }

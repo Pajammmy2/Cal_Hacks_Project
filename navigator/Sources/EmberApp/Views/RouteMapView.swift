@@ -347,10 +347,30 @@ struct RouteMapView: View {
         drawYou(ctx, pt)
         publishRecentre(recentre?.0)
         OverlayAuditDump.record(OverlayAuditRecord(id: auditId(size), size: size, route: pts, routeWidth: routeWidth,
-                                                   overlays: audit, outline: outline, holes: holes))
+                                                   overlays: audit, outline: outline, holes: holes,
+                                                   imageryScale: imageryScale(proj.metersPerPoint)))
     }
 
     var routeWidth: CGFloat { 8 * k + 6 * k }     // stroke plus the black casing
+
+    /// Owner rule #3 (sharp maps): screen pixels per native imagery pixel at this zoom, recorded in the audit dump.
+    /// Apple does not publish its satellite tiles' native resolution; 0.3 m/px (its densest US coverage, ~z19) is
+    /// assumed. Offline snapshots know theirs exactly. nil for the drawn (vector) map.
+    func imageryScale(_ metersPerPoint: Double) -> Double? {
+        let native: Double
+        switch mode {
+        case .live: native = 0.3
+        case .snapshot(let s): native = s.metersPerPixel
+        case .drawn: return nil
+        }
+        #if os(iOS)
+        let screen = Double(UIScreen.main.scale)
+        #else
+        let screen = 2.0
+        #endif
+        guard metersPerPoint > 0 else { return nil }
+        return native / (metersPerPoint / screen)
+    }
 
     @ScaledMetric(relativeTo: .body) var recentreFont: CGFloat = 17
 
