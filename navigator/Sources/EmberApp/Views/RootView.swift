@@ -12,8 +12,8 @@ public struct RootView: View {
     public var body: some View {
         VStack(spacing: 0) {
             if let text = model.leaveNow { LeaveNowBanner(text: text).padding([.horizontal, .top], 12) }
-            Group {
-                switch model.state {
+            Group {                 // fonts and colours are read statically: rebuild the screens (not the root, whose
+                switch model.state {   // onAppear launches the app) when either changes; the Settings sheet lives in the model
                 case .home: HomeView()
                 case .whichWay: WhichWayView()
                 case .choose: ChooseView()
@@ -23,9 +23,9 @@ public struct RootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .id(fontChoice + palette)
         }
         .background(Theme.background.ignoresSafeArea())
-        .id(fontChoice + palette)   // fonts and colours are read statically; rebuild the tree when either changes
         .environmentObject(model.speaker)
         .environmentObject(model.compass)
         .environmentObject(model.voice)
@@ -82,8 +82,9 @@ struct Screen<Content: View, Buttons: View>: View {
     var body: some View {
         VStack(spacing: 16) {
             if scrolls {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 4)
+                // Room at the end so the last line never sits cut against the pinned buttons (round-1 "clipped" findings).
+                ScrollView(showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 4).padding(.bottom, 28)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 4)

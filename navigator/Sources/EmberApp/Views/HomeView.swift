@@ -4,7 +4,6 @@ import EmberCore
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var scanning = false
-    @State private var settings = false
     @ScaledMetric(relativeTo: .title2) var nameSize: CGFloat = 26
     @Environment(\.dynamicTypeSize) var typeSize
 
@@ -59,7 +58,7 @@ struct HomeView: View {
                 .disabled(model.selected == nil || model.bundle == nil)
             ButtonRow {
                 EmberButton(title: "Add profile", systemImage: "qrcode.viewfinder", hint: "Scan the QR code on the plan card") { scanning = true }
-                EmberButton(title: "Settings", systemImage: "gearshape", hint: "Map style, font and keys") { settings = true }
+                EmberButton(title: "Settings", systemImage: "gearshape", hint: "Map style, font and keys") { model.settingsShown = true }
             }
         }
         .sheet(isPresented: $scanning) {
@@ -75,8 +74,8 @@ struct HomeView: View {
             .padding(16)
             .background(Theme.background.ignoresSafeArea())
         }
-        .sheet(isPresented: $settings) {
-            SettingsView { settings = false; model.settingsChanged() }
+        .sheet(isPresented: $model.settingsShown) {
+            SettingsView { model.settingsShown = false; model.settingsChanged() }
                 .environmentObject(model)
         }
     }
