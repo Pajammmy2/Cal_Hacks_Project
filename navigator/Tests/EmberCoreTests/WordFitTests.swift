@@ -119,4 +119,18 @@ import CoreGraphics
         let old = WordFit.stripWidth(items: worst, fontURL: Self.bold, scale: 0.7, trailing: nextButton) ?? 0
         #expect(old > Self.card)
     }
+
+    /// AX5 Navigate strip (Margaret, low vision): the strip is one text run that wraps at word boundaries, and the
+    /// number must stay with its unit: "710 m" / "to next turn", never "710" / "m to" (seen on the Simulator at AX5).
+    /// At AX5 the big font is title2 26 → 66 pt; the widest unbreakable unit must still fit the card column.
+    @Test func navigateStripKeepsNumberAndUnitTogetherAtAX5() throws {
+        let v = WordFit.stripValue(710, unit: "m")
+        #expect(!v.contains(" ") && v.contains(WordFit.nbsp))
+        let big = try #require(WordFit.font(url: Self.bold, size: 66))
+        #expect(WordFit.widestWord("\(v) to next turn", font: big).0 == v)
+        for value in [WordFit.stripValue(1450, unit: "m"), WordFit.stripValue(119, unit: "min")] {
+            let (w, px) = WordFit.widestWord(value + " to next turn", font: big)
+            #expect(w == value && px <= Self.card, "\(w) is \(Int(px)) pt at 66 pt, column \(Int(Self.card))")
+        }
+    }
 }

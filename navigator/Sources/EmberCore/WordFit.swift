@@ -20,7 +20,7 @@ public enum WordFit {
 
     public static func widestWord(_ text: String, font: CTFont) -> (String, CGFloat) {
         var best = ("", CGFloat(0))
-        for w in text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }) {
+        for w in text.split(whereSeparator: { ($0.isWhitespace || $0.isNewline) && $0 != WordFit.nbsp }) {
             let x = width(String(w), font: font)
             if x > best.1 { best = (String(w), x) }
         }
@@ -34,6 +34,10 @@ public enum WordFit {
     }
 
     // MARK: Navigate strip ("130 m to next turn · 33 min to go")
+
+    /// No-break space: a number and its unit are one word, so "710 m" never wraps as "710" / "m" at AX sizes.
+    public static let nbsp: Character = "\u{00A0}"
+    public static func stripValue(_ n: Int, unit: String) -> String { "\(n)\(nbsp)\(unit)" }
 
     /// Scale steps the strip tries (ViewThatFits) before its last shrink-to-fit layout; the last step is the
     /// `minimumScaleFactor` the texts allow, so what fits here never truncates.

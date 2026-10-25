@@ -226,8 +226,8 @@ struct NavigateView: View {
         // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
         // large part of the screen").
         StatLine(items: [
-            p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
-            ("\(mins) min", "to go", model.machine?.client?.mobilityIcon ?? "figure.walk"),
+            p?.distanceToNextTurnM.map { (WordFit.stripValue(Int(($0 / 10).rounded()) * 10, unit: "m"), "to next turn", "arrow.turn.up.right") },
+            (WordFit.stripValue(mins, unit: "min"), "to go", model.machine?.client?.mobilityIcon ?? "figure.walk"),
         ].compactMap { $0 }) { compact in
             if model.demoStepping { DemoNextButton(compact: compact) { model.demoNext() } }   // in the strip at every size
         }
