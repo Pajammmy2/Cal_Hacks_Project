@@ -61,7 +61,7 @@ def test_apply_to_refuges_ranks_burned_refuges_down_and_is_idempotent():
     outside = {"id": "b", "centroid": [-121.50, 39.75], "score": 1.0}
     refs = history.apply_to_refuges([inside, outside], [_fire("Camp", 2018)])
     assert [r["id"] for r in refs] == ["b", "a"]
-    assert refs[1]["history"] == {"fires": ["Camp (2018)"], "recent": 1, "factor": 0.92}
+    assert refs[1]["history"] == {"fires": ["Camp (2018)"], "recent": 1, "factor": 0.92, "scored": True}
     assert refs[1]["score"] == 0.92 and refs[1]["score_base"] == 1.0
     history.apply_to_refuges(refs, [_fire("Camp", 2018)])
     assert refs[1]["score"] == 0.92
@@ -86,3 +86,18 @@ def test_plan_records_history(bundle):
     client = {"id": "t", "name": "T", "mobility": "walker", "lat": b.graph.lat[0], "lon": b.graph.lon[0]}
     p = planmod.make_plan(b, "", client)
     assert set(p["history"]) == {"prior_bearing_deg", "prior_from", "home_fires", "home_recent"}
+
+
+def test_history_is_reported_not_scored_when_every_refuge_burned_alike():
+    """Paradise: all 32 refuges sit inside the Camp (2018) footprint, so a uniform factor cannot rank anything and
+    must not move a client's refuge (the v4 card/phone mismatch). Gate: score only when history discriminates."""
+    a = {"id": "a", "centroid": [-121.61, 39.75], "score": 1.0}
+    b = {"id": "b", "centroid": [-121.605, 39.755], "score": 0.9}
+    refs = history.apply_to_refuges([a, b], [_fire("Camp", 2018)])
+    assert [r["id"] for r in refs] == ["a", "b"]
+    assert all(r["score"] == r["score_base"] for r in refs)
+    assert all(r["history"]["factor"] == 1.0 and r["history"]["scored"] is False for r in refs)
+    assert "reported, not scored" in refs[0]["history"]["reason"]
+    # a second, older-only fire on one refuge does not change the recent count -> still uniform
+    assert not history.discriminates([{"recent": 1}, {"recent": 1}])
+    assert history.discriminates([{"recent": 1}, {"recent": 0}])

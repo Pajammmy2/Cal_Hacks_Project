@@ -124,17 +124,28 @@ def summary(historical, bbox):
     }
 
 
+def discriminates(histories):
+    """History can only rank refuges when it separates them: if every refuge in the bundle sits in the same number of
+    recent perimeters (Paradise: all 32 are inside the 2018 Camp footprint) a uniform factor changes nothing but
+    looks like a penalty. Then the burn history is reported, not scored."""
+    return len({h["recent"] for h in histories}) > 1
+
+
 def apply_to_refuges(refuges, historical):
-    """Adds `history` {fires, recent, factor} to each refuge and multiplies `score` by the factor (base score kept
-    in `score_base`). Idempotent: re-running starts from score_base."""
-    for r in refuges:
-        lon, lat = r["centroid"]
-        bh = burn_history(lat, lon, historical)
-        f = refuge_factor(bh["recent"])
+    """Adds `history` {fires, recent, factor, scored} to each refuge and multiplies `score` by the factor (base score
+    kept in `score_base`) when the history discriminates between refuges; otherwise factor 1.0 and scored=False with
+    the reason staff see on the review page. Idempotent: re-running starts from score_base."""
+    hist = [burn_history(r["centroid"][1], r["centroid"][0], historical) for r in refuges]
+    scored = discriminates(hist)
+    for r, bh in zip(refuges, hist):
+        f = refuge_factor(bh["recent"]) if scored else 1.0
         base = r.get("score_base", r["score"])
         r["score_base"] = base
         r["score"] = round(base * f, 6)
-        r["history"] = {"fires": bh["fires"], "recent": bh["recent"], "factor": round(f, 3)}
+        r["history"] = {"fires": bh["fires"], "recent": bh["recent"], "factor": round(f, 3), "scored": scored}
+        if not scored and bh["recent"]:
+            r["history"]["reason"] = ("every refuge in this bundle burned in the same %d recent fire%s; history is "
+                                      "reported, not scored" % (bh["recent"], "" if bh["recent"] == 1 else "s"))
     refuges.sort(key=lambda r: (-r["score"], r["id"]))
     return refuges
 
