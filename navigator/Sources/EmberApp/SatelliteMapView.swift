@@ -1,11 +1,14 @@
 #if os(iOS)
 import SwiftUI
 import MapKit
+import EmberCore
 
 /// Non-interactive, north-up satellite MKMapView that keeps a region fitted whatever its size,
 /// and reports its visible map rect so the SwiftUI Canvas on top can project lat/lon onto it.
 final class FittedMapView: MKMapView {
     var fit: MKCoordinateRegion? { didSet { refit() } }
+    /// Navigate follow camera; nil fits `fit` north-up.
+    var cameraView: FollowCamera.Viewport? { didSet { refit() } }
     var onVisible: ((MKMapRect) -> Void)?
     private var lastSize = CGSize.zero
 
@@ -18,8 +21,21 @@ final class FittedMapView: MKMapView {
     }
 
     func refit() {
-        guard let fit, bounds.width > 0, bounds.height > 0 else { return }
-        setRegion(regionThatFits(fit), animated: false)
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        if let c = cameraView {
+            let aspect = Double(bounds.height / bounds.width)
+            let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: c.lat, longitude: c.lon),
+                                            latitudinalMeters: c.spanM * aspect, longitudinalMeters: c.spanM)
+            setRegion(region, animated: false)
+            if abs(camera.heading - c.rotationDeg) > 0.01 {
+                let cam = camera
+                cam.heading = c.rotationDeg
+                setCamera(cam, animated: false)
+            }
+        } else if let fit {
+            if camera.heading != 0 { let cam = camera; cam.heading = 0; setCamera(cam, animated: false) }
+            setRegion(regionThatFits(fit), animated: false)
+        } else { return }
         let r = visibleMapRect
         DispatchQueue.main.async { [weak self] in self?.onVisible?(r) }
     }
@@ -27,7 +43,9 @@ final class FittedMapView: MKMapView {
 
 struct SatelliteMapView: UIViewRepresentable {
     let fit: MKCoordinateRegion
+    var camera: FollowCamera.Viewport? = nil
     let onVisible: (MKMapRect) -> Void
+    var onMap: ((MKMapView) -> Void)? = nil
 
     func makeUIView(context: Context) -> FittedMapView {
         let v = FittedMapView()
@@ -47,12 +65,15 @@ struct SatelliteMapView: UIViewRepresentable {
         v.accessibilityElementsHidden = true
         v.delegate = context.coordinator
         v.onVisible = onVisible
+        v.cameraView = camera
         v.fit = fit
+        DispatchQueue.main.async { onMap?(v) }
         return v
     }
 
     func updateUIView(_ v: FittedMapView, context: Context) {
         v.onVisible = onVisible
+        if v.cameraView != camera { v.cameraView = camera }
         if let f = v.fit, same(f, fit) { return }
         v.fit = fit
     }

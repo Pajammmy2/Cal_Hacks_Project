@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import CoreLocation
 import EmberCore
 
@@ -23,6 +24,13 @@ public final class AppModel: ObservableObject {
 
     // Navigation mirror (the machine is a plain class)
     @Published public private(set) var state: NavState = .home
+    /// Navigate map: whole route for a second, then a close heading-up view that follows the GPS fix.
+    @Published public private(set) var follow = FollowCamera()
+    @Published public private(set) var mapViewport: FollowCamera.Viewport?
+    @Published private(set) var satellites: [SatelliteSnapshot] = []
+    private var followTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
+    private var cameraAnimation: Timer?
     @Published public private(set) var tick = 0
     @Published public private(set) var feedNote: String?
 
@@ -65,6 +73,7 @@ public final class AppModel: ObservableObject {
         location.onFix = { [weak self] l in self?.gotFix(l) }
         location.start()
         compass.start()
+        compass.$heading.receive(on: RunLoop.main).sink { [weak self] _ in self?.updateFollowCamera() }.store(in: &cancellables)
         voice.requestAuthorization()
         voice.onlineChanged = { [weak self] up in self?.networkChanged(up) }
         minuteTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -87,6 +96,7 @@ public final class AppModel: ObservableObject {
         }
         speaker.configure(bundle: bundle, clientId: selectedId)
         configureCartesia()
+        reloadSatellites()
         sync()
     }
 
@@ -330,10 +340,102 @@ public final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Navigate map camera
+
+    static let followAnimateS = 0.8
+
+    var followHeading: Double? { compass.heading ?? machine?.travelHeading }
+
+    func followTarget() -> FollowCamera.Viewport? {
+        guard let m = machine else { return nil }
+        let pos = m.position ?? m.progress.map { (lat: m.graph.lat[$0.route.nodes[0]], lon: m.graph.lon[$0.route.nodes[0]]) }
+        return FollowCamera.viewport(lat: pos?.lat, lon: pos?.lon, heading: followHeading)
+    }
+
+    func overviewViewport() -> FollowCamera.Viewport? {
+        guard let m = machine, let p = m.progress else { return nil }
+        var pts = p.route.nodes.map { (lat: m.graph.lat[$0], lon: m.graph.lon[$0]) }
+        if let pos = m.position { pts.append(pos) }
+        if let r = m.currentChoice?.refuge { pts.append((lat: r.centroidLat, lon: r.centroidLon)) }
+        var s = pts[0].lat, n = pts[0].lat, w = pts[0].lon, e = pts[0].lon
+        for q in pts { s = min(s, q.lat); n = max(n, q.lat); w = min(w, q.lon); e = max(e, q.lon) }
+        return FollowCamera.Viewport(lat: (s + n) / 2, lon: (w + e) / 2,
+                                     spanM: FollowCamera.overviewSpanM(points: pts, aspect: 1.0), rotationDeg: 0)
+    }
+
+    func enterNavigateCamera() {
+        follow.reset()
+        cameraAnimation?.invalidate(); cameraAnimation = nil
+        mapViewport = overviewViewport()
+        followTimer?.invalidate()
+        followTimer = Timer.scheduledTimer(withTimeInterval: FollowCamera.overviewS, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.state == .navigate, self.follow.tick(), let t = self.followTarget() else { return }
+                self.animateCamera(to: t)
+            }
+        }
+    }
+
+    func leaveNavigateCamera() {
+        followTimer?.invalidate(); followTimer = nil
+        cameraAnimation?.invalidate(); cameraAnimation = nil
+        mapViewport = nil
+    }
+
+    /// A new fix or heading while following: move the camera (unless the zoom-in animation is still running).
+    func updateFollowCamera() {
+        guard state == .navigate, follow.isFollowing, cameraAnimation == nil, let t = followTarget() else { return }
+        mapViewport = t
+    }
+
+    public func mapInteracted() {
+        guard state == .navigate else { return }
+        cameraAnimation?.invalidate(); cameraAnimation = nil
+        follow.userInteracted()
+    }
+
+    public func recentreMap() {
+        follow.recentre()
+        if let t = followTarget() { animateCamera(to: t, seconds: 0.5) }
+    }
+
+    func animateCamera(to target: FollowCamera.Viewport, seconds: Double = followAnimateS) {
+        cameraAnimation?.invalidate()
+        guard let from = mapViewport else { mapViewport = target; return }
+        let frames = max(1, Int(seconds * 30))
+        var i = 0
+        var dRot = target.rotationDeg - from.rotationDeg
+        if dRot > 180 { dRot -= 360 } else if dRot < -180 { dRot += 360 }
+        cameraAnimation = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self else { timer.invalidate(); return }
+                i += 1
+                let u = min(1.0, Double(i) / Double(frames))
+                let t = u * u * (3 - 2 * u)                       // ease in-out
+                let live = self.followTarget() ?? target           // keep tracking a fix that arrives mid-animation
+                let to = self.follow.isFollowing ? live : target
+                self.mapViewport = FollowCamera.Viewport(
+                    lat: from.lat + (to.lat - from.lat) * t, lon: from.lon + (to.lon - from.lon) * t,
+                    spanM: exp(log(from.spanM) + (log(to.spanM) - log(from.spanM)) * t),
+                    rotationDeg: Py.mod(from.rotationDeg + dRot * t, 360))
+                if u >= 1 { timer.invalidate(); self.cameraAnimation = nil; self.mapViewport = to }
+            }
+        }
+    }
+
+    func reloadSatellites() {
+        guard let b = bundle, let id = selectedId else { satellites = []; return }
+        satellites = SatelliteSnapshot.all(bundle: b, clientId: id)
+    }
+
     /// Mirror the machine and speak anything new (with a haptic on every new instruction).
     func sync() {
-        guard let m = machine else { state = .home; return }
+        guard let m = machine else { state = .home; leaveNavigateCamera(); return }
+        let was = state
         state = m.state
+        if m.state == .navigate, was != .navigate { enterNavigateCamera() }
+        if m.state != .navigate, was == .navigate { leaveNavigateCamera() }
+        if m.state == .navigate { updateFollowCamera() }
         Platform.keepScreenOn(m.state == .navigate)
         if m.serial != spokenSerial {
             spokenSerial = m.serial

@@ -15,10 +15,21 @@ struct RouteMapView: View {
     let refuge: Refuge?
     var heading: Double? = nil
     var walkedM: Double? = nil
-    var satellite: SatelliteSnapshot? = nil
+    var satellites: [SatelliteSnapshot] = []
     var online = false
     var thumbnail = false
     var height: CGFloat? = nil
+    /// Navigate: the follow camera (nil = fit the whole route, as on Choose). Heading-up when `rotationDeg` != 0.
+    var camera: FollowCamera.Viewport? = nil
+    /// Following is paused: the map stays where the hand left it (pinch to zoom, drag to look around).
+    var paused = false
+    var onUserGesture: (() -> Void)? = nil
+    /// Node where the next turn happens: its street label always wins at close zoom.
+    var nextTurnNode: Int? = nil
+
+    @State private var manual: FollowCamera.Viewport? = nil
+    @State private var gestureBase: FollowCamera.Viewport? = nil
+    @State private var liveMap: MKMapView? = nil
 
     @ScaledMetric(relativeTo: .body) var thumbHeight: CGFloat = 170
     @State private var liveRect: MKMapRect? = nil
@@ -53,6 +64,26 @@ struct RouteMapView: View {
         return b.pad(thumbnail ? 0.12 : 0.18)
     }
 
+    /// The camera actually shown: the hand-placed one while paused, else the follow/overview camera.
+    var shownCamera: FollowCamera.Viewport? { paused ? (manual ?? camera) : camera }
+
+    /// Ground area a camera view can touch (whatever the rotation), for street culling and snapshot choice.
+    func cameraBox(_ c: FollowCamera.Viewport) -> Box {
+        let half = c.spanM * 0.75
+        let dlat = half / 111_320.0, dlon = half / (111_320.0 * max(cos(Py.radians(c.lat)), 1e-6))
+        return Box(s: c.lat - dlat, w: c.lon - dlon, n: c.lat + dlat, e: c.lon + dlon)
+    }
+
+    var visibleBox: Box { shownCamera.map(cameraBox) ?? box }
+
+    /// The saved photo for this view: at close zoom the sharpest corridor tile under the camera, else the one
+    /// that covers most of the route. nil -> drawn streets (never a blank map).
+    var satellite: SatelliteSnapshot? {
+        if let c = shownCamera { return SatelliteSnapshot.covering(lat: c.lat, lon: c.lon, spanM: c.spanM, from: satellites) }
+        let pts = route.nodes.map { (lat: graph.lat[$0], lon: graph.lon[$0]) }
+        return SatelliteSnapshot.best(covering: pts, from: satellites)
+    }
+
     enum Mode { case live, snapshot(SatelliteSnapshot), drawn }
 
     /// Launch argument `-ember-offline` forces the offline path, so the snapshot fallback can be checked in the Simulator.
@@ -75,10 +106,40 @@ struct RouteMapView: View {
         let metersPerPoint: Double
     }
 
+    /// Camera projection: metres from the centre, rotated so the heading points up. Same maths in every mode
+    /// except live, where MapKit's own camera does it and `convert` reads it back.
+    func cameraProjection(_ c: FollowCamera.Viewport, _ size: CGSize, rotation: Double) -> (Double, Double) -> CGPoint {
+        let mpp = c.spanM / Double(size.width)
+        let k = cos(Py.radians(c.lat)) * 111_320.0
+        let r = Py.radians(rotation), cr = cos(r), sr = sin(r)
+        let cx = Double(size.width) / 2, cy = Double(size.height) / 2
+        return { lat, lon in
+            let dx = (lon - c.lon) * k, dy = (lat - c.lat) * 111_320.0
+            return CGPoint(x: cx + (dx * cr - dy * sr) / mpp, y: cy - (dx * sr + dy * cr) / mpp)
+        }
+    }
+
     func projection(_ size: CGSize) -> Projection? {
         guard size.width > 0, size.height > 0 else { return nil }
         let b = box
         var pt: ((Double, Double) -> CGPoint)
+        if let c = shownCamera {
+            switch mode {
+            case .live:
+                #if os(iOS)
+                guard let map = liveMap, liveRect != nil else { return nil }
+                pt = { lat, lon in map.convert(CLLocationCoordinate2D(latitude: lat, longitude: lon), toPointTo: map) }
+                #else
+                pt = cameraProjection(c, size, rotation: c.rotationDeg)
+                #endif
+            default:
+                pt = cameraProjection(c, size, rotation: c.rotationDeg)
+            }
+            let p1 = pt(c.lat, c.lon), p2 = pt(c.lat, c.lon + 0.001)
+            let d = hypot(p2.x - p1.x, p2.y - p1.y)
+            let mpp = d > 0 ? Geo.haversineM(c.lat, c.lon, c.lat, c.lon + 0.001) / Double(d) : c.spanM / Double(size.width)
+            return Projection(point: pt, metersPerPoint: mpp)
+        }
         switch mode {
         case .live:
             guard let r = liveRect, r.size.width > 0, r.size.height > 0 else { return nil }
@@ -103,19 +164,34 @@ struct RouteMapView: View {
         return Projection(point: pt, metersPerPoint: mpp)
     }
 
+    var rotation: Double { shownCamera?.rotationDeg ?? 0 }
+
     var body: some View {
         ZStack {
             isDrawn ? Theme.mapLand : Theme.land
             #if os(iOS)
             if case .live = mode {
-                SatelliteMapView(fit: box.region) { r in liveRect = r }
+                SatelliteMapView(fit: box.region, camera: shownCamera, onVisible: { r in liveRect = r }, onMap: { liveMap = $0 })
             }
             #endif
             Canvas(rendersAsynchronously: false) { ctx, size in
                 guard let proj = projection(size) else { return }
                 if case .snapshot(let s) = mode {
-                    let b = box
-                    ctx.draw(Image(decorative: s.image, scale: 1).resizable(), in: s.fitRect(s: b.s, w: b.w, n: b.n, e: b.e, in: size))
+                    if let c = shownCamera {
+                        // Photo under a rotating camera: place it with the north-up projection, spin the layer.
+                        let flat = cameraProjection(c, size, rotation: 0)
+                        let tl = flat(s.n, s.w), br = flat(s.s, s.e)
+                        let centre = CGPoint(x: size.width / 2, y: size.height / 2)
+                        ctx.drawLayer { l in
+                            l.translateBy(x: centre.x, y: centre.y)
+                            l.rotate(by: .degrees(-c.rotationDeg))
+                            l.draw(Image(decorative: s.image, scale: 1).resizable(),
+                                   in: CGRect(x: tl.x - centre.x, y: tl.y - centre.y, width: br.x - tl.x, height: br.y - tl.y))
+                        }
+                    } else {
+                        let b = box
+                        ctx.draw(Image(decorative: s.image, scale: 1).resizable(), in: s.fitRect(s: b.s, w: b.w, n: b.n, e: b.e, in: size))
+                    }
                 }
                 if !isDrawn {
                     // The veil: the photo stays readable (roofs, lots, tree lines) but the route, pins and labels win.
@@ -123,7 +199,10 @@ struct RouteMapView: View {
                 }
                 drawOverlays(ctx, size, proj)
             }
+            .contentShape(Rectangle())
+            .gesture(camera == nil ? nil : mapGesture)
         }
+        .onChange(of: paused) { now in if !now { manual = nil; gestureBase = nil } }
         .frame(height: thumbnail ? (height ?? thumbHeight) : nil)
         .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Color.white.opacity(0.25), lineWidth: 1))
@@ -131,9 +210,51 @@ struct RouteMapView: View {
         .accessibilityLabel("Map of the route to \(refuge?.name ?? "the refuge"). The green area is the destination, the white dot is where you start.")
     }
 
+    // MARK: gestures (Navigate only): drag to look around, pinch to zoom; either pauses following
+
+    var mapGesture: some Gesture {
+        let drag = DragGesture(minimumDistance: 8)
+            .onChanged { v in
+                guard let base = beginGesture() else { return }
+                let mpp = base.spanM / 360.0
+                // screen offset -> ground offset, undoing the rotation
+                let r = Py.radians(base.rotationDeg), cr = cos(r), sr = sin(r)
+                let sx = -Double(v.translation.width) * mpp, sy = Double(v.translation.height) * mpp
+                let dx = sx * cr + sy * sr, dy = -sx * sr + sy * cr
+                let k = cos(Py.radians(base.lat)) * 111_320.0
+                manual = FollowCamera.Viewport(lat: base.lat + dy / 111_320.0, lon: base.lon + dx / max(k, 1e-6),
+                                               spanM: base.spanM, rotationDeg: base.rotationDeg)
+            }
+            .onEnded { _ in gestureBase = nil }
+        let pinch = MagnificationGesture()
+            .onChanged { scale in
+                guard let base = beginGesture(), scale > 0 else { return }
+                var c = base
+                c.spanM = min(FollowCamera.maxSpanM, max(FollowCamera.minSpanM, base.spanM / Double(scale)))
+                manual = c
+            }
+            .onEnded { _ in gestureBase = nil }
+        return drag.simultaneously(with: pinch)
+    }
+
+    /// First touch of a gesture: remember where the camera was and tell the model to pause following.
+    func beginGesture() -> FollowCamera.Viewport? {
+        if gestureBase == nil {
+            guard let start = manual ?? camera else { return nil }
+            gestureBase = start
+            if manual == nil { manual = start }
+            if !paused { onUserGesture?() }
+        }
+        return gestureBase
+    }
+
     // MARK: drawing
 
     var k: CGFloat { thumbnail ? 0.7 : 1 }
+
+    func onCanvas(_ p: CGPoint, _ size: CGSize, margin: CGFloat = 0) -> Bool {
+        p.x >= -margin && p.y >= -margin && p.x <= size.width + margin && p.y <= size.height + margin
+    }
 
     func drawOverlays(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection) {
         let pt = proj.point
@@ -149,7 +270,7 @@ struct RouteMapView: View {
     }
 
     func drawStreets(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection, skipping: Set<Int>) {
-        let b = box
+        let b = visibleBox
         var major = Path(), minor = Path(), paths = Path()
         var drawn = 0
         for (i, e) in graph.edges.enumerated() where drawn < 4000 {
@@ -193,6 +314,12 @@ struct RouteMapView: View {
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr)), with: .color(Theme.safe.opacity(0.35)))
         }
         let badge = 17 * k
+        guard onCanvas(c, size, margin: 40) || shownCamera == nil else {
+            // off-screen at close zoom: the name pill clamps to the edge nearest the refuge, pointing the way
+            pill(ctx, Text("→ " + r.name).font(Theme.font(15, .bold)).foregroundColor(.white),
+                 at: c, anchor: .center, in: size, fill: Color.black.opacity(0.82), stroke: Theme.safe)
+            return
+        }
         ctx.fill(Path(ellipseIn: CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)), with: .color(.white))
         ctx.stroke(Path(ellipseIn: CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)),
                    with: .color(Theme.safe), lineWidth: 2.5 * k)
@@ -228,7 +355,7 @@ struct RouteMapView: View {
                 let t = len > 0 ? min(1, (w - cum[i - 1]) / len) : 1
                 split = CGPoint(x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t)
             }
-            walked.move(to: pts[0]); for p in pts[1...splitIndex] { walked.addLine(to: p) }; walked.addLine(to: split)
+            walked.move(to: pts[0]); if splitIndex >= 1 { for p in pts[1...splitIndex] { walked.addLine(to: p) } }; walked.addLine(to: split)
         }
         ahead.move(to: split); for p in pts[(splitIndex + 1)...] { ahead.addLine(to: p) }
         let width = 8 * k
@@ -265,7 +392,18 @@ struct RouteMapView: View {
             }
             lengthByLabel[li] = total
         }
-        let keep = Set(labels.indices.sorted { (lengthByLabel[$0] ?? 0) > (lengthByLabel[$1] ?? 0) }.prefix(RouteMapView.maxTurnLabels))
+        // Only labels that land on the canvas count (at close zoom most of the route is off-screen); the street of
+        // the upcoming turn is always first.
+        func visible(_ li: Int) -> Bool {
+            let n0 = route.nodes[labels[li].1]
+            return onCanvas(pt(graph.lat[n0], graph.lon[n0]), size, margin: -10)
+        }
+        let ordered = labels.indices.filter(visible).sorted { a, b in
+            let an = route.nodes[labels[a].1] == nextTurnNode, bn = route.nodes[labels[b].1] == nextTurnNode
+            if an != bn { return an }
+            return (lengthByLabel[a] ?? 0) > (lengthByLabel[b] ?? 0)
+        }
+        let keep = Set(ordered.prefix(RouteMapView.maxTurnLabels))
         for (li, (name, startIdx)) in labels.enumerated() where keep.contains(li) {
             let n0 = route.nodes[startIdx], n1 = route.nodes[min(startIdx + 1, route.nodes.count - 1)]
             let p = pt(graph.lat[n0], graph.lon[n0]), q = pt(graph.lat[n1], graph.lon[n1])
@@ -287,6 +425,7 @@ struct RouteMapView: View {
     func drawPins(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint, avoid: inout [CGRect]) {
         guard let n = route.nodes.first else { return }
         let p = pt(graph.lat[n], graph.lon[n])
+        guard onCanvas(p, size, margin: 20) else { return }      // close follow view: Start is behind you, off-screen
         let r = 8 * k
         ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.white))
         ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.black), lineWidth: 3 * k)
@@ -311,7 +450,7 @@ struct RouteMapView: View {
             arrow.closeSubpath()
             ctx.drawLayer { l in
                 l.translateBy(x: p.x, y: p.y)
-                l.rotate(by: .degrees(h))
+                l.rotate(by: .degrees(h - rotation))
                 l.stroke(arrow, with: .color(.black), style: StrokeStyle(lineWidth: 3 * k, lineJoin: .round))
                 l.fill(arrow, with: .color(.white))
             }
@@ -329,12 +468,16 @@ struct RouteMapView: View {
         let c = CGPoint(x: size.width - m - r, y: m + r)
         ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(Color.black.opacity(0.7)))
         var tri = Path()
-        tri.move(to: CGPoint(x: c.x, y: c.y - r * 0.75))
-        tri.addLine(to: CGPoint(x: c.x + r * 0.32, y: c.y - r * 0.05))
-        tri.addLine(to: CGPoint(x: c.x - r * 0.32, y: c.y - r * 0.05))
+        tri.move(to: CGPoint(x: 0, y: -r * 0.75))
+        tri.addLine(to: CGPoint(x: r * 0.32, y: -r * 0.05))
+        tri.addLine(to: CGPoint(x: -r * 0.32, y: -r * 0.05))
         tri.closeSubpath()
-        ctx.fill(tri, with: .color(.white))
-        ctx.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
+        ctx.drawLayer { l in           // the arrow turns with the map so it keeps pointing north
+            l.translateBy(x: c.x, y: c.y)
+            l.rotate(by: .degrees(-rotation))
+            l.fill(tri, with: .color(.white))
+            l.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: 0, y: r * 0.42), anchor: .center)
+        }
         // Scale bar, top left (bottom edge is Apple's attribution on the live map).
         guard metersPerPoint > 0, metersPerPoint.isFinite else { return }
         let maxPts = Double(size.width) * 0.32
@@ -370,9 +513,9 @@ struct RouteMapView: View {
         let padX = 9 * k, padY = 4 * k
         var rect = CGRect(x: 0, y: 0, width: m.width + 2 * padX, height: m.height + 2 * padY)
         rect.origin = CGPoint(x: p.x - rect.width * anchor.x, y: p.y - rect.height * anchor.y)
-        let edge = 6 * k
+        let edge = 6 * k, top = 38 * k      // the top strip holds the scale bar and the north arrow
         rect.origin.x = min(max(rect.origin.x, edge), max(edge, size.width - edge - rect.width))
-        rect.origin.y = min(max(rect.origin.y, edge), max(edge, size.height - edge - rect.height))
+        rect.origin.y = min(max(rect.origin.y, top), max(top, size.height - edge - rect.height))
         return rect
     }
 
@@ -383,9 +526,9 @@ struct RouteMapView: View {
         let padX = 9 * k, padY = 4 * k
         var rect = CGRect(x: 0, y: 0, width: m.width + 2 * padX, height: m.height + 2 * padY)
         rect.origin = CGPoint(x: p.x - rect.width * anchor.x, y: p.y - rect.height * anchor.y)
-        let edge = 6 * k
+        let edge = 6 * k, top = 38 * k      // the top strip holds the scale bar and the north arrow
         rect.origin.x = min(max(rect.origin.x, edge), max(edge, size.width - edge - rect.width))
-        rect.origin.y = min(max(rect.origin.y, edge), max(edge, size.height - edge - rect.height))
+        rect.origin.y = min(max(rect.origin.y, top), max(top, size.height - edge - rect.height))
         let shape = Path(roundedRect: rect, cornerRadius: rect.height / 2)
         ctx.fill(shape, with: .color(fill))
         ctx.stroke(shape, with: .color(stroke), lineWidth: 1.5 * k)

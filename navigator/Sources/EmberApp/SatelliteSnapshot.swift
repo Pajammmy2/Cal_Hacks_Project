@@ -18,6 +18,27 @@ struct SatelliteSnapshot {
 
     var aspect: CGFloat { CGFloat(wPx) / CGFloat(max(hPx, 1)) }
 
+    /// Ground resolution at the image centre.
+    var metersPerPixel: Double { (e - w) * cos(Py.radians((s + n) / 2)) * 111_320.0 / Double(max(wPx, 1)) }
+
+    /// The sharpest saved photo that contains the whole square view (`spanM` across, any rotation) around a point;
+    /// failing that, the sharpest one that at least contains the point. nil -> the caller draws streets instead.
+    static func covering(lat: Double, lon: Double, spanM: Double, from all: [SatelliteSnapshot]) -> SatelliteSnapshot? {
+        let half = spanM * 0.71
+        let dlat = half / 111_320.0, dlon = half / (111_320.0 * max(cos(Py.radians(lat)), 1e-6))
+        let corners = [(lat + dlat, lon - dlon), (lat + dlat, lon + dlon), (lat - dlat, lon - dlon), (lat - dlat, lon + dlon)]
+        let full = all.filter { s in corners.allSatisfy { s.contains(lat: $0.0, lon: $0.1) } }
+        if let best = full.min(by: { $0.metersPerPixel < $1.metersPerPixel }) { return best }
+        return all.filter { $0.contains(lat: lat, lon: lon) }.min { $0.metersPerPixel < $1.metersPerPixel }
+    }
+
+    /// The saved snapshot that covers these points best (whole route or at least most of it).
+    static func best(covering pts: [(lat: Double, lon: Double)], from all: [SatelliteSnapshot]) -> SatelliteSnapshot? {
+        let ranked = all.map { ($0, $0.coverage(pts)) }.sorted { $0.1 > $1.1 }
+        guard let top = ranked.first, top.1 >= 0.6 else { return nil }
+        return top.0
+    }
+
     func contains(lat: Double, lon: Double) -> Bool { lat >= s && lat <= n && lon >= w && lon <= e }
 
     /// Fraction of the given points that fall inside the image.
@@ -118,7 +139,33 @@ enum SatelliteCache {
         return Router.choose(bundle.graph, refuges: bundle.refuges, profile: profile, origin: origin).map { $0.route.nodes }
     }
 
-    /// Writes `satellite/<client>_<i>.jpg|json` for each route. Returns the number written.
+    /// Corridor tiles for the follow view: a square this wide every `corridorStepM` along the route, so the
+    /// 150 m follow view always has a sharp photo under it offline.
+    static let corridorTileM = 420.0, corridorStepM = 180.0
+
+    static func corridorBoxes(_ coords: [(lat: Double, lon: Double)]) -> [Box] {
+        var out: [Box] = []
+        var sinceLast = Double.infinity
+        var prev: (lat: Double, lon: Double)? = nil
+        func covered(_ p: (lat: Double, lon: Double)) -> Bool {
+            out.contains { b in
+                let inner = corridorTileM * 0.25 / 111_320.0
+                return p.lat > b.s + inner && p.lat < b.n - inner && p.lon > b.w + inner / cos(Py.radians(p.lat)) && p.lon < b.e - inner / cos(Py.radians(p.lat))
+            }
+        }
+        for c in coords {
+            if let p = prev { sinceLast += Geo.haversineM(p.lat, p.lon, c.lat, c.lon) }
+            prev = c
+            guard sinceLast >= corridorStepM, !covered(c) else { continue }
+            sinceLast = 0
+            let dlat = corridorTileM / 2 / 111_320.0, dlon = corridorTileM / 2 / (111_320.0 * cos(Py.radians(c.lat)))
+            out.append(Box(s: c.lat - dlat, w: c.lon - dlon, n: c.lat + dlat, e: c.lon + dlon))
+        }
+        return out
+    }
+
+    /// Writes `satellite/<client>_<i>.jpg|json` (whole route) and `<client>_<i>_c<j>` corridor tiles for each
+    /// route. Returns the number written.
     @MainActor
     static func save(bundle: EmberBundle, client: ClientProfile) async throws -> Int {
         let g = bundle.graph
@@ -126,37 +173,42 @@ enum SatelliteCache {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var written = 0
         for (i, nodes) in routes(bundle: bundle, client: client).enumerated() {
-            guard let b = box(of: nodes.map { (g.lat[$0], g.lon[$0]) }) else { continue }
-            let k = cos(Py.radians((b.s + b.n) / 2))
-            // Keep the picture between square and 16:10 so it still covers the phone's map once the route is fitted.
-            let aspect = max(1.0, min(1.6, ((b.e - b.w) * k) / (b.n - b.s)))
-            let o = MKMapSnapshotter.Options()
-            o.mapType = .satellite
-            o.pointOfInterestFilter = .excludingAll
-            o.showsBuildings = false
-            o.scale = 2
-            o.size = CGSize(width: 1000, height: 1000 / aspect)
-            o.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: (b.s + b.n) / 2, longitude: (b.w + b.e) / 2),
-                                          span: MKCoordinateSpan(latitudeDelta: b.n - b.s, longitudeDelta: b.e - b.w))
-            o.traitCollection = UITraitCollection(userInterfaceStyle: .dark)
-            let snap = try await MKMapSnapshotter(options: o).start()
-            let img = snap.image
-            // The snapshot adjusts the region to its size; recover the exact bounds from two known points.
-            let nw = snap.point(for: CLLocationCoordinate2D(latitude: b.n, longitude: b.w))
-            let se = snap.point(for: CLLocationCoordinate2D(latitude: b.s, longitude: b.e))
-            guard se.x > nw.x, se.y > nw.y else { continue }
-            func lon(_ x: CGFloat) -> Double { b.w + Double(x - nw.x) * (b.e - b.w) / Double(se.x - nw.x) }
-            let mn = SatelliteSnapshot.mercY(b.n), ms = SatelliteSnapshot.mercY(b.s)
-            func lat(_ y: CGFloat) -> Double { SatelliteSnapshot.latFromMercY(mn + Double(y - nw.y) * (ms - mn) / Double(se.y - nw.y)) }
-            let meta: [String: Any] = [
-                "s": lat(img.size.height), "w": lon(0), "n": lat(0), "e": lon(img.size.width),
-                "w_px": Int(img.size.width * img.scale), "h_px": Int(img.size.height * img.scale),
-            ]
-            guard let jpg = img.jpegData(compressionQuality: 0.85) else { continue }
-            let base = dir.appendingPathComponent("\(client.id)_\(i)")
-            try jpg.write(to: base.appendingPathExtension("jpg"), options: .atomic)
-            try JSONSerialization.data(withJSONObject: meta).write(to: base.appendingPathExtension("json"), options: .atomic)
-            written += 1
+            let coords = nodes.map { (lat: g.lat[$0], lon: g.lon[$0]) }
+            guard let b = box(of: coords) else { continue }
+            var jobs: [(String, Box, CGFloat)] = [("\(client.id)_\(i)", b, 1000)]
+            for (j, cb) in corridorBoxes(coords).enumerated() { jobs.append(("\(client.id)_\(i)_c\(j)", cb, 700)) }
+            for (name, b, px) in jobs {
+                let k = cos(Py.radians((b.s + b.n) / 2))
+                // Keep the picture between square and 16:10 so it still covers the phone's map once the route is fitted.
+                let aspect = max(1.0, min(1.6, ((b.e - b.w) * k) / (b.n - b.s)))
+                let o = MKMapSnapshotter.Options()
+                o.mapType = .satellite
+                o.pointOfInterestFilter = .excludingAll
+                o.showsBuildings = false
+                o.scale = 2
+                o.size = CGSize(width: px, height: px / aspect)
+                o.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: (b.s + b.n) / 2, longitude: (b.w + b.e) / 2),
+                                              span: MKCoordinateSpan(latitudeDelta: b.n - b.s, longitudeDelta: b.e - b.w))
+                o.traitCollection = UITraitCollection(userInterfaceStyle: .dark)
+                let snap = try await MKMapSnapshotter(options: o).start()
+                let img = snap.image
+                // The snapshot adjusts the region to its size; recover the exact bounds from two known points.
+                let nw = snap.point(for: CLLocationCoordinate2D(latitude: b.n, longitude: b.w))
+                let se = snap.point(for: CLLocationCoordinate2D(latitude: b.s, longitude: b.e))
+                guard se.x > nw.x, se.y > nw.y else { continue }
+                func lon(_ x: CGFloat) -> Double { b.w + Double(x - nw.x) * (b.e - b.w) / Double(se.x - nw.x) }
+                let mn = SatelliteSnapshot.mercY(b.n), ms = SatelliteSnapshot.mercY(b.s)
+                func lat(_ y: CGFloat) -> Double { SatelliteSnapshot.latFromMercY(mn + Double(y - nw.y) * (ms - mn) / Double(se.y - nw.y)) }
+                let meta: [String: Any] = [
+                    "s": lat(img.size.height), "w": lon(0), "n": lat(0), "e": lon(img.size.width),
+                    "w_px": Int(img.size.width * img.scale), "h_px": Int(img.size.height * img.scale),
+                ]
+                guard let jpg = img.jpegData(compressionQuality: 0.85) else { continue }
+                let base = dir.appendingPathComponent(name)
+                try jpg.write(to: base.appendingPathExtension("jpg"), options: .atomic)
+                try JSONSerialization.data(withJSONObject: meta).write(to: base.appendingPathExtension("json"), options: .atomic)
+                written += 1
+            }
         }
         written += try await saveRefugeThumbs(bundle: bundle)
         SatelliteSnapshot.clearCache()

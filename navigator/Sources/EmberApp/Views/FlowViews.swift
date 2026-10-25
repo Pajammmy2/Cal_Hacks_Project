@@ -107,7 +107,7 @@ struct ChooseView: View {
                     Text(a.refuge.name).font(Theme.font(big * 1.15, .heavy)).foregroundColor(Theme.text)
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
-                                 satellite: SatelliteSnapshot.best(for: a.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
+                                 satellites: model.satellites,
                                  online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 300 : 360)
                 }
                 .card(Theme.card)
@@ -115,7 +115,7 @@ struct ChooseView: View {
                 if let b {
                     HStack(spacing: 12) {
                         RouteMapView(graph: m.graph, route: b.route, position: m.position, refuge: b.refuge,
-                                     satellite: SatelliteSnapshot.best(for: b.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
+                                     satellites: model.satellites,
                                      online: voice.online, thumbnail: true, height: 140)
                             .frame(width: 150)
                         VStack(alignment: .leading, spacing: 2) {
@@ -169,11 +169,23 @@ struct NavigateView: View {
                          systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
             }
             if let m, let p {
-                RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
-                             heading: compass.heading, walkedM: p.progressM,
-                             satellite: SatelliteSnapshot.best(for: p.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
-                             online: voice.online)
-                    .frame(height: typeSize.isAccessibilitySize ? 300 : 340)
+                ZStack(alignment: .bottomTrailing) {
+                    RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
+                                 heading: compass.heading ?? m.travelHeading, walkedM: p.progressM,
+                                 satellites: model.satellites, online: voice.online,
+                                 camera: model.mapViewport, paused: model.follow.isPaused,
+                                 onUserGesture: { model.mapInteracted() },
+                                 nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil)
+                    if model.follow.showsRecentre {
+                        Button { model.recentreMap() } label: { Label("Re-centre", systemImage: "location.fill") }
+                            .buttonStyle(EmberButtonStyle())
+                            .fixedSize()
+                            .padding(10)
+                            .accessibilityLabel("Re-centre")
+                            .accessibilityHint("Follow your position on the map again")
+                    }
+                }
+                .frame(height: typeSize.isAccessibilitySize ? 300 : 340)
             }
             CaregiverInfo(client: m?.client)
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }

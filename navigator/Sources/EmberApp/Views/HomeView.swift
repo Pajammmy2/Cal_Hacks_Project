@@ -201,6 +201,7 @@ struct SettingsView: View {
             do {
                 let n = try await SatelliteCache.save(bundle: bundle, client: client)
                 snapshotNote = n == 0 ? "No routes to save for \(client.name)." : "Saved \(n) snapshot\(n == 1 ? "" : "s") to \(bundle.county)/satellite."
+                model.reloadSatellites()
             } catch {
                 snapshotNote = "Could not save: \(error.localizedDescription)"
             }
