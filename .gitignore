@@ -17,3 +17,5 @@ storage/
 node_modules/
 *.mbtiles
 actors/*/storage/
+navigator/build/
+navigator/build-device/
