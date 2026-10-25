@@ -101,3 +101,15 @@ def test_history_is_reported_not_scored_when_every_refuge_burned_alike():
     # a second, older-only fire on one refuge does not change the recent count -> still uniform
     assert not history.discriminates([{"recent": 1}, {"recent": 1}])
     assert history.discriminates([{"recent": 1}, {"recent": 0}])
+
+
+def test_prior_uses_documented_ignition_point_for_camp():
+    """One prior method for phone, card and dashboard: bearing to the documented ignition point (Pulga for Camp 2018)."""
+    from ember_engine.core import history
+    camp = {"fire": "Camp (2018)", "year": 2018, "acres": 153335.6, "centroid": [-121.52, 39.80],
+            "polygon": [[-121.8, 39.6], [-121.3, 39.6], [-121.3, 39.95], [-121.8, 39.95]]}
+    bearing, used = history.prior_bearing(39.748562, -121.615275, [camp], now_year=2026)
+    assert used and used[0]["from"] == "ignition" and used[0]["source"]
+    assert 60 <= bearing <= 80, bearing           # Pulga lies ENE of Paradise: the Jarbo Gap wind direction
+    assert history.ignition_for("CAMP")["name"] == "Camp"
+    assert history.ignition_for("Nameless (2001)") is None

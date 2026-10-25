@@ -87,7 +87,8 @@ def fires():
 
 
 def ignition_for(name):
-    n = (name or "").strip().lower()
+    """Table row for a FRAP perimeter name such as "Camp (2018)" / "CAMP" (the year suffix is ignored)."""
+    n = re.sub(r"\s*\(\d{4}\)\s*$", "", name or "").strip().lower()
     for f in fires():
         if f["name"].lower() == n and f.get("ignition"):
             return f
