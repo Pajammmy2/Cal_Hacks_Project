@@ -426,7 +426,9 @@ public final class AppModel: ObservableObject {
             m.apply(cmd)
             if m.call911Requested {
                 m.call911Requested = false
-                if let u = URL(string: "tel://911") { UIApplication.shared.open(u) }
+                #if canImport(UIKit)
+                if let u = URL(string: "tel://911") { UIApplication.shared.open(u, options: [:], completionHandler: nil) }
+                #endif
             }
             sync()
         }
