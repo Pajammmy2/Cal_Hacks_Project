@@ -29,6 +29,12 @@ public final class NavigatorStateMachine {
     public static let noCompassReport = "No compass. Using the last fire report."
     public static let noCompassHistory = "No compass. Using where past fires came from."
     public static let noCompassAhead = "No compass. Treating the fire as straight ahead. Turning away from it."
+    // v2 (engineer #2): spoken leads for "Skip"/"Not sure" and the shelter's last step; v1 (engineer #1): the picker prompts.
+    public static let lastReport = "Using the last fire report."
+    public static let noFireInfo = "No fire information. Showing the nearest safe places."
+    public static let shelterLast = "That is the last step. Stay in the room and keep the phone on."
+    public static let whichWaySmoke = "Which way is the smoke?"
+    public static let whichWayNewFire = "Which way is the new fire?"
 
     public let bundle: EmberBundle
     public var config: SharedConfig { bundle.config }
@@ -186,8 +192,17 @@ public final class NavigatorStateMachine {
     /// still close the wedge later. Better than the old dead end on Which Way.
     public func skipFireDirection() {
         guard state == .whichWay else { return }
-        fireBearing = historyPrior
-        planChoices()
+        if let b = dataFireBearing {                       // a stale report still beats nothing: say so
+            fireBearing = b
+            planChoices(lead: Utterance(NavigatorStateMachine.lastReport))
+        } else if let prior = historyPrior {
+            fireBearing = prior
+            let d = Geo.directionWord(prior, config.templates.directions)
+            planChoices(lead: Utterance(config.phrase("history_dir", ["direction": d]), template: "history_dir", vars: ["direction": d]))
+        } else {
+            fireBearing = nil
+            planChoices(lead: Utterance(NavigatorStateMachine.noFireInfo))
+        }
     }
 
     /// "Point": the compass bearing of the phone, pointed at the smoke.
@@ -216,7 +231,7 @@ public final class NavigatorStateMachine {
         return graph.edgeBearing(p.route.edges[i], p.route.forward[i])
     }
 
-    func planChoices() {
+    func planChoices(lead: Utterance? = nil) {
         choices = NavigatorStateMachine.ordered(route(from: originNode()), planIds: planRefugeIds)
         choiceIndex = 0
         if choices.isEmpty {
@@ -224,11 +239,9 @@ public final class NavigatorStateMachine {
             return
         }
         state = .choose
-        if cardMismatch {
-            say([Utterance(NavigatorStateMachine.cardMismatch)] + choiceUtterances())
-        } else {
-            sayChoice()
-        }
+        var u: [Utterance] = lead.map { [$0] } ?? []
+        if cardMismatch { u.append(Utterance(NavigatorStateMachine.cardMismatch)) }
+        say(u + choiceUtterances())
     }
 
     func choiceUtterances() -> [Utterance] {
@@ -454,9 +467,15 @@ public final class NavigatorStateMachine {
 
     public func shelterNext() {
         guard state == .shelter, !shelter.steps.isEmpty else { return }
-        shelterIndex = min(shelterIndex + 1, shelter.steps.count - 1)
+        if shelterIndex >= shelter.steps.count - 1 {        // past the end: say so instead of going silent (v2, B15)
+            say([Utterance(NavigatorStateMachine.shelterLast), Utterance(shelter.steps[shelterIndex])])
+            return
+        }
+        shelterIndex += 1
         say(shelter.steps[shelterIndex])
     }
+
+    public var shelterIsLastStep: Bool { state == .shelter && !shelter.steps.isEmpty && shelterIndex >= shelter.steps.count - 1 }
 
     /// "Back": previous step; from the first step, back to Home.
     public func shelterBack() {

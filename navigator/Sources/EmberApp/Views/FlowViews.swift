@@ -1,33 +1,81 @@
 import SwiftUI
 import EmberCore
 
+/// Which way is the fire? Fresh data: confirm it. Otherwise point the phone (compass) or, with no compass, tap the
+/// direction of the smoke on eight big buttons (engineer #1's picker). "Not sure" plans from the last report / the
+/// historical prior and says which (engineer #2's lead). Never a dead end: Can't move and Back are always here.
 struct WhichWayView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var speaker: Speaker
     @EnvironmentObject var compass: CompassService
+    @State private var picking = false
 
     var body: some View {
         let fresh = !model.fireIsStale && model.fireBearingWord != nil
+        let hasCompass = compass.heading != nil
         Screen {
-            InstructionText(text: model.displayText)
-            CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            if !fresh { NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock.badge.exclamationmark") }
+            InstructionText(text: picking ? NavigatorStateMachine.whichWaySmoke : model.displayText)
+            if picking {
+                DirectionPicker { bearing in
+                    picking = false
+                    model.pickedSmokeDirection(bearing)
+                }
+                .onAppear { model.askDirection(newFire: false) }
+            } else {
+                CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                if !fresh { NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock.badge.exclamationmark") }
+                if !hasCompass { NoteText(text: "No compass on this phone.", systemImage: "location.slash") }
+            }
         } buttons: {
-            if fresh {
-                EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
-            }
-            if compass.heading != nil {
-                EmberButton(title: "Point", systemImage: "location.north.line.fill",
-                            hint: "Hold the phone flat, point the top at the smoke, then tap") { model.pointAtSmoke() }
-            }
-            if !fresh {
-                // Old data and no compass used to dead-end here. The plan's refuges are still safe choices.
-                EmberButton(title: "Not sure", systemImage: "questionmark.circle",
-                            hint: "Skip the fire direction and choose from the planned safe places") { model.skipFireDirection() }
+            if picking {
+                EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Back without choosing a direction") { picking = false }
+            } else {
+                if fresh {
+                    EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
+                }
+                ButtonRow {
+                    EmberButton(title: hasCompass ? "Point" : "Tap the direction",
+                                systemImage: hasCompass ? "location.north.line.fill" : "hand.tap.fill",
+                                hint: hasCompass ? "Hold the phone flat, point the top at the smoke, then tap" : "Choose the direction of the smoke from a list") {
+                        if hasCompass { model.pointAtSmoke() } else { picking = true }
+                    }
+                    EmberButton(title: "Not sure", systemImage: "questionmark.circle",
+                                hint: "Plan without pointing, from the last report or where fires have come from here") { model.skipFireDirection() }
+                }
+                ButtonRow {
+                    EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Stay here and start the shelter steps") { model.cantMove() }
+                    EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Back to the start screen") { model.goHome() }
+                }
             }
         }
+    }
+}
+
+/// Eight big direction buttons (from engineer #1). Used wherever the compass cannot answer "which way".
+struct DirectionPicker: View {
+    let onPick: (Double) -> Void
+    static let directions: [(String, Double, String)] = [
+        ("North", 0, "arrow.up"), ("Northeast", 45, "arrow.up.right"),
+        ("East", 90, "arrow.right"), ("Southeast", 135, "arrow.down.right"),
+        ("South", 180, "arrow.down"), ("Southwest", 225, "arrow.down.left"),
+        ("West", 270, "arrow.left"), ("Northwest", 315, "arrow.up.left"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(Array(stride(from: 0, to: DirectionPicker.directions.count, by: 2)), id: \.self) { i in
+                ButtonRow {
+                    ForEach(i..<min(i + 2, DirectionPicker.directions.count), id: \.self) { j in
+                        let d = DirectionPicker.directions[j]
+                        EmberButton(title: d.0, systemImage: d.2, hint: "The smoke is to the \(d.0.lowercased())") { onPick(d.1) }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Direction of the smoke")
     }
 }
 
@@ -148,10 +196,34 @@ struct NavigateView: View {
     @EnvironmentObject var voice: VoiceController
     @EnvironmentObject var compass: CompassService
     @Environment(\.dynamicTypeSize) var typeSize
+    @State private var pickingFire = false
 
     var body: some View {
         let m = model.machine
         let p = m?.progress
+        if pickingFire {
+            // New fire, no compass: ask which way (engineer #1's picker); "Can't tell" uses report -> history -> ahead.
+            Screen {
+                InstructionText(text: NavigatorStateMachine.whichWayNewFire)
+                DirectionPicker { bearing in
+                    pickingFire = false
+                    model.pickedSmokeDirection(bearing)
+                }
+                .onAppear { model.askDirection(newFire: true) }
+            } buttons: {
+                ButtonRow {
+                    EmberButton(title: "Can't tell", systemImage: "questionmark.circle",
+                                hint: "Use the last fire report or where fires have come from here") { pickingFire = false; model.newFireUnknownDirection() }
+                    EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Keep the current route") { pickingFire = false }
+                }
+            }
+        } else {
+            navigate(m, p)
+        }
+    }
+
+    @ViewBuilder
+    func navigate(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
@@ -195,12 +267,16 @@ struct NavigateView: View {
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
             }
             ButtonRow {
-                EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
+                EmberButton(title: "Louder", systemImage: "speaker.wave.3.fill", hint: "Full volume, then the instruction again") { model.louder() }
                 EmberButton(title: voice.listening ? "Done" : "Speak", systemImage: voice.listening ? "mic.fill" : "mic",
-                            hint: "Say blocked, fire, repeat, where am I, or how long") { model.micTapped() }
+                            hint: "Say blocked, fire, repeat, louder, where am I, or how long") { model.micTapped() }
             }
             ButtonRow {
-                EmberButton(title: "New fire", systemImage: "flame.fill", hint: "Point the phone at the fire, then tap") { model.pointAtNewFire() }
+                EmberButton(title: "New fire", systemImage: "flame.fill",
+                            hint: compass.heading != nil ? "Point the phone at the fire, then tap" : "Choose the direction of the fire from a list") {
+                    if compass.heading != nil { model.pointAtNewFire() } else { pickingFire = true }
+                }
+                EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
             }
         }
     }
@@ -224,7 +300,9 @@ struct ShelterView: View {
             if let m { NoteText(text: "Step \(m.shelterIndex + 1) of \(m.shelter.steps.count)", systemImage: "list.number") }
             CaregiverInfo(client: m?.client)
         } buttons: {
-            EmberButton(title: "Next", systemImage: "arrow.forward", hint: "Next step") { model.shelterNext() }
+            EmberButton(title: model.machine?.shelterIsLastStep == true ? "Stay here" : "Next",
+                        systemImage: model.machine?.shelterIsLastStep == true ? "checkmark" : "arrow.forward",
+                        hint: model.machine?.shelterIsLastStep == true ? "This is the last step: stay in the room" : "Next step") { model.shelterNext() }
             ButtonRow {
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say this step again") { model.repeatInstruction() }
                 EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Previous step") { model.shelterBack() }

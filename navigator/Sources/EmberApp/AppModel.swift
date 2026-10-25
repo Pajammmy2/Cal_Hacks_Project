@@ -205,18 +205,41 @@ public final class AppModel: ObservableObject {
         speaker.configure(bundle: bundle, clientId: c.id)
         if let l = location.location, usable(l) { m.setPosition(lat: l.coordinate.latitude, lon: l.coordinate.longitude) }
         refreshFeed(force: false)
+        // A fresh session starts at normal pace and volume ("slower"/"louder" used to stick for ever; v2, B11).
+        speaker.slower = false
+        speaker.volume = Speaker.normalVolume
+        course.reset()
         do { try m.start(client: c, caregiver: caregiverMode) } catch { notice = "\(error)" }
         sync()
     }
+
+    /// "Louder" button (v2, B8): full volume, then the instruction again. Voice "louder" takes the same path.
+    public func louder() {
+        speaker.volume = 1.0
+        machine?.handle(.louder)
+        sync()
+    }
+
+    /// Asks the direction aloud when the compass cannot answer (v1's direction picker is shown meanwhile).
+    public func askDirection(newFire: Bool) {
+        speaker.speak([Utterance(newFire ? NavigatorStateMachine.whichWayNewFire : NavigatorStateMachine.whichWaySmoke)])
+    }
+
+    /// A direction tapped on the picker: the smoke on Which way, or a new fire mid-route.
+    public func pickedSmokeDirection(_ bearing: Double) {
+        guard let m = machine else { return }
+        if m.state == .whichWay { m.point(bearing: bearing) } else { m.pointAtNewFire(bearing: bearing) }
+        sync()
+    }
+
+    /// New fire, no compass and the person cannot tell where: report -> history -> straight ahead, said aloud.
+    public func newFireUnknownDirection() { machine?.newFireWithoutCompass(); sync() }
 
     public func confirmFire() { machine?.confirmFire(); sync() }
     public func skipFireDirection() { machine?.skipFireDirection(); sync() }
 
     public func pointAtSmoke() {
-        guard let h = compass.heading else {
-            speaker.speak([Utterance("Point the phone at the smoke and tap.")])
-            return
-        }
+        guard let h = compass.heading else { return }          // no compass: the view shows the direction picker
         machine?.point(bearing: h)
         sync()
     }
@@ -244,6 +267,8 @@ public final class AppModel: ObservableObject {
     public func shelterNext() { machine?.shelterNext(); sync() }
     public func shelterBack() { machine?.shelterBack(); sync() }
     public func done() { machine?.done(); speaker.stop(); sync() }
+    /// Back to Home from any screen (Which way "Back", Navigate "Start over"): stops speech and guidance.
+    public func goHome() { leaveNavigateCamera(); machine?.goHome(); speaker.stop(); sync() }
 
     public func micTapped() {
         voice.toggle { [weak self] text in
@@ -284,6 +309,7 @@ public final class AppModel: ObservableObject {
     func gotFix(_ l: CLLocation) {
         guard let m = machine, usable(l) else { return }
         m.updatePosition(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
+        course.add(lat: l.coordinate.latitude, lon: l.coordinate.longitude)
         sync()
     }
 
@@ -346,7 +372,10 @@ public final class AppModel: ObservableObject {
 
     static let followAnimateS = 0.8
 
-    var followHeading: Double? { compass.heading ?? machine?.travelHeading }
+    /// Up on the follow map: the compass, else the direction of travel from GPS fixes (v1's CourseEstimator), else
+    /// the bearing of the current route edge.
+    var followHeading: Double? { compass.heading ?? course.heading ?? machine?.travelHeading }
+    var course = CourseEstimator()
 
     func followTarget() -> FollowCamera.Viewport? {
         guard let m = machine else { return nil }
