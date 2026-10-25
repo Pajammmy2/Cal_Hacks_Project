@@ -14,7 +14,7 @@ The full spec is in [docs/spec.md](docs/spec.md); the cross-lane interfaces are 
 | [staff/](staff/) | FastAPI + HTMX staff tool: clients, profile, review + stamp, print to PDF, plan writer, Cartesia pre-generation, voice consent | Needs signal only for Claude/Cartesia/Apify |
 | [navigator/](navigator/) | Swift: `EmberCore` (pure logic, a port of `engine/ember_engine/core` with exact parity) + `EmberApp` (SwiftUI iOS 16 app) + XcodeGen `project.yml` | Yes, airplane mode |
 | [actors/](actors/) | Apify actors `wildfire-refuge-evidence` and `county-fire-situation` | Pre-season / when online |
-| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 12 intents | |
+| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 13 intents | |
 | [notability/](notability/) | Build-log structure, capture schedule and checklist | |
 | [docs/DEMO.md](docs/DEMO.md) | Demo scripts and rehearsal plan | |
 
@@ -55,10 +55,10 @@ Claude sits beside the deterministic core, never in its path. Remove the key and
 
 | Job | Model | Where | Rule enforced in code |
 |---|---|---|---|
-| Refuge vision pass | `claude-sonnet-4-5` (vision) | [engine/vision_pass.py](engine/vision_pass.py) | `score -= 10 × fuel_ring`; `entry_wheelchair == "no"` sets `f_access = 0`; `confidence < 0.5` sets `flag = "unsure"`; no path raises a score |
-| Plan writer + back-translation | `claude-sonnet-4-5` | [staff/ember_staff/plan_writer.py](staff/ember_staff/plan_writer.py) | Names and numbers are injected into `{placeholders}` by code; any digit, unknown or missing placeholder is rejected; the back-translation diff flags dropped negations and changed digits; print is blocked until a human stamps the card |
-| Voice agent | `claude-sonnet-4-5` + tool use | [navigator/Sources/EmberCore/VoiceAgent.swift](navigator/Sources/EmberCore/VoiceAgent.swift) | `block_edge` / `set_profile` / `reroute` are read back and run only after an on-device "yes"; after 2 s or on any error, the on-device intents take over |
-| Survivor-evidence extraction | `claude-sonnet-4-5` | [actors/wildfire-refuge-evidence](actors/wildfire-refuge-evidence) | Only places named in the text; person names stripped before storage |
+| Refuge vision pass | `claude-sonnet-4-6` (vision) | [engine/vision_pass.py](engine/vision_pass.py) | `score -= 10 × fuel_ring`; `entry_wheelchair == "no"` sets `f_access = 0`; `confidence < 0.5` sets `flag = "unsure"`; no path raises a score |
+| Plan writer + back-translation | `claude-sonnet-4-6` | [staff/ember_staff/plan_writer.py](staff/ember_staff/plan_writer.py) | Names and numbers are injected into `{placeholders}` by code; any digit, unknown or missing placeholder is rejected; the back-translation diff flags dropped negations and changed digits; print is blocked until a human stamps the card |
+| Voice agent | `claude-sonnet-4-6` + tool use | [navigator/Sources/EmberCore/VoiceAgent.swift](navigator/Sources/EmberCore/VoiceAgent.swift) | `block_edge` / `set_profile` / `reroute` are read back and run only after an on-device "yes"; after 2 s or on any error, the on-device intents take over |
+| Survivor-evidence extraction | `claude-sonnet-4-6` | [actors/wildfire-refuge-evidence](actors/wildfire-refuge-evidence) | Only places named in the text; person names stripped before storage |
 
 | Where Claude could hurt someone | What we built |
 |---|---|
@@ -69,7 +69,7 @@ Claude sits beside the deterministic core, never in its path. Remove the key and
 | API slow or down in smoke | Router never waits; on-device fallback in 2 s |
 | Two things it is not allowed to do | Decide a refuge is safe; print unreviewed instructions for a cognition-flagged client |
 
-`EMBER_CLAUDE_MODEL` overrides the model everywhere. `claude-sonnet-4-5` is the model the spec names, but it retires on 2026-11-30, so switch before then.
+`EMBER_CLAUDE_MODEL` overrides the model everywhere. The spec names `claude-sonnet-4-5`, but it retires on 2026-11-30 and new API keys already get a 404 for it, so the Python defaults are now `claude-sonnet-4-6`. The navigator's `VoiceAgent.swift` still hardcodes `claude-sonnet-4-5`; move it when the iOS build is touched.
 
 Office-hours question: how to evaluate the plan writer on real clients safely.
 
@@ -85,7 +85,7 @@ Office-hours question: how to evaluate the plan writer on real clients safely.
 
 - **Validation (pre-season):** `wildfire-refuge-evidence` runs on "Camp Fire 2018". `engine/validate.py --county paradise --evidence-dataset <id>` reads its dataset (`GET /v2/datasets/<id>/items`) and reports the share of survivor-evidence points within 300 m of a refuge scored 70 or higher. The demo also runs it live on "Tubbs Fire 2017" over Santa Rosa.
 - **Situation feed (when online):** `county-fire-situation` runs on an Apify schedule every 15 minutes. The staff tool ([staff/ember_staff/feed.py](staff/ember_staff/feed.py)) and the navigator ([navigator/Sources/EmberCore/ApifyFeed.swift](navigator/Sources/EmberCore/ApifyFeed.swift)) read it with a **2 s timeout** and **cache the last good result**. No fire-day feature depends on it.
-- Actor links: **TODO** after `apify push` (see [actors/PUBLISHING.md](actors/PUBLISHING.md)).
+- Actor links: [`wildfire-refuge-evidence`](https://console.apify.com/actors/aNdgDQuJJuzSzuCco) (Store page: https://apify.com/outgoing_profiterole/wildfire-refuge-evidence, live once the owner finishes the Console publication checklist in [actors/PUBLISHING.md](actors/PUBLISHING.md) §2e) and [`county-fire-situation`](https://console.apify.com/actors/CVITtkQDbvOELcp4m) (actor path `outgoing_profiterole~county-fire-situation`). Public Camp Fire 2018 dataset: [`AOGDPLjePpApuEBcB`](https://api.apify.com/v2/datasets/AOGDPLjePpApuEBcB/items?format=json&clean=true).
 
 ## Notability
 
@@ -106,13 +106,18 @@ Verified on this machine:
 
 Open items:
 
-- **Paradise validation:** the engine checks pass (Kmart lot 79.0 and Lake Concow 70.0 in the top tier; hospital campus not).
+- **Paradise validation:** with `--skip-vision` the engine checks pass (Kmart lot 79.0 and Lake Concow 70.0 in the top tier; hospital campus not). With the live Claude vision pass (claude-sonnet-4-6, USGS imagery) the Kmart lot drops to **69.0**: Claude reports vegetation on one side (`fuel_ring=1`), the spec rule subtracts 10, and the top tier starts at 70. The spec's two rules disagree on real imagery by one point; this is left as-is and shown on the validation slide (`bundles/paradise/validation.png`) rather than tuned away.
+  - Evidence check (`--evidence-dataset AOGDPLjePpApuEBcB`, the Camp Fire run of actor 1): **20% of 5 survivor points lie within 300 m of a top-tier refuge, target 60%.** Of the five places survivors named, only Concow Reservoir has a scored top-tier refuge; the Walgreens lot is unmapped in OSM (see below), the Butte County Fairgrounds are in Chico outside the Paradise bbox, and Cirby Creek and the mobile-home park have no refuge polygon. The number is a data-coverage statement, not a scorer bug.
   - The hospital check passes only because OSM has no candidate area on that campus.
   - The Walgreens lot is a secondary check, located live from Overpass (Paradise's only Walgreens is at 7576 Skyway; the spec's "Clark Rd" was wrong). OSM has no parking area within 80 m of it, so there is nothing to score. It shows PENDING until the evidence actor runs: if survivor evidence lands within 300 m of it, it counts (and fails until the lot is mapped); if not, it is dropped.
   - Lake Concow has a routable approach point 31 m from the shore. Walkers can reach it. Chairs cannot, because one 45 m stretch of Concow Road is 10.9% grade, over the 10% limit.
 - **A few canyon-wall roads read as 40–60% grade.** The values match the elevation data; the likely cause is road lines sitting a few metres off the true road. Chairs treat them as impassable, which is the safe direction. Bridges and tunnels are interpolated between their ends.
-- **Vision pass, plan writer, voice agent, Cartesia and Apify have only run against mocks.** No API keys were available here.
+- **Vision pass, plan writer and Cartesia have now run live** (2026-10-24, `claude-sonnet-4-6`, Cartesia `sonic-2`, voice "Michelle"):
+  - Vision pass annotated the top 6 Paradise refuges (all 6 lowered; see the validation note above).
+  - Plan writer produced Claude text for all six sample clients, including Hmong for Lupe. Two live-only bugs were fixed: the model copied the Hmong text back instead of back-translating it (the back-translation tool now answers in `*_en` keys and an echo is rejected), and the diff now flags changed distance/time units after Claude turned "100 meters" into "100 miles" in Hmong.
+  - Cartesia pre-generation completed for all six sample clients after the account moved off the free tier: 1,890 unique clips (shared across clients: Harold 1,317 cues, June 696, Lupe 1,164, Margaret 1,161, Rosa 1,103, Walter 777), zero failures, every key the dry-run requires present in `audio/index.json`, bundle zip 82 MB. On the free tier the same run hit the 2-concurrent-request limit (429) and then ran out of credits at ~840 clips (`402 quota_exceeded`), so pre-generation now retries 429s with backoff, defaults to 2 workers (`EMBER_CARTESIA_CONCURRENCY`) and stops cleanly on 402, leaving the navigator's on-device voice fallback to cover the rest.
+  - The voice agent in the navigator still has only run against mocks and still names `claude-sonnet-4-5`.
 - **Actors are not published,** and no Docker image has been built.
-- **The iOS app has never been compiled.** This machine has no Xcode. On macOS, `swift build` type-checks everything except the `#if os(iOS)` code. On-device audio, speech, GPS, VoiceOver and the airplane-mode run are untested.
+- **The iOS app compiles and runs in the Simulator, but has not run on a phone.** Verified with Xcode 26.6 (17F113) on macOS 26.6: `xcodegen` + `xcodebuild` build the `EmberNavigator` app for the iPhone 17 / iOS 26.5 Simulator with no source changes; `EmberCoreTests` passes 47/47 both via `swift test` and as an `xcodebuild test` bundle on the Simulator (the only fix was `GENERATE_INFOPLIST_FILE: YES` on the test target in `navigator/project.yml`). The flow Home → profile (via an `ember://` deep link) → WhichWay → Choose → Navigate → Arrived was walked on the Simulator with `bundles/fake.zip` in Documents and a simulated GPS fix, without crashes. Still untested on a device: real GPS and compass (the Simulator has no heading, so "Point" is disabled there), microphone and on-device speech recognition, haptics, cached-audio and Cartesia speech output, QR camera scanning, VoiceOver, and the airplane-mode run.
 - **Still for the team to do:** Notability, videos, printed cards, a chair-route film, and (optionally) a second county's bbox.
 - **Typed-address geocoding is weak in Paradise.** OSM has only 64 addresses there. Enter lat,lon in the staff tool.

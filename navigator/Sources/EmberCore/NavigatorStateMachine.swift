@@ -24,6 +24,7 @@ public struct Utterance: Sendable, Equatable {
 public final class NavigatorStateMachine {
     public static let noRoute = "No route. Stay where you are. Start the shelter steps."
     public static let sayAgain = "Say again?"
+    public static let fireAhead = "Fire ahead. Turning away from it."
 
     public let bundle: EmberBundle
     public var config: SharedConfig { bundle.config }
@@ -47,6 +48,8 @@ public final class NavigatorStateMachine {
     public private(set) var blocked: Set<Int> = []
     /// Closures from the Apify feed, pre-marked as blocked before routing.
     public var feedBlocked: Set<Int> = []
+    /// Compass heading (degrees) when the device has one; the app sets this. Nil falls back to the route edge bearing.
+    public var headingProvider: () -> Double? = { nil }
     public private(set) var shelter = PlanShelter(room: "bedroom", steps: [])
     public private(set) var shelterIndex = 0
     public private(set) var arrivedRefuge: Refuge?
@@ -126,10 +129,17 @@ public final class NavigatorStateMachine {
         if fireIsFresh, let b = dataFireBearing {
             say(Utterance(config.phrase("fire_dir", ["direction": Geo.directionWord(b, config.templates.directions)]),
                           template: "fire_dir", vars: ["direction": Geo.directionWord(b, config.templates.directions)]))
+        } else if let prior = historyPrior {
+            let d = Geo.directionWord(prior, config.templates.directions)
+            say([Utterance(config.phrase("history_dir", ["direction": d]), template: "history_dir", vars: ["direction": d]),
+                 Utterance("Point the phone at the smoke and tap.")])
         } else {
             say("Point the phone at the smoke and tap.")
         }
     }
+
+    /// Baked historical spread direction (history.json), used only when live data is stale and nothing better exists.
+    public var historyPrior: Double? { bundle.history?.priorBearingDeg }
 
     public func setPosition(lat: Double, lon: Double) { position = (lat, lon) }
 
@@ -139,6 +149,15 @@ public final class NavigatorStateMachine {
     public func confirmFire() {
         guard state == .whichWay, fireIsFresh, let b = dataFireBearing else { return }
         fireBearing = b
+        planChoices()
+    }
+
+    /// "Not sure": fire data is old and there is no compass (or the user cannot see smoke). Plan without a fire
+    /// bearing: the planned refuges are still ranked by safety score and distance, and "Fire"/"New fire" mid-route
+    /// still close the wedge later. Better than the old dead end on Which Way.
+    public func skipFireDirection() {
+        guard state == .whichWay else { return }
+        fireBearing = historyPrior
         planChoices()
     }
 
@@ -154,10 +173,18 @@ public final class NavigatorStateMachine {
         return graph.snap(p.lat, p.lon, usable: Router.usableOrigin(graph, profile)).node
     }
 
-    func route(from origin: Int?) -> [Choice] {
+    func route(from origin: Int?, prefer: Double? = nil) -> [Choice] {
         guard let origin, let profile else { return [] }
         return Router.choose(graph, refuges: bundle.refuges, profile: profile, origin: origin,
-                             fireBearing: fireBearing, perimeter: fireData.polygon, blocked: blocked.union(feedBlocked))
+                             fireBearing: fireBearing, perimeter: fireData.polygon, blocked: blocked.union(feedBlocked),
+                             prefer: prefer)
+    }
+
+    /// Direction of travel: the bearing of the current route edge (nil outside Navigate).
+    public var travelHeading: Double? {
+        guard let p = progress, !p.route.edges.isEmpty else { return nil }
+        let i = min(p.edgeOffset, p.route.edges.count - 1)
+        return graph.edgeBearing(p.route.edges[i], p.route.forward[i])
     }
 
     func planChoices() {
@@ -171,16 +198,19 @@ public final class NavigatorStateMachine {
         sayChoice()
     }
 
-    func sayChoice() {
-        guard let a = currentChoice else { return }
-        var u = [Utterance(config.phrase("choose", ["refuge": a.refuge.name, "n": String(a.route.minutes)]),
-                           template: "choose", vars: ["refuge": a.refuge.name, "n": String(a.route.minutes)])]
+    func choiceUtterances() -> [Utterance] {
+        guard let a = currentChoice else { return [] }
+        // max(1, ...) like how_long: an origin at a refuge entry point yields a 0-minute route, and "0" has no clip
+        var u = [Utterance(config.phrase("choose", ["refuge": a.refuge.name, "n": String(max(1, a.route.minutes))]),
+                           template: "choose", vars: ["refuge": a.refuge.name, "n": String(max(1, a.route.minutes))])]
         if let b = alternateChoice {
-            u.append(Utterance(config.phrase("or_b", ["refuge": b.refuge.name, "n": String(b.route.minutes)]),
-                               template: "or_b", vars: ["refuge": b.refuge.name, "n": String(b.route.minutes)]))
+            u.append(Utterance(config.phrase("or_b", ["refuge": b.refuge.name, "n": String(max(1, b.route.minutes))]),
+                               template: "or_b", vars: ["refuge": b.refuge.name, "n": String(max(1, b.route.minutes))]))
         }
-        say(u)
+        return u
     }
+
+    func sayChoice() { say(choiceUtterances()) }
 
     // MARK: Choose
 
@@ -240,24 +270,70 @@ public final class NavigatorStateMachine {
         say(Utterance(config.template(key, ["refuge": r.name]), template: key, vars: ["refuge": r.name]))
     }
 
-    /// "Blocked": block the current edge (both directions) and re-plan from where the user is.
+    /// "Blocked" (physical: tree down, road closed, car in the way): block the current edge (both directions) and
+    /// re-plan from where the user is, preferring the detour that keeps the direction of travel.
     public func blockCurrent() {
         guard state == .navigate, let p = progress, let edge = p.currentEdge else { return }
+        let heading = travelHeading
         blocked.insert(edge)
         // On the blocked edge the nearest node may lie past the blockage; start from the node behind the user.
-        replan(origin: p.currentNode)
+        replan(origin: p.currentNode, prefer: heading)
     }
 
-    /// Block edges named by the voice agent (after the user said yes) and re-plan.
+    /// Block edges named by the voice agent (after the user said yes) and re-plan, keeping the direction of travel.
     public func block(edges: [Int]) {
+        let heading = travelHeading
         blocked.formUnion(edges)
-        if state == .navigate || state == .choose { replan(origin: nil) }
+        if state == .navigate || state == .choose { replan(origin: nil, prefer: heading) }
+    }
+
+    /// "Fire" / "smoke ahead": the fire is where the user is heading (compass heading when available, else the
+    /// bearing of the current route edge). Same path as `pointAtNewFire`, with the fixed "Fire ahead" lead.
+    public func fireAhead(heading: Double? = nil) {
+        guard state == .navigate || state == .choose else {
+            say(NavigatorStateMachine.sayAgain)
+            return
+        }
+        guard let b = heading ?? headingProvider() ?? travelHeading ?? fireBearing else {
+            say("Point the phone at the smoke and tap.")
+            return
+        }
+        rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.fireAhead)])
+    }
+
+    /// "Point" mid-route: the compass bearing of the phone, pointed at new smoke. Updates `fireBearing`, closes the
+    /// wedge toward it and re-routes: "Fire is to the <direction>." + "Rerouting." + the first instruction.
+    public func pointAtNewFire(bearing: Double) {
+        guard state == .navigate || state == .choose else {
+            point(bearing: bearing)
+            return
+        }
+        let b = Py.mod(bearing, 360.0)
+        let d = Geo.directionWord(b, config.templates.directions)
+        rerouteAwayFromFire(bearing: b, lead: [Utterance(config.phrase("fire_is", ["direction": d]), template: "fire_is", vars: ["direction": d]),
+                                               Utterance("Rerouting.")])
+    }
+
+    /// Fire re-plan: fireBearing = `bearing`; block the current edge and every edge in the +-60 deg / 400 m wedge
+    /// toward it; Router.choose then drops refuges on the fire side (fireSideOK) and the far side wins.
+    func rerouteAwayFromFire(bearing: Double, lead: [Utterance]) {
+        fireBearing = bearing
+        if let p = originPoint {
+            blocked.formUnion(Router.wedgeBlockedEdges(graph, lat: p.lat, lon: p.lon, bearing: bearing))
+        }
+        if let e = progress?.currentEdge { blocked.insert(e) }
+        replan(origin: progress?.currentNode, lead: lead)
     }
 
     /// Re-plan from the current GPS snap (or `origin`). Stays in Navigate; no route -> Shelter.
-    public func replan(origin: Int?, lead: String? = nil) {
+    /// `prefer`: previous heading; among similar-time routes the one that keeps it comes first (physical blockage).
+    public func replan(origin: Int?, lead: String? = nil, prefer: Double? = nil) {
+        replan(origin: origin, lead: lead.map { [Utterance($0)] }, prefer: prefer)
+    }
+
+    func replan(origin: Int?, lead: [Utterance]?, prefer: Double? = nil) {
         guard let profile else { return }
-        let fresh = route(from: origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode())
+        let fresh = route(from: origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode(), prefer: prefer)
         guard let best = fresh.first else {
             choices = []
             progress = nil
@@ -267,10 +343,9 @@ public final class NavigatorStateMachine {
         choices = fresh
         choiceIndex = 0
         if state == .choose {
-            sayChoice()
-            if let lead { say([Utterance(lead)] + utterances) }
+            if let lead { say(lead + choiceUtterances()) } else { sayChoice() }
         } else {
-            startNavigation(best, profile: profile, lead: [Utterance(lead ?? "Rerouting.")])
+            startNavigation(best, profile: profile, lead: lead ?? [Utterance("Rerouting.")])
         }
     }
 
@@ -345,18 +420,28 @@ public final class NavigatorStateMachine {
         serial += 1
     }
 
+    /// What "repeat" would say right now: the current instruction (Navigate), the current step (Shelter), else the last utterances.
+    func currentRepeat() -> [Utterance] {
+        switch state {
+        case .navigate:
+            if let g = progress?.currentGroup, !g.isEmpty { return g.map(Utterance.init) }
+            return utterances
+        case .shelter:
+            if let s = shelterStep { return [Utterance(s)] }
+            return utterances
+        default:
+            return utterances
+        }
+    }
+
     /// Repeat: the current instruction (Navigate), the current step (Shelter), else the last utterances.
     public func repeatCurrent() {
         stopped = false
         switch state {
-        case .navigate:
-            if let g = progress?.currentGroup, !g.isEmpty { say(g.map(Utterance.init)) } else { say(utterances) }
-        case .shelter:
-            if let s = shelterStep { say(s) } else { say(utterances) }
         case .choose:
             sayChoice()
         default:
-            say(utterances)
+            say(currentRepeat())
         }
     }
 
@@ -380,12 +465,14 @@ public final class NavigatorStateMachine {
         switch intent {
         case .blocked:
             if state == .navigate { blockCurrent() } else { say(NavigatorStateMachine.sayAgain) }
+        case .fire:
+            fireAhead()
         case .repeat:
             repeatCurrent()
         case .slower:
-            say("Going slower.")
+            say([Utterance("Going slower.")] + currentRepeat())
         case .louder:
-            say("Louder.")
+            say([Utterance("Louder.")] + currentRepeat())
         case .pushing:
             setVariant(pushed: true)
         case .cantMove:

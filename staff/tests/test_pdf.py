@@ -41,9 +41,13 @@ def test_card_content(sample):
     html = pdf.render_html(db.get("c_harold"))
     for s in ("1. Leave early", "2. If no one comes", "3. If you cannot move", "4. Your devices", "5. For whoever comes",
               "Grace Kim (sister)", "Your oxygen battery lasts about 4 hours", "Charge your chair every night",
-              "Reviewed by", "Dana", "score", "Claude, satellite photo", "data:image/png;base64", "Keypad by the garage"):
+              "Reviewed by", "Dana", "data:image/png;base64", "Keypad by the garage"):
         assert s in html, s
     assert html.count("<polyline") >= 4          # route drawn on both satellite thumbnails
+    # the ranking terms are for the reviewer, not for whoever picks the client up: preview only
+    assert "of 100" not in html and "Claude, satellite photo" not in html
+    preview = pdf.render_html(db.get("c_harold"), for_print=False)
+    assert "of 100" in preview and "Claude, satellite photo" in preview
 
 
 def test_bedbound_card(sample):

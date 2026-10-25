@@ -19,10 +19,15 @@
     "Keep the phone on.",
     "Switching to pushed chair. Say yes to reroute.",
     "Switching to solo. Say yes to reroute.",
-    "Find a new route? Say yes to reroute."
+    "Find a new route? Say yes to reroute.",
+    "Fire ahead. Turning away from it.",
+    "Fire ahead. Turning away from it. Say yes to reroute.",
+    "That code is not an Ember card. Try again."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
+    "fire_is": "Fire is to the {direction}.",
+    "history_dir": "No fresh fire data. Past fires here came from the {direction}.",
     "blocking": "Blocking {street}. Say yes to reroute.",
     "blocking_cross": "Blocking {street} at {cross_street}. Say yes to reroute.",
     "where": "You are on {street}.",
@@ -56,6 +61,16 @@
     "how_long": [
       "{n}",
       "minutes to go."
+    ],
+    "choose": [
+      "Go to {refuge}.",
+      "{n}",
+      "minutes."
+    ],
+    "or_b": [
+      "Or {refuge}.",
+      "{n}",
+      "minutes."
     ]
   },
   "numbers": {

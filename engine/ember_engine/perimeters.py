@@ -47,11 +47,14 @@ def _entries(features, bbox, name_key, year_key, date_key, acres_key):
         ts = _ms_to_iso(ts) if isinstance(ts, (int, float)) else (str(ts) if ts else None)
         if ts is None and year:
             ts = f"{int(year)}-01-01T00:00:00Z"
+        # centroid of the WHOLE fire (before clipping): the clipped part's centroid says nothing about where the
+        # fire came from, the full perimeter's does (history.prior_bearing).
+        full = geom.buffer(0).centroid
         for p in _parts(g):
             if p.area < MIN_PART_DEG2:
                 continue
             out.append({"fire": f"{name} ({int(year)})" if year else name, "timestamp": ts, "polygon": _ring(p),
-                        "acres": props.get(acres_key)})
+                        "acres": props.get(acres_key), "centroid": [round(full.x, 6), round(full.y, 6)]})
     out.sort(key=lambda e: (e["timestamp"] or "", e["fire"]))
     return out
 

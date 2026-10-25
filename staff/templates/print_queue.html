@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Ember: print queue{% endblock %}
+{% block main %}
+<h1>Print queue</h1>
+<p class="muted">Stamped cards, ready to print. Each card is two pages (front: the plan; back: QR code and the helper's notes). Printing marks the card <span class="badge printed">printed</span>; a later edit or re-plan clears the stamp and it comes back here.</p>
+<table class="grid">
+  <thead><tr><th>Name</th><th>Address</th><th>Mobility</th><th>Stamped by</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}{% set p = r.profile %}
+    <tr>
+      <td><a href="/clients/{{ r.id }}/review"><b>{{ p.name }}</b></a></td>
+      <td>{{ p.address or '' }}</td>
+      <td>{{ card.MOBILITY.get(p.mobility, p.mobility) }}</td>
+      <td>{{ r.reviewed_by }}<br><span class="muted">{{ (r.reviewed_at or '')[:10] }}</span></td>
+      <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+      <td><a class="btn {{ 'primary' if r.status == 'stamped' }}" href="/clients/{{ r.id }}/print" target="_blank">{{ 'Print card (PDF)' if r.status == 'stamped' else 'Print again' }}</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Nothing stamped yet. Review a card and set the stamp; it appears here.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

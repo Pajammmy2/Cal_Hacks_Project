@@ -57,7 +57,7 @@ public enum VoiceCommand: Sendable, Equatable {
 
 /// Claude Job 3: free speech -> one tool call. Only used with signal; any failure returns nil (caller falls back).
 public struct VoiceAgent: Sendable {
-    public static let model = "claude-sonnet-4-5"
+    public static let model = "claude-sonnet-4-6"
     public static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     public static let timeoutS = 2.0
     public static let systemPrompt = "You help a person evacuating a wildfire in a wheelchair, or the person pushing them. Map what they say to one tool call. Never give directions yourself; the router does that. If unsure, ask one short question."
@@ -152,7 +152,7 @@ public struct VoiceAgent: Sendable {
 }
 
 /// The confirmation rule and the on-device fallback, in code.
-/// block_edge / set_profile / reroute are read back and run only after a "yes" from the on-device matcher;
+/// block_edge / set_profile / reroute (and the on-device `fire` intent) are read back and run only after a "yes" from the on-device matcher;
 /// repeat_instruction / report_position (and set_status) run at once. No reply in 2 s or any error -> intent matcher.
 public final class VoiceCommandProcessor: @unchecked Sendable {
     public struct Result: Sendable, Equatable {
@@ -165,6 +165,7 @@ public final class VoiceCommandProcessor: @unchecked Sendable {
     }
 
     public struct Pending: Sendable, Equatable { public var prompt: String; public var command: VoiceCommand }
+    public static let fireAheadPrompt = NavigatorStateMachine.fireAhead + " Say yes to reroute."
 
     let matcher: IntentMatcher
     let config: SharedConfig
@@ -192,6 +193,11 @@ public final class VoiceCommandProcessor: @unchecked Sendable {
             }
         }
         guard let m = matcher.match(transcript) else { return Result(say: NavigatorStateMachine.sayAgain) }
+        if m.intent == .fire {
+            // "Fire ahead" is read back like block_edge and runs only after a yes.
+            pending = Pending(prompt: VoiceCommandProcessor.fireAheadPrompt, command: .intent(.fire))
+            return Result(say: VoiceCommandProcessor.fireAheadPrompt)
+        }
         return Result(execute: .intent(m.intent))
     }
 

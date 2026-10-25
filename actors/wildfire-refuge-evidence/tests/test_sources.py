@@ -11,10 +11,10 @@ def test_query_is_exact_spec_text():
     assert build_query("Camp Fire") == '"Camp Fire" survived OR sheltered OR "took refuge"'
 
 
-def test_google_input_news_tab_and_pages():
+def test_google_input_web_search_and_pages():
     inp = google_input("Tubbs Fire", 45)
     q = parse_qs(urlparse(inp["queries"]).query)
-    assert q["q"] == ['"Tubbs Fire" survived OR sheltered OR "took refuge"'] and q["tbm"] == ["nws"]
+    assert q["q"] == ['"Tubbs Fire" survived OR sheltered OR "took refuge"'] and "tbm" not in q
     assert inp["maxPagesPerQuery"] == 6
 
 

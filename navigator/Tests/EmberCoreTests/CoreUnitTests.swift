@@ -26,9 +26,10 @@ import Testing
 @Suite struct IntentTests {
     let m = IntentMatcher(Fixtures.config.intents)
 
-    /// Spec: all 12 phrases plus three synonyms each, recognized on-device.
+    /// Spec: all 12 phrases plus three synonyms each, recognized on-device, plus `fire` (fire/smoke seen, not a physical block).
     static let required: [(Intent, [String])] = [
         (.blocked, ["blocked", "tree down", "can't get through", "road closed"]),
+        (.fire, ["fire ahead", "fire", "smoke ahead", "smoke", "flames", "i see fire", "i see flames", "it's on fire", "fire up ahead"]),
         (.repeat, ["repeat", "say that again", "what did you say", "one more time"]),
         (.slower, ["slower", "slow down", "too fast", "speak slower"]),
         (.louder, ["louder", "can't hear", "speak up", "volume up"]),
@@ -42,8 +43,8 @@ import Testing
         (.no, ["no", "nope", "cancel", "don't"]),
     ]
 
-    @Test func twelvePhrasesPlusThreeSynonymsEach() {
-        #expect(Self.required.count == 12)
+    @Test func thirteenPhrasesPlusThreeSynonymsEach() {
+        #expect(Self.required.count == 13)
         for (intent, phrases) in Self.required {
             for p in phrases {
                 #expect(m.match(p)?.intent == intent, "\(p)")
@@ -60,6 +61,12 @@ import Testing
 
     @Test func longestPhraseWinsAndWordBoundaries() {
         #expect(m.match("there's a tree down on Clark")?.intent == .blocked)
+        #expect(m.match("there's a car blocking the road")?.intent == .blocked)
+        #expect(m.match("fire ahead")?.intent == .fire)
+        #expect(m.match("I see smoke up there")?.intent == .fire)
+        #expect(m.match("it\u{2019}s on fire")?.intent == .fire)
+        #expect(m.match("there is fire on the road ahead")?.intent == .fire)
+        #expect(m.match("flames")?.intent == .fire)
         #expect(m.match("no way through here")?.intent == .blocked)       // "no way through" beats "no"
         #expect(m.match("say that again")?.intent == .repeat)
         #expect(m.match("I can\u{2019}t move")?.intent == .cantMove)       // curly apostrophe from the recognizer

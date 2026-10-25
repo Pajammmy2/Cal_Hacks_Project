@@ -44,7 +44,7 @@ func toolReply(_ name: String, _ input: String) -> String {
         #expect(r.value(forHTTPHeaderField: "anthropic-version") == "2023-06-01")
         #expect(r.timeoutInterval == 2)
         let body = try JSONSerialization.jsonObject(with: r.httpBody!) as! [String: Any]
-        #expect(body["model"] as? String == "claude-sonnet-4-5")
+        #expect(body["model"] as? String == VoiceAgent.model)
         #expect(body["stream"] == nil)
         #expect(body["system"] as? String == "You help a person evacuating a wildfire in a wheelchair, or the person pushing them. Map what they say to one tool call. Never give directions yourself; the router does that. If unsure, ask one short question.")
         let tools = body["tools"] as! [[String: Any]]
@@ -165,6 +165,23 @@ func toolReply(_ name: String, _ input: String) -> String {
         #expect(match.edges.first == m.progress?.route.edges.first)
         #expect(m.resolveStreet("Nonexistent Blvd", cross: nil) == nil)
     }
+
+    @Test func fireIntentIsConfirmedBeforeItRuns() async {
+        let p = VoiceCommandProcessor(matcher: IntentMatcher(Fixtures.config.intents), config: Fixtures.config)
+        let r = await p.process("smoke ahead", agent: nil) { _, _ in nil }
+        #expect(r.say == "Fire ahead. Turning away from it. Say yes to reroute.")
+        #expect(r.execute == nil)
+        #expect(p.pending?.command == .intent(.fire))
+        let yes = await p.process("yes", agent: nil) { _, _ in nil }
+        #expect(yes.execute == .intent(.fire))
+        #expect(p.pending == nil)
+        _ = await p.process("fire", agent: nil) { _, _ in nil }
+        let no = await p.process("no", agent: nil) { _, _ in nil }
+        #expect(no.say == "Okay." && no.execute == nil)
+        // a physical blockage still runs at once
+        let b = await p.process("tree down", agent: nil) { _, _ in nil }
+        #expect(b.execute == .intent(.blocked))
+    }
 }
 
 @Suite struct ApifyFeedTests {
@@ -211,4 +228,5 @@ func toolReply(_ name: String, _ input: String) -> String {
         m.confirmFire()
         #expect(m.choices.allSatisfy { !$0.route.edges.contains(first) })
     }
+
 }

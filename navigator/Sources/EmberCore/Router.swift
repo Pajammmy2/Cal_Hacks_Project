@@ -99,6 +99,13 @@ public enum Router {
     public static let fireSideHalfAngle = 60.0
     public static let perimeterBufferM = 500.0
     public static let arrivalRadiusM = 25.0
+    /// "Fire ahead": close every edge whose midpoint lies within wedgeRadiusM and within +-wedgeHalfAngle of the fire bearing.
+    public static let wedgeHalfAngle = 60.0
+    public static let wedgeRadiusM = 400.0
+    /// Physical blockage: among routes within headingSimilarRatio of the fastest, prefer the one whose first
+    /// headingWindowM heading is closest to the previous direction of travel.
+    public static let headingWindowM = 200.0
+    public static let headingSimilarRatio = 1.25
 
     /// Min-heap ordered like Python tuples (f, g, node).
     struct Heap {
@@ -227,10 +234,54 @@ public enum Router {
         return true
     }
 
+    /// Edges whose midpoint is within radiusM of (lat, lon) and within +-halfAngle of `bearing` (the fire side).
+    public static func wedgeBlockedEdges(_ g: Graph, lat: Double, lon: Double, bearing: Double,
+                                         halfAngle: Double = wedgeHalfAngle, radiusM: Double = wedgeRadiusM) -> Set<Int> {
+        var out = Set<Int>()
+        for (i, e) in g.edges.enumerated() {
+            let mlat = (g.lat[e.a] + g.lat[e.b]) / 2.0
+            let mlon = (g.lon[e.a] + g.lon[e.b]) / 2.0
+            if Geo.haversineM(lat, lon, mlat, mlon) > radiusM { continue }
+            if Geo.angdiff(Geo.bearingDeg(lat, lon, mlat, mlon), bearing) <= halfAngle { out.insert(i) }
+        }
+        return out
+    }
+
+    /// Bearing from the route start to the first node at or beyond windowM along it (the last node if shorter).
+    public static func initialHeading(_ g: Graph, route: Route, windowM: Double = headingWindowM) -> Double? {
+        let nodes = route.nodes
+        guard nodes.count >= 2 else { return nil }
+        var cum = 0.0
+        var end = nodes[nodes.count - 1]
+        for (i, ei) in route.edges.enumerated() {
+            cum += g.edges[ei].lengthM
+            if cum >= windowM { end = nodes[i + 1]; break }
+        }
+        return Geo.bearingDeg(g.lat[nodes[0]], g.lon[nodes[0]], g.lat[end], g.lon[end])
+    }
+
+    /// Stable re-order: candidates within headingSimilarRatio of the fastest time come first, sorted by how close
+    /// their initial heading is to `heading`; the rest keep their (time, -score) order.
+    public static func preferHeading(_ g: Graph, _ candidates: [Choice], heading: Double?) -> [Choice] {
+        guard let heading, let first = candidates.first else { return candidates }
+        let limit = first.route.timeS * headingSimilarRatio
+        func turn(_ c: Choice) -> Double {
+            initialHeading(g, route: c.route).map { Geo.angdiff($0, heading) } ?? 180.0
+        }
+        let similar = candidates.enumerated().filter { $0.element.route.timeS <= limit }
+            .sorted { a, b in
+                let ta = turn(a.element), tb = turn(b.element)
+                return ta != tb ? ta < tb : a.offset < b.offset
+            }.map(\.element)
+        let rest = candidates.filter { $0.route.timeS > limit }
+        return similar + rest
+    }
+
     /// Fire-side filter -> top N by score -> route each -> sort by (time, -score). Index 0 = A, 1 = B.
+    /// `prefer` (a heading in degrees) applies preferHeading() to the sorted list (physical blockage re-plan).
     public static func choose(_ g: Graph, refuges: [Refuge], profile: Profile, origin: Int,
                               fireBearing: Double? = nil, perimeter: [[Double]]? = nil,
-                              blocked: Set<Int> = [], topN: Int = topN) -> [Choice] {
+                              blocked: Set<Int> = [], topN: Int = topN, prefer: Double? = nil) -> [Choice] {
         if profile.shelterOnly { return [] }
         // Python's sort is stable; carry the original index as the final key.
         let allowed = refuges.enumerated()
@@ -249,7 +300,7 @@ public enum Router {
             if x.1.refuge.score != y.1.refuge.score { return -x.1.refuge.score < -y.1.refuge.score }
             return x.0 < y.0
         }
-        return out.map(\.1)
+        return preferHeading(g, out.map(\.1), heading: prefer)
     }
 
     public static func arrived(lat: Double, lon: Double, refuge: Refuge) -> Bool {

@@ -17,6 +17,15 @@
 {% else %}
   <p class="muted">Not generated yet. Runs after the stamp.</p>
 {% endif %}
+{% set ready = clips | selectattr('exists') | list %}
+{% if ready %}
+<p style="margin:8px 0 4px"><b>Listen</b> (clips from the bundle, as the phone will say them):</p>
+<ul style="margin:0 0 8px; padding-left:18px">
+{% for c in ready %}
+  <li style="margin:2px 0"><audio controls preload="none" style="height:28px; vertical-align:middle" src="/clients/{{ row.id }}/audio/clip/{{ c.key }}"></audio> {{ c.text }}</li>
+{% endfor %}
+</ul>
+{% endif %}
 {% if a.state != 'running' %}
 <button class="small" hx-post="/clients/{{ row.id }}/audio" hx-target="#audio-panel"
         {% if row.status not in ('stamped','printed') %}disabled title="Stamp the card first"{% endif %}>Generate audio</button>

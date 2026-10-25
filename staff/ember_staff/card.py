@@ -197,7 +197,7 @@ def refuge_view(choice, bundle_dir, graph, which):
     return {
         "which": which, "id": r["id"], "name": r["name"], "kind": r.get("kind"),
         "minutes": choice["route"]["minutes"], "length_m": choice["route"].get("length_m"),
-        "score": r.get("score"), "terms": t, "claude": r.get("claude"), "flag": r.get("flag"),
+        "score": r.get("score"), "terms": t, "claude": r.get("claude"), "flag": r.get("flag"), "history": r.get("history"),
         "thumb": uri, "thumb_w": tw, "thumb_h": th,
         "route_pts": " ".join(f"{x},{y}" for x, y in pts),
         "home_pt": pts[0] if pts else None, "end_pt": pts[-1] if pts else None,
@@ -274,13 +274,15 @@ def qr_data_uri(text):
 
 # Layout levels: each one tightens spacing and image sizes. Fonts never shrink. The last level moves refuge B to
 # the top of the back page (still "the same, smaller") so a 22 pt card with long routes stays one sheet.
+# Real OSM routes run to 7 steps per refuge, so the deepest levels also narrow the margin to 0.25 in.
 LEVELS = [
     dict(margin=0.45, lh=1.25, h2_top=0.14, gap=5, img_a=2.4, img_b=1.7, qr=1.6, flow=False, b_on_back=False),
     dict(margin=0.4, lh=1.2, h2_top=0.1, gap=4, img_a=2.25, img_b=1.6, qr=1.5, flow=False, b_on_back=False),
     dict(margin=0.35, lh=1.15, h2_top=0.07, gap=2, img_a=2.1, img_b=1.5, qr=1.4, flow=False, b_on_back=False),
     dict(margin=0.3, lh=1.12, h2_top=0.05, gap=1, img_a=2.1, img_b=1.5, qr=1.3, flow=True, b_on_back=False),
     dict(margin=0.3, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
-    dict(margin=0.3, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True),
+    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
+    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True),
 ]
 AID_KEPT = {"manual_chair": "Wheelchair", "power_chair": "Wheelchair", "walker": "Walker", "cane": "Cane",
             "bedbound": "Wheelchair"}

@@ -172,4 +172,129 @@ import Testing
         let t = Fixtures.bundle.fireDataTimestamp!
         #expect(Timestamps.ageText(Timestamps.parse("2026-10-23T15:00:00Z")!.timeIntervalSince(t)) == "3 h ago")
     }
+
+    func bearingTo(_ m: NavigatorStateMachine, _ r: Refuge, from node: Int) -> Double {
+        let g = m.graph
+        return Geo.bearingDeg(g.lat[node], g.lon[node], r.centroidLat, r.centroidLon)
+    }
+
+    @Test func fireAheadClosesTheWedgeAndTurnsAway() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("manual_chair", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        let heading = try #require(m.travelHeading)
+        let before = m.progress!.route.edges
+        m.handle(.fire)                      // no compass: the route edge bearing is the fire bearing
+        #expect(m.state == .navigate)
+        #expect(m.fireBearing == heading)
+        let wedge = Router.wedgeBlockedEdges(m.graph, lat: m.graph.lat[112], lon: m.graph.lon[112], bearing: heading)
+        #expect(m.blocked == wedge.union([before[0]]))
+        #expect(m.utterances.first?.text == "Fire ahead. Turning away from it.")
+        #expect(m.utterances.count > 1)
+        let c = try #require(m.currentChoice)
+        #expect(Geo.angdiff(bearingTo(m, c.refuge, from: 112), heading) > Router.fireSideHalfAngle)
+        #expect(wedge.isDisjoint(with: c.route.edges))
+        #expect(m.alternateChoice != nil)    // B stays the fallback
+    }
+
+    @Test func fireAheadUsesTheCompassWhenAvailable() throws {
+        let m = machine(stale)
+        m.headingProvider = { 90 }
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        m.handle(.fire)
+        #expect(m.fireBearing == 90)
+        #expect(m.state == .navigate)
+        #expect(Geo.angdiff(bearingTo(m, m.currentChoice!.refuge, from: 112), 90) > Router.fireSideHalfAngle)
+    }
+
+    @Test func fireOutsideNavigateAsksAgain() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.handle(.fire)
+        #expect(m.state == .whichWay)
+        #expect(m.utterances.map(\.text) == ["Say again?"])
+    }
+
+    @Test func pointAtNewFireUpdatesBearingAndReroutes() throws {
+        let m = machine(stale)
+        try m.start(client: Fixtures.client("manual_chair", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        let before = m.progress!.route.edges
+        let serial = m.serial
+        m.pointAtNewFire(bearing: 45)
+        #expect(m.state == .navigate)
+        #expect(m.serial == serial + 1)
+        #expect(m.fireBearing == 45)
+        #expect(m.utterances.map(\.text).prefix(2) == ["Fire is to the northeast.", "Rerouting."])
+        #expect(m.utterances.first?.template == "fire_is")
+        #expect(m.progress!.route.edges != before)
+        let c = try #require(m.currentChoice)
+        #expect(Geo.angdiff(bearingTo(m, c.refuge, from: 112), 45) > Router.fireSideHalfAngle)
+        let wedge = Router.wedgeBlockedEdges(m.graph, lat: m.graph.lat[112], lon: m.graph.lon[112], bearing: 45)
+        #expect(m.blocked.isSuperset(of: wedge))
+        #expect(wedge.isDisjoint(with: c.route.edges))
+        // before Navigate it is the WhichWay "Point"
+        let w = machine(stale)
+        try w.start(client: Fixtures.client("manual_chair", node: 112), caregiver: false)
+        w.pointAtNewFire(bearing: 270)
+        #expect(w.state == .choose && w.fireBearing == 270)
+    }
+
+    @Test func physicalBlockKeepsDirection() throws {
+        // Node 60: the fastest detour after blocking the first edge doubles back; the direction rule keeps going.
+        let m = machine(stale)
+        let g = Fixtures.bundle.graph
+        try m.start(client: Fixtures.client("manual_chair", node: 60), caregiver: false)
+        m.point(bearing: 270)
+        // pick a refuge whose first edge heads east so the detour choice is meaningful
+        let p = Fixtures.profile("manual_chair")
+        let base = Router.choose(g, refuges: Fixtures.bundle.refuges, profile: p, origin: 60)
+        let first = try #require(base.first)
+        while m.currentChoice?.refuge.id != first.refuge.id { m.other() }
+        m.go()
+        let heading = try #require(m.travelHeading)
+        m.handle(.blocked)
+        #expect(m.state == .navigate)
+        #expect(m.fireBearing == 270)                    // a physical block does not move the fire
+        #expect(m.utterances.first?.text == "Rerouting.")
+        let plain = Router.choose(g, refuges: Fixtures.bundle.refuges, profile: p, origin: 60, fireBearing: 270, blocked: m.blocked)
+        let want = Router.preferHeading(g, plain, heading: heading)
+        #expect(m.choices.map(\.refuge.id) == want.map(\.refuge.id))
+        let limit = plain[0].route.timeS * Router.headingSimilarRatio
+        func turn(_ c: Choice) -> Double { Geo.angdiff(Router.initialHeading(g, route: c.route)!, heading) }
+        #expect(turn(m.currentChoice!) <= plain.filter { $0.route.timeS <= limit }.map(turn).min()!)
+    }
+}
+
+@Suite struct HistoryPriorTests {
+    let stale = Timestamps.parse("2026-10-23T19:00:00Z")!
+
+    @Test func notSureOnWhichWayPlansWithoutDeadEnd() throws {
+        let m = NavigatorStateMachine(bundle: Fixtures.bundle)
+        m.clock = { stale }
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        #expect(m.state == .whichWay)
+        #expect(!m.fireIsFresh)
+        #expect(m.historyPrior == nil)                        // the fake bundle has no history.json
+        m.skipFireDirection()
+        #expect(m.state == .choose)
+        #expect(m.fireBearing == nil)
+        #expect(m.currentChoice != nil)
+        m.skipFireDirection()                                 // only valid on Which Way
+        #expect(m.state == .choose)
+    }
+
+    @Test func historyFileDecodesEnginePriorAndPhraseExists() throws {
+        let json = """
+        {"since": 2017, "fires": [{"fire": "Camp (2018)", "date": "2018-11-08", "acres": 153335.6}],
+         "prior_bearing_deg": 86.8, "source": "CAL FIRE FRAP"}
+        """.data(using: .utf8)!
+        let h = try JSONDecoder().decode(HistoryFile.self, from: json)
+        #expect(h.priorBearingDeg == 86.8)
+        #expect(h.fires?.first?.fire == "Camp (2018)")
+        let d = Geo.directionWord(86.8, Fixtures.config.templates.directions)
+        #expect(d == "east")
+        #expect(Fixtures.config.phrase("history_dir", ["direction": d]) == "No fresh fire data. Past fires here came from the east.")
+    }
 }

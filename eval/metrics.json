@@ -1,0 +1,640 @@
+{
+ "county": "paradise",
+ "generated_at": "2026-10-25 02:02 UTC",
+ "route_quality": {
+  "profiles": {
+   "walker": {
+    "routed": 45,
+    "unrouted": 0,
+    "median_min": 32,
+    "p90_min": 52,
+    "median_m": 1021.3,
+    "within": {
+     "20": 35.6,
+     "30": 46.7,
+     "45": 82.2
+    },
+    "two_choices": 100.0
+   },
+   "manual_chair": {
+    "routed": 43,
+    "unrouted": 2,
+    "median_min": 25,
+    "p90_min": 53,
+    "median_m": 1132.0,
+    "within": {
+     "20": 33.3,
+     "30": 55.6,
+     "45": 60.0
+    },
+    "two_choices": 95.6
+   },
+   "manual_chair_pushed": {
+    "routed": 45,
+    "unrouted": 0,
+    "median_min": 21,
+    "p90_min": 62,
+    "median_m": 1337.9,
+    "within": {
+     "20": 40.0,
+     "30": 57.8,
+     "45": 68.9
+    },
+    "two_choices": 100.0
+   },
+   "power_chair": {
+    "routed": 45,
+    "unrouted": 0,
+    "median_min": 15,
+    "p90_min": 32,
+    "median_m": 1291.6,
+    "within": {
+     "20": 62.2,
+     "30": 86.7,
+     "45": 97.8
+    },
+    "two_choices": 100.0
+   }
+  },
+  "n_addresses": 45,
+  "thresholds_min": [
+   20,
+   30,
+   45
+  ],
+  "points": [
+   {
+    "lat": 39.7757171,
+    "lon": -121.5808056,
+    "minutes": 118
+   },
+   {
+    "lat": 39.7509368,
+    "lon": -121.6133088,
+    "minutes": 46
+   },
+   {
+    "lat": 39.7588647,
+    "lon": -121.6247495,
+    "minutes": 12
+   },
+   {
+    "lat": 39.7556209,
+    "lon": -121.626922,
+    "minutes": 48
+   },
+   {
+    "lat": 39.7638836,
+    "lon": -121.6204046,
+    "minutes": 0
+   },
+   {
+    "lat": 39.7632085,
+    "lon": -121.6189474,
+    "minutes": 5
+   },
+   {
+    "lat": 39.7620939,
+    "lon": -121.611884,
+    "minutes": 47
+   },
+   {
+    "lat": 39.7780217,
+    "lon": -121.5891062,
+    "minutes": 9
+   },
+   {
+    "lat": 39.7856006,
+    "lon": -121.5903595,
+    "minutes": 46
+   },
+   {
+    "lat": 39.7759276,
+    "lon": -121.59164,
+    "minutes": 2
+   },
+   {
+    "lat": 39.7754944,
+    "lon": -121.59054,
+    "minutes": 0
+   },
+   {
+    "lat": 39.777992,
+    "lon": -121.5907609,
+    "minutes": 25
+   },
+   {
+    "lat": 39.7790829,
+    "lon": -121.5911621,
+    "minutes": 27
+   },
+   {
+    "lat": 39.7563141,
+    "lon": -121.610405,
+    "minutes": 25
+   },
+   {
+    "lat": 39.776583,
+    "lon": -121.5894817,
+    "minutes": 0
+   },
+   {
+    "lat": 39.7599435,
+    "lon": -121.6209877,
+    "minutes": 48
+   },
+   {
+    "lat": 39.7574325,
+    "lon": -121.570477,
+    "minutes": null
+   },
+   {
+    "lat": 39.7529301,
+    "lon": -121.6236961,
+    "minutes": 53
+   },
+   {
+    "lat": 39.7577886,
+    "lon": -121.6076317,
+    "minutes": 5
+   },
+   {
+    "lat": 39.7574919,
+    "lon": -121.6079981,
+    "minutes": 5
+   },
+   {
+    "lat": 39.7571856,
+    "lon": -121.6076524,
+    "minutes": 4
+   },
+   {
+    "lat": 39.7507328,
+    "lon": -121.6131807,
+    "minutes": 46
+   },
+   {
+    "lat": 39.75681,
+    "lon": -121.6088099,
+    "minutes": 1
+   },
+   {
+    "lat": 39.7537653,
+    "lon": -121.62405,
+    "minutes": 49
+   },
+   {
+    "lat": 39.7538085,
+    "lon": -121.6246183,
+    "minutes": 49
+   },
+   {
+    "lat": 39.7730009,
+    "lon": -121.5962501,
+    "minutes": 0
+   },
+   {
+    "lat": 39.7576279,
+    "lon": -121.6245385,
+    "minutes": 32
+   },
+   {
+    "lat": 39.8079627,
+    "lon": -121.5786716,
+    "minutes": 74
+   },
+   {
+    "lat": 39.769868,
+    "lon": -121.6117796,
+    "minutes": 38
+   },
+   {
+    "lat": 39.7719782,
+    "lon": -121.5898063,
+    "minutes": 25
+   },
+   {
+    "lat": 39.7722045,
+    "lon": -121.5898137,
+    "minutes": 25
+   },
+   {
+    "lat": 39.7590987,
+    "lon": -121.6211116,
+    "minutes": null
+   },
+   {
+    "lat": 39.7465068,
+    "lon": -121.6083882,
+    "minutes": 78
+   },
+   {
+    "lat": 39.769882,
+    "lon": -121.5886522,
+    "minutes": 25
+   },
+   {
+    "lat": 39.7702427,
+    "lon": -121.5887053,
+    "minutes": 23
+   },
+   {
+    "lat": 39.7707311,
+    "lon": -121.5890675,
+    "minutes": 24
+   },
+   {
+    "lat": 39.7699318,
+    "lon": -121.5877755,
+    "minutes": 26
+   },
+   {
+    "lat": 39.7716068,
+    "lon": -121.589847,
+    "minutes": 25
+   },
+   {
+    "lat": 39.7715084,
+    "lon": -121.5874771,
+    "minutes": 20
+   },
+   {
+    "lat": 39.7717907,
+    "lon": -121.5874726,
+    "minutes": 19
+   },
+   {
+    "lat": 39.772086,
+    "lon": -121.5874535,
+    "minutes": 18
+   },
+   {
+    "lat": 39.7614639,
+    "lon": -121.6149511,
+    "minutes": 47
+   },
+   {
+    "lat": 39.7487875,
+    "lon": -121.5939888,
+    "minutes": 85
+   },
+   {
+    "lat": 39.7621283,
+    "lon": -121.6119056,
+    "minutes": 46
+   },
+   {
+    "lat": 39.7464495,
+    "lon": -121.6406975,
+    "minutes": 97
+   }
+  ]
+ },
+ "robustness": {
+  "blockage_trials": 356,
+  "blockage_rerouted": 330,
+  "blockage_same_refuge": 176,
+  "wedge_trials": 344,
+  "wedge_rerouted": 275,
+  "blockage_success_pct": 92.7,
+  "wedge_success_pct": 79.9,
+  "delta_median_min": 3,
+  "delta_p90_min": 44
+ },
+ "replay": {
+  "fires": [
+   {
+    "fire": "Honey (2017)",
+    "date": "2017-10-09",
+    "acres": 153.5117,
+    "front_from_deg": 244.0,
+    "hours": {
+     "1": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "1.25": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "1.5": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "1.75": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "2": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "3": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     },
+     "final": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 25,
+      "burned_edges_pct": 0.2,
+      "refuges_left": 32
+     }
+    },
+    "sources": [
+     "Honey (2017)"
+    ]
+   },
+   {
+    "fire": "Camp (2018)",
+    "date": "2018-11-08",
+    "acres": 153335.6,
+    "front_from_deg": 108.8,
+    "hours": {
+     "1": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 0,
+      "home_burned_pct": 0.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 673,
+      "burned_edges_pct": 6.1,
+      "refuges_left": 32
+     },
+     "1.25": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 2,
+      "home_burned_pct": 4.5,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 2587,
+      "burned_edges_pct": 23.5,
+      "refuges_left": 29
+     },
+     "1.5": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 32,
+      "home_burned_pct": 72.7,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 6398,
+      "burned_edges_pct": 58.2,
+      "refuges_left": 10
+     },
+     "1.75": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 44,
+      "home_burned_pct": 100.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 9577,
+      "burned_edges_pct": 87.1,
+      "refuges_left": 0
+     },
+     "2": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 44,
+      "home_burned_pct": 100.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 10637,
+      "burned_edges_pct": 96.8,
+      "refuges_left": 0
+     },
+     "3": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 44,
+      "home_burned_pct": 100.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 10819,
+      "burned_edges_pct": 98.4,
+      "refuges_left": 0
+     },
+     "final": {
+      "cut": 0,
+      "cut_pct": 0.0,
+      "rerouted": 0,
+      "home_burned": 44,
+      "home_burned_pct": 100.0,
+      "rerouted_pct": null,
+      "delta_median_min": null,
+      "burned_edges": 10819,
+      "burned_edges_pct": 98.4,
+      "refuges_left": 0
+     }
+    },
+    "sources": [
+     "Camp (2018)"
+    ]
+   }
+  ],
+  "n_plans": 44,
+  "front_kmh": 7.5,
+  "hours": [
+   1,
+   1.25,
+   1.5,
+   1.75,
+   2,
+   3
+  ],
+  "plan_sources": "1 bundle plan + 43 manual-chair plans from the county addresses"
+ },
+ "audio": {
+  "sayable_strings": 9886,
+  "clip_keys": 9886,
+  "recorded": 0,
+  "recorded_pct": 0.0,
+  "fallbacks": 9886,
+  "audio_dir_present": false,
+  "clients": 6
+ },
+ "accessibility": {
+  "contrast": [
+   {
+    "pair": "text on background",
+    "ratio": 19.89,
+    "aaa": true
+   },
+   {
+    "pair": "dim text on background",
+    "ratio": 12.19,
+    "aaa": true
+   },
+   {
+    "pair": "text on card",
+    "ratio": 17.39,
+    "aaa": true
+   },
+   {
+    "pair": "button label on button",
+    "ratio": 9.4,
+    "aaa": true
+   },
+   {
+    "pair": "route on map veil",
+    "ratio": 12.75,
+    "aaa": true
+   },
+   {
+    "pair": "refuge green on background",
+    "ratio": 9.65,
+    "aaa": true
+   }
+  ],
+  "all_aaa": true,
+  "ax5_screens": {
+   "Home": true,
+   "Which way": true,
+   "Choose": true,
+   "Navigate": true,
+   "Settings": true
+  },
+  "rule": "EmberButtonStyle: lineLimit(1) + minimumScaleFactor(0.5); ButtonRow stacks at accessibility sizes"
+ },
+ "bundle": {
+  "zip_mb": 1.99,
+  "zipped": true,
+  "files": {
+   "manifest.json": true,
+   "graph.json": true,
+   "refuges.json": true,
+   "perimeters.json": true,
+   "history.json": true,
+   "wind.json": true,
+   "addresses.json": true,
+   "shared/phrases.json": true,
+   "shared/turn_templates.json": true,
+   "shared/intents.json": true,
+   "shared/profiles.json": true
+  },
+  "all_present": true,
+  "nodes": 10412,
+  "edges": 10992,
+  "refuges": 32,
+  "addresses": 45,
+  "thumbs": 32,
+  "audio_clips": 0,
+  "built_at": "2026-10-24T23:02:12Z",
+  "sources": {
+   "osm": "OpenStreetMap via Overpass API, data as of 2026-10-23T20:20:51Z",
+   "dem": "USGS 3DEP 1/3 arc-second (3DEPElevation ImageServer exportImage, bilinear)",
+   "fuel": "LANDFIRE LF2024 FBFM40 (lfps.usgs.gov ImageServer, native 30 m grid)",
+   "wind": "api.weather.gov gridpoints/STO/47,122",
+   "perimeters": "CAL FIRE FRAP California Historic Fire Perimeters (ArcGIS FeatureServer)",
+   "thumbs": "usgs-imagery: 32",
+   "tiles": "empty-mbtiles",
+   "vision": "skipped (--skip-vision)"
+  },
+  "historical_perimeters": 7,
+  "recent_perimeters": [
+   "Camp (2018)",
+   "Honey (2017)"
+  ]
+ },
+ "staff": {
+  "imported": 200,
+  "skipped": 0,
+  "import_s": 0.16,
+  "planned": 200,
+  "failed": 0,
+  "plan_s": 7.1,
+  "stamped": 200,
+  "stamp_s": 0.34,
+  "pdf_n": 39,
+  "pdf_s": 15.36,
+  "pdf_pages_max": 2,
+  "pdf_pages_over_2": 0,
+  "pdf_too_long": [
+   "t0031"
+  ],
+  "n": 200,
+  "plans_per_hour": 101408,
+  "stamps_per_hour": 2117647,
+  "pdfs_per_hour": 9141
+ },
+ "tests": {
+  "engine": {
+   "passed": 88,
+   "failed": 0,
+   "ok": true
+  },
+  "staff": {
+   "passed": 55,
+   "failed": 0,
+   "ok": true
+  },
+  "navigator": {
+   "passed": 78,
+   "failed": 0,
+   "ok": true
+  }
+ },
+ "seconds": 99.6
+}

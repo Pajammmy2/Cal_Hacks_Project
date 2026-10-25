@@ -5,6 +5,7 @@ import time
 import zipfile
 from pathlib import Path
 
+from .core import history
 from . import dem as demmod
 from . import fuel as fuelmod
 from . import graph_build, osm, perimeters, refuges, thumbs, tiles, util, wind
@@ -156,6 +157,8 @@ def build(county, bbox, out_root, fuel_path=None, dem_path=None, perimeters_path
 
     with util.stage("write", timings):
         _prepare_dir(out)
+        history.apply_to_refuges(kept, hist)
+        util.write_json(out / "history.json", history.summary(hist, bbox), indent=1)
         util.write_json(out / "graph.json", graph)
         util.write_json(out / "refuges.json", {"generated_at": built_at, "refuges": kept}, indent=1)
         util.write_json(out / "excluded.json", {"excluded": dropped}, indent=1)

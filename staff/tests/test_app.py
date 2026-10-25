@@ -221,3 +221,64 @@ def test_voice_clone_flow(app_client, sample, monkeypatch):
     assert v["kind"] == "clone" and v["voice_id"] == "voice_new" and v["consent_name"] == "Ana Delgado"
     assert "Rosa Delgado" in v["consent_text"] and v["consent_at"]
     assert "Voice: Ana Delgado, recorded" in app_client.get("/clients/c_rosa/card").text
+
+
+def test_stamp_refreshes_audio_panel(app_client, sample):
+    """The stamp response fires cardChanged; the audio panel must listen so Generate audio enables without a reload."""
+    page = app_client.get("/clients/c_rosa/review").text
+    assert 'id="audio-panel" hx-get="/clients/c_rosa/panel/audio" hx-trigger="cardChanged from:body"' in page
+    assert 'disabled title="Stamp the card first">Generate audio' in page
+    r = app_client.post("/clients/c_rosa/stamp", data={"reviewed_by": "Dana"}, headers={"HX-Request": "true"})
+    assert r.status_code == 200 and r.headers["HX-Trigger"] == "cardChanged"
+    panel = app_client.get("/clients/c_rosa/panel/audio").text
+    assert "Generate audio" in panel and "Stamp the card first" not in panel
+
+
+def test_forbidden_shows_in_the_clicked_panel(app_client, sample):
+    """Audio on an unstamped card: the error must land in the audio panel the user is looking at, not off-screen."""
+    r = app_client.post("/clients/c_rosa/audio", headers={"HX-Request": "true", "HX-Target": "audio-panel"})
+    assert r.status_code == 403 and "Stamp the card" in r.text
+    assert r.headers["HX-Retarget"] == "#audio-panel" and r.headers["HX-Reswap"] == "afterbegin"
+    r = app_client.post("/clients/c_rosa/audio", headers={"HX-Request": "true"})
+    assert r.status_code == 403 and r.headers["HX-Retarget"] == "#flash"
+
+
+def test_listen_clips_appear_once_the_mp3_exists(app_client, sample):
+    from ember_staff import db, pregen
+    row = db.get("c_rosa")
+    clips = pregen.samples(row)
+    assert clips and clips[0]["text"].startswith("Start on") and not any(c["exists"] for c in clips)
+    assert "Listen" not in app_client.get("/clients/c_rosa/panel/audio").text
+    assert app_client.get(f"/clients/c_rosa/audio/clip/{clips[0]['key']}").status_code == 404
+    assert app_client.get("/clients/c_rosa/audio/clip/../index").status_code == 404
+    d = pregen.audio_dir(row)[0]
+    d.mkdir(parents=True, exist_ok=True)
+    fake = d / f"{clips[0]['key']}.mp3"
+    fake.write_bytes(b"ID3fake")
+    try:
+        panel = app_client.get("/clients/c_rosa/panel/audio").text
+        assert "Listen" in panel and f"/audio/clip/{clips[0]['key']}" in panel and clips[1]["key"] not in panel
+        r = app_client.get(f"/clients/c_rosa/audio/clip/{clips[0]['key']}")
+        assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.content == b"ID3fake"
+    finally:
+        fake.unlink()   # the bundle copy is shared by the whole test session
+
+
+def test_workflow_summary_filter_and_print_queue(app_client, sample):
+    r = app_client.get("/")
+    assert "Next: review and stamp" in r.text and 'class="steps"' in r.text
+    assert app_client.get("/?status=printed").text.count("<td><a href=\"/clients/") == 0
+    assert "Rosa Delgado" in app_client.get("/?status=draft").text
+    q = app_client.get("/print-queue")
+    assert q.status_code == 200 and "Nothing stamped yet" in q.text
+    app_client.post("/clients/c_rosa/stamp", data={"reviewed_by": "Pat"})
+    q = app_client.get("/print-queue")
+    assert "Rosa Delgado" in q.text and "Print card (PDF)" in q.text
+    home = app_client.get("/").text
+    assert "<b>1</b>stamped, to print" in home and "Next: review and stamp 5 cards" in home
+
+
+def test_review_shows_past_fires(app_client, sample):
+    r = app_client.get("/clients/c_rosa/review")
+    assert r.status_code == 200
+    assert "Past fires here" in r.text and "histmap" in r.text

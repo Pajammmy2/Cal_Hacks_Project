@@ -2,8 +2,18 @@
 {% block title %}Ember: clients{% endblock %}
 {% block main %}
 {% if msg %}<div class="flash" role="status">{{ msg }}</div>{% endif %}
+<ol class="steps" aria-label="Workflow">
+  <li class="{{ 'done' if sm.total else 'now' }}"><span class="n">1</span>Import<small>registry CSV or add by hand</small></li>
+  <li class="{{ 'done' if sm.total and not sm.unplanned else ('now' if sm.total else '') }}"><span class="n">2</span>Plan<small>Run all: two routes per client</small></li>
+  <li class="{{ 'now' if sm.total and not sm.unplanned and (sm.draft or sm.needs) else ('done' if sm.total and not sm.unplanned and not sm.draft and not sm.needs else '') }}"><span class="n">3</span>Review &amp; stamp<small>read the card, set your name</small></li>
+  <li class="{{ 'now' if sm.stamped and not sm.draft and not sm.needs else ('done' if sm.printed and not sm.stamped else '') }}"><span class="n">4</span>Print<small>QR card, two pages</small></li>
+</ol>
+{% if sm.next %}<p class="next" role="status">Next: {{ sm.next }}</p>{% endif %}
+<div class="summary" aria-label="Cards by status">
+  {% for key, label, n in sm.cards %}<a href="/?status={{ key }}" class="{{ 'on' if status == key }}"><b>{{ n }}</b>{{ label }}</a>{% endfor %}
+</div>
 <div class="row" style="justify-content:space-between">
-  <h1>Clients <span class="muted" style="font-weight:400">({{ rows|length }})</span></h1>
+  <h1>Clients <span class="muted" style="font-weight:400">({{ rows|length }}{% if status %} shown, <a href="/">show all</a>{% endif %})</span></h1>
   <div class="row">
     <a class="btn primary" href="/clients/new">Add client</a>
     <form method="post" action="/clients/import" enctype="multipart/form-data" class="row" style="margin:0">
@@ -27,7 +37,7 @@
   · CSV columns: <a href="/sample_registry.csv">sample_registry.csv</a>
 </p>
 <table class="grid">
-  <thead><tr><th>Name</th><th>Address</th><th>Mobility</th><th>Devices</th><th>Card</th><th>Last reviewed</th><th>Zone</th><th>Outage</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Address</th><th>Mobility</th><th>Devices</th><th>Card</th><th>Past fires</th><th>Last reviewed</th><th>Zone</th><th>Outage</th><th></th></tr></thead>
   <tbody>
   {% for r in rows %}
     {% set p = r.profile %}
@@ -40,14 +50,16 @@
       <td>{{ card.MOBILITY.get(p.mobility, p.mobility) }}</td>
       <td>{% for d in p.devices %}{{ card.device_label(d) }}{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">none</span>{% endfor %}</td>
       <td><span class="badge {{ r.status }}">{{ r.status }}</span>
-        {% if r.text and r.text.needs_review %}<br><span class="needs">needs review</span>{% endif %}</td>
+        {% if r.text and r.text.needs_review %}<br><span class="needs">needs review</span>{% endif %}
+        {% if r.plan and r.plan.no_route %}<br><span class="warn">shelter in place</span>{% endif %}</td>
+      <td>{% if r.home_fires %}<span class="warn">home burned</span><br><span class="muted">{{ r.home_fires|join(', ') }}</span>{% elif r.plan %}<span class="muted">none recorded</span>{% endif %}</td>
       <td>{% if r.reviewed_at %}{{ r.reviewed_at[:10] }}<br><span class="muted">{{ r.reviewed_by }}</span>{% else %}<span class="muted">never</span>{% endif %}</td>
       <td>{{ p.zone or '' }}{% if feed.state in ('live','cached') %}<br>{% if r.zone_status %}<span class="badge {{ r.zone_status }}">{{ r.zone_status }}</span>{% else %}<span class="muted">no status</span>{% endif %}{% endif %}</td>
       <td>{% if feed.state in ('live','cached') %}{% if r.outage %}<span class="badge order">{{ r.outage.kind or 'outage' }}</span>{% if r.outage.est_restore %}<br><span class="muted">until {{ r.outage.est_restore }}</span>{% endif %}{% else %}<span class="muted">no</span>{% endif %}{% else %}<span class="muted">no feed</span>{% endif %}</td>
       <td><a class="btn small" href="/clients/{{ r.id }}/edit">Edit</a></td>
     </tr>
   {% else %}
-    <tr><td colspan="9" class="muted">No clients yet. Add one, or import the registry CSV.</td></tr>
+    <tr><td colspan="10" class="muted">{% if status %}No clients with this status.{% else %}No clients yet. Add one, or import the registry CSV.{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>

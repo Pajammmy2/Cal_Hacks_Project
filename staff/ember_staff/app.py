@@ -1,5 +1,6 @@
 """Ember staff planning tool: FastAPI + HTMX + Jinja2, SQLite. Run: python -m ember_staff (binds 127.0.0.1)."""
 import hmac
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -8,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import card, cartesia, config, db, feed, plan_writer, pregen, profiles, workflow
+from . import card, cartesia, config, db, engine_client, feed, history_view, pdf, plan_writer, pregen, profiles, workflow
 from .templating import templates
 
 OPEN_PATHS = ("/login", "/static/")
@@ -57,8 +58,10 @@ def create_app():
     @app.exception_handler(workflow.Forbidden)
     async def forbidden(request, exc):
         if request.headers.get("HX-Request"):
-            return HTMLResponse(f'<p class="err" role="alert">{exc}</p>', status_code=403,
-                                headers={"HX-Retarget": "#flash", "HX-Reswap": "innerHTML"})
+            # Show the error inside the panel that was clicked (it may be far below #flash), else at the top.
+            target = request.headers.get("HX-Target")
+            hx = {"HX-Retarget": f"#{target}", "HX-Reswap": "afterbegin"} if target else {"HX-Retarget": "#flash", "HX-Reswap": "innerHTML"}
+            return HTMLResponse(f'<p class="err" role="alert">{exc}</p>', status_code=403, headers=hx)
         return HTMLResponse(f"<p>{exc}</p><p><a href='javascript:history.back()'>Back</a></p>", status_code=403)
 
     # ------------------------------------------------------------ passphrase
@@ -80,15 +83,71 @@ def create_app():
         return RedirectResponse("/login", status_code=303)
 
     # ------------------------------------------------------------ 1. clients list
+    def _home_fires(r):
+        plan = r.get("plan") or {}
+        o = plan.get("origin")
+        if not o:
+            return []
+        try:
+            b = engine_client.bundle(plan.get("county"))
+            return history_view.flags_home(o["lat"], o["lon"], b)
+        except Exception:
+            return []
+
+    def _summary(rows):
+        s = {"total": len(rows)}
+        s["unplanned"] = sum(1 for r in rows if not r.get("plan"))
+        s["errors"] = sum(1 for r in rows if r.get("plan_error"))
+        s["needs"] = sum(1 for r in rows if r["status"] == "draft" and (r.get("text") or {}).get("needs_review"))
+        s["draft"] = sum(1 for r in rows if r["status"] == "draft") - s["needs"]
+        s["stamped"] = sum(1 for r in rows if r["status"] == "stamped")
+        s["printed"] = sum(1 for r in rows if r["status"] == "printed")
+        s["cards"] = [("unplanned", "no plan yet", s["unplanned"]), ("needs", "needs review", s["needs"]),
+                      ("draft", "to review", s["draft"]), ("stamped", "stamped, to print", s["stamped"]),
+                      ("printed", "printed", s["printed"])]
+        if not rows:
+            s["next"] = "import the registry CSV (or add a client) to begin."
+        elif s["errors"]:
+            s["next"] = f"{s['errors']} client{'s' if s['errors'] != 1 else ''} could not be planned: fix the address (or enter lat,lon) and run again."
+        elif s["unplanned"]:
+            s["next"] = f"press Run all to plan {s['unplanned']} client{'s' if s['unplanned'] != 1 else ''}."
+        elif s["needs"]:
+            s["next"] = f"{s['needs']} card{'s' if s['needs'] != 1 else ''} need a person to read the red notes before stamping."
+        elif s["draft"]:
+            s["next"] = f"review and stamp {s['draft']} card{'s' if s['draft'] != 1 else ''}."
+        elif s["stamped"]:
+            s["next"] = f"print {s['stamped']} stamped card{'s' if s['stamped'] != 1 else ''} (Print queue)."
+        else:
+            s["next"] = None
+        return s
+
+    def _filter(rows, status):
+        if status == "unplanned":
+            return [r for r in rows if not r.get("plan")]
+        if status == "needs":
+            return [r for r in rows if r["status"] == "draft" and (r.get("text") or {}).get("needs_review")]
+        if status == "draft":
+            return [r for r in rows if r["status"] == "draft" and not (r.get("text") or {}).get("needs_review")]
+        if status in ("stamped", "printed"):
+            return [r for r in rows if r["status"] == status]
+        return rows
+
     @app.get("/", response_class=HTMLResponse)
-    def clients(request: Request, msg: str = ""):
+    def clients(request: Request, msg: str = "", status: str = ""):
         f = feed.get_feed()
         rows = db.list_clients()
         for r in rows:
             r["zone_status"] = feed.zone_status(f["situation"], r["profile"].get("zone"))
             r["outage"] = feed.outage_for(f["situation"], r["profile"])
-        return page(request, "clients.html", rows=rows, feed=f, feed_age=feed.age_text(f.get("age_s")), msg=msg,
-                    card=card, profiles=profiles)
+            r["home_fires"] = _home_fires(r)
+        sm = _summary(rows)
+        return page(request, "clients.html", rows=_filter(rows, status), feed=f, feed_age=feed.age_text(f.get("age_s")), msg=msg,
+                    card=card, profiles=profiles, sm=sm, status=status)
+
+    @app.get("/print-queue", response_class=HTMLResponse)
+    def print_queue(request: Request):
+        rows = [r for r in db.list_clients() if r["status"] in ("stamped", "printed")]
+        return page(request, "print_queue.html", rows=rows, card=card)
 
     @app.post("/clients/import")
     async def import_csv(request: Request, file: UploadFile = File(...)):
@@ -152,9 +211,25 @@ def create_app():
 
     # ------------------------------------------------------------ 3. review
     def review_ctx(row):
-        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": row.get("text") or {},
+        text = row.get("text") or {}
+        if text.get("sections"):
+            text = plan_writer.finish(text)   # re-run the deterministic checks so older records get newer ones
+        return {"row": row, "p": row["profile"], "plan": row.get("plan"), "text": text, "clips": pregen.samples(row),
                 "cardctx": card.context(row) if row.get("plan") else None, "editable": EDITABLE,
+                "hist": _history(row),
                 "consent_text": CONSENT_TEXT.format(client=row["profile"]["name"])}
+
+    def _history(row):
+        if not row.get("plan") or row["plan"].get("origin") is None:
+            return None
+        try:
+            b = engine_client.bundle(row["plan"].get("county"))
+            h = history_view.flags(row, b)
+            h["map"] = history_view.overview_svg(row, b)
+            return h
+        except Exception as e:  # history is advisory; never block the review
+            return {"error": f"{type(e).__name__}: {e}", "fires": [], "routes": [], "home_fires": [], "home_recent": 0,
+                    "both_cut": False, "prior_word": None, "map": ""}
 
     @app.get("/clients/{cid}/review", response_class=HTMLResponse)
     def review(request: Request, cid: str):
@@ -253,6 +328,16 @@ def create_app():
         pregen.run_background(cid)
         db.update(cid, audio={"state": "running", "at": db.now()})
         return page(request, "_audio.html", **review_ctx(must(cid)))
+
+    @app.get("/clients/{cid}/audio/clip/{key}")
+    def audio_clip(cid: str, key: str):
+        row = must(cid)
+        if not re.fullmatch(r"[0-9a-f]{40}", key):
+            raise _NotFound()
+        path = pregen.audio_dir(row)[0] / f"{key}.mp3"
+        if not path.exists():
+            raise _NotFound()
+        return Response(path.read_bytes(), media_type="audio/mpeg")
 
     @app.get("/clients/{cid}/audio/dry-run")
     def audio_dry_run(cid: str):

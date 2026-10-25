@@ -2,4 +2,5 @@ apify>=4.1.0,<5
 anthropic>=2.3.0,<3
 httpx>=0.28,<1
 spacy==3.8.7
+click>=8,<9  # spaCy CLI imports click; newer typer releases no longer pull it in
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
