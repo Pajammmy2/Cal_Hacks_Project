@@ -231,14 +231,22 @@ struct StatTile: View {
 }
 
 /// Distance and time on one line: "130 m to next turn · 33 min to go". Wraps to two lines at accessibility sizes.
+/// StatLine's default-size metrics (value 26 pt heavy, caption 17 pt semibold) and the shrink steps tried with the
+/// icon-only "Next" before the row may truncate. 0.6 is the smallest the stats can go anyway (minimumScaleFactor);
+/// without it "270 m to next turn · 36 min to go" + Next became "to next…" on a 393 pt phone at the default size.
+enum StatLineMetrics {
+    static let shrinkSteps: [CGFloat] = [1, 0.85, 0.7, 0.6]
+    static let big: CGFloat = 26
+    static let small: CGFloat = 17
+}
+
 struct StatLine<Trailing: View>: View {
     let items: [(String, String, String)]
     /// Optional control at the right end (the demo "Next"); `compact` asks for its icon-only form.
     @ViewBuilder var trailing: (_ compact: Bool) -> Trailing
-    @ScaledMetric(relativeTo: .title2) var big: CGFloat = 26
-    @ScaledMetric(relativeTo: .body) var small: CGFloat = 17
+    @ScaledMetric(relativeTo: .title2) var big: CGFloat = StatLineMetrics.big
+    @ScaledMetric(relativeTo: .body) var small: CGFloat = StatLineMetrics.small
     @Environment(\.dynamicTypeSize) var typeSize
-
     var body: some View {
         Group {
             if Trailing.self == EmptyView.self || typeSize.isAccessibilitySize {
@@ -252,10 +260,10 @@ struct StatLine<Trailing: View>: View {
                 // shrink (as they already may without the button).
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) { stats(fixed: true); trailing(false) }
-                    HStack(spacing: 10) { stats(fixed: true); trailing(true) }
-                    HStack(spacing: 10) { stats(fixed: true, scale: 0.85); trailing(true) }
-                    HStack(spacing: 10) { stats(fixed: true, scale: 0.7); trailing(true) }
-                    HStack(spacing: 10) { stats(fixed: false); trailing(true) }
+                    ForEach(StatLineMetrics.shrinkSteps, id: \.self) { s in
+                        HStack(spacing: 10) { stats(fixed: true, scale: s); trailing(true) }
+                    }
+                    HStack(spacing: 10) { stats(fixed: false, scale: StatLineMetrics.shrinkSteps.last ?? 1); trailing(true) }
                 }
             }
         }
