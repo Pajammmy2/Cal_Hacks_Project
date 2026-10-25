@@ -266,6 +266,9 @@ public final class AppModel: ObservableObject {
     public func repeatInstruction() { machine?.repeatCurrent(); sync() }
     public func shelterNext() { machine?.shelterNext(); sync() }
     public func shelterBack() { machine?.shelterBack(); sync() }
+    /// Settings sheet flag lives here so a font/colour change (which rebuilds the screens) never closes Settings.
+    @Published public var settingsShown = false
+
     public func done() { machine?.done(); speaker.stop(); sync() }
     /// Back to Home from any screen (Which way "Back", Navigate "Start over"): stops speech and guidance.
     public func goHome() { leaveNavigateCamera(); machine?.goHome(); speaker.stop(); sync() }

@@ -152,7 +152,8 @@ struct ChooseView: View {
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.text)
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    Text(a.refuge.name).font(Theme.font(big * 1.15, .heavy)).foregroundColor(Theme.text)
+                    Text(a.refuge.name).font(Theme.font(min(big * 1.15, 40), .heavy)).foregroundColor(Theme.text)
+                        .lineLimit(3).minimumScaleFactor(0.7)      // long OSM names: shrink, never break mid-word (engineer #1)
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellites: model.satellites,
@@ -168,7 +169,8 @@ struct ChooseView: View {
                             .frame(width: 150)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                            Text(b.refuge.name).font(Theme.font(small * 1.3, .bold)).foregroundColor(Theme.text)
+                            Text(b.refuge.name).font(Theme.font(min(small * 1.3, 30), .bold)).foregroundColor(Theme.text)
+                                .lineLimit(3).minimumScaleFactor(0.7)
                                 .fixedSize(horizontal: false, vertical: true)
                             Text("\(b.route.minutes) min").font(Theme.font(small * 1.2, .bold)).foregroundColor(Theme.dim)
                         }
@@ -291,7 +293,9 @@ struct ShelterView: View {
         let m = model.machine
         Screen {
             if let room = m?.shelter.room {
-                Text(room).font(Theme.font(roomSize, .black)).foregroundColor(Theme.onAccent)
+                // Bounded and shrink-to-fit: at AX5 a 60 pt scaled title wrapped mid-word ("bedro / om"; found by engineer #2).
+                Text(room).font(Theme.font(min(roomSize, 48), .black)).foregroundColor(Theme.onAccent)
+                    .lineLimit(2).minimumScaleFactor(0.6)
                     .fixedSize(horizontal: false, vertical: true)
                     .card(Theme.accent)
                     .accessibilityLabel("Room: \(room)")
