@@ -18,6 +18,7 @@ public struct RootView: View {
                 case .choose: ChooseView()
                 case .navigate: NavigateView()
                 case .shelter: ShelterView()
+                case .stayHere: StayHereView()
                 case .arrived: ArrivedView()
                 }
             }

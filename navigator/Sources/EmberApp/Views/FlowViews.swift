@@ -361,6 +361,31 @@ struct ArrivedView: View {
     }
 }
 
+/// Owner "shelter here": every road is cut and nothing is reachable → the location to read to 911, in large text.
+struct StayHereView: View {
+    @EnvironmentObject var model: AppModel
+    @ScaledMetric(relativeTo: .title) var coord: CGFloat = 30
+
+    var body: some View {
+        Screen {
+            InstructionText(text: model.displayText)
+            Text(model.machine?.stayHereText ?? "")
+                .font(Theme.font(min(coord, 44), .heavy)).foregroundColor(Theme.text)
+                .lineLimit(nil).minimumScaleFactor(0.6)
+                .fixedSize(horizontal: false, vertical: true)
+                .card(Theme.card)
+                .accessibilityLabel("Your location: \((model.machine?.stayHereText ?? "").replacingOccurrences(of: "\n", with: ", "))")
+        } buttons: {
+            EmberButton(title: "Call 911", systemImage: "phone.fill", hint: "Calls emergency services") {
+                #if os(iOS)
+                if let u = URL(string: "tel://911") { UIApplication.shared.open(u) }
+                #endif
+            }
+            EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
+        }
+    }
+}
+
 /// Settings → "Demo: step through route": a small secondary button at the end of the distance/time strip. Slate
 /// outline, ≥ 44 pt, never wraps; the approved layout and the map are untouched.
 struct DemoNextButton: View {

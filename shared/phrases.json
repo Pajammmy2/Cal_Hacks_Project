@@ -33,7 +33,10 @@
     "Which way is the smoke?",
     "Which way is the new fire?",
     "Stop and go back to the start? Say yes to stop.",
-    "Power is back."
+    "Power is back.",
+    "No safe road left. Stay in the open, away from trees and cars. Call 911 and read them this location.",
+    "No route to a safe place ahead. Going to the nearest open area.",
+    "Hold the card about a foot away."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",

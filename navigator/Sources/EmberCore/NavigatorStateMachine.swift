@@ -1,7 +1,7 @@
 import Foundation
 
 public enum NavState: String, Sendable {
-    case home, whichWay, choose, navigate, shelter, arrived
+    case home, whichWay, choose, navigate, shelter, arrived, stayHere
 }
 
 /// One spoken + shown string. `template`/`vars` let the Speaker compose cached fragments.
@@ -23,6 +23,12 @@ public struct Utterance: Sendable, Equatable {
 /// Every action sets `utterances` (what to say and show) and bumps `serial` so the app speaks it once.
 public final class NavigatorStateMachine {
     public static let noRoute = "No route. Stay where you are. Start the shelter steps."
+    public static let stayHere = "No safe road left. Stay in the open, away from trees and cars. Call 911 and read them this location."
+    public static let fallbackLead = "No route to a safe place ahead. Going to the nearest open area."
+    /// Further than this from the plan origin the home shelter script is never spoken (owner: "shelter here").
+    public static let awayFromHomeM = 100.0
+    /// A fallback refuge must be this close in time at the profile's speed.
+    public static let fallbackMaxS = 300.0
     public static let sayAgain = "Say again?"
     public static let fireAhead = "Fire ahead. Turning away from it."
     public static let cardMismatch = "This card does not match the phone's plan. Ask staff for a new card."
@@ -310,7 +316,7 @@ public final class NavigatorStateMachine {
         choices = NavigatorStateMachine.ordered(route(from: originNode()), planIds: planRefugeIds)
         choiceIndex = 0
         if choices.isEmpty {
-            enterShelter(lead: NavigatorStateMachine.noRoute)
+            noRouteLeft(from: originNode())
             return
         }
         state = .choose
@@ -491,11 +497,10 @@ public final class NavigatorStateMachine {
 
     func replan(origin: Int?, lead: [Utterance]?, prefer: Double? = nil) {
         guard let profile else { return }
-        let fresh = route(from: origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode(), prefer: prefer)
+        let node = origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode()
+        let fresh = route(from: node, prefer: prefer)
         guard let best = fresh.first else {
-            choices = []
-            progress = nil
-            enterShelter(lead: NavigatorStateMachine.noRoute)
+            noRouteLeft(from: node)
             return
         }
         choices = fresh
@@ -537,7 +542,64 @@ public final class NavigatorStateMachine {
 
     // MARK: Shelter
 
+    // MARK: "Shelter here" (owner): every route cut mid-way must never fall back to the home shelter script.
+
+    /// More than 100 m from the plan origin (the home the shelter script was written for).
+    public var awayFromHome: Bool {
+        guard let p = position, let c = client, let la = c.lat, let lo = c.lon else { return false }
+        return Geo.haversineM(p.lat, p.lon, la, lo) > NavigatorStateMachine.awayFromHomeM
+    }
+
+    /// Lowered bar from the CURRENT position: any refuge in the bundle whatever its score, no fire-direction wedge and
+    /// no preferred-direction penalty, reachable within `fallbackMaxS` at the profile's speed, nearest first.
+    public func fallbackChoices(from node: Int) -> [Choice] {
+        guard let profile else { return [] }
+        let all = Router.choose(graph, refuges: bundle.refuges, profile: profile, origin: node,
+                                fireBearing: nil, perimeter: nil, blocked: blocked.union(feedBlocked), topN: bundle.refuges.count)
+        return all.filter { $0.route.timeS <= NavigatorStateMachine.fallbackMaxS }.sorted { $0.route.timeS < $1.route.timeS }
+    }
+
+    /// No route to any chosen refuge: away from home go to the nearest fallback refuge, else "Stay here" with the
+    /// location to read to 911; at home (within 100 m of the plan origin) the plan's own shelter script still applies.
+    func noRouteLeft(from node: Int?) {
+        if awayFromHome {
+            if let node, let profile, !fallbackChoices(from: node).isEmpty {
+                choices = fallbackChoices(from: node)
+                choiceIndex = 0
+                startNavigation(choices[0], profile: profile, lead: [Utterance(NavigatorStateMachine.fallbackLead)])
+                return
+            }
+            enterStayHere()
+            return
+        }
+        choices = []
+        progress = nil
+        enterShelter(lead: NavigatorStateMachine.noRoute)
+    }
+
+    func enterStayHere() {
+        state = .stayHere
+        choices = []
+        progress = nil
+        say([Utterance(NavigatorStateMachine.stayHere)])
+    }
+
+    /// Large text for the Stay-here screen: what to read to 911.
+    public var stayHereText: String {
+        guard let p = position else { return "Location unknown. Tell 911 the last street you were on." }
+        var out = String(format: "Latitude %.5f\nLongitude %.5f", p.lat, p.lon)
+        if let st = currentStreet() { out += "\nNear \(st)" }
+        return out
+    }
+
+    /// Test hook and worst case: every road is cut, then re-plan (fallback → Stay here → or the home script at home).
+    public func cutEveryRoad() {
+        blocked = Set(graph.edges.indices)
+        replan(origin: nil)
+    }
+
     func enterShelter(lead: String?) {
+        if awayFromHome { enterStayHere(); return }     // the home script is never spoken away from home
         state = .shelter
         shelterIndex = 0
         progress = nil

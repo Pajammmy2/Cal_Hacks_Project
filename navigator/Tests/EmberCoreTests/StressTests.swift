@@ -200,4 +200,43 @@ import Testing
         #expect(m.state == .whichWay)
         #expect(m.progress == nil && m.blocked.isEmpty)
     }
+
+    // MARK: owner "shelter here"
+
+    @Test func everyRoadCutAwayFromHomeStaysHereNotShelterScript() throws {
+        let m = machine(fresh)
+        try navigating(m)
+        let p = try #require(m.progress)
+        let mid = p.route.nodes[p.route.nodes.count / 2]
+        m.updatePosition(lat: m.graph.lat[mid], lon: m.graph.lon[mid])
+        #expect(m.awayFromHome)
+        m.cutEveryRoad()
+        #expect(m.state == .stayHere)
+        #expect(m.stayHereText.contains("Latitude"))
+    }
+
+    @Test func everyRoadCutAtHomeUsesTheShelterScript() throws {
+        let m = machine(fresh)
+        try navigating(m)
+        #expect(!m.awayFromHome)
+        m.cutEveryRoad()
+        #expect(m.state == .shelter)
+    }
+
+    @Test func midRouteFallbackIsNearestWithinFiveMinutesIgnoringTheWedge() throws {
+        let m = machine(fresh)
+        try navigating(m)
+        let p = try #require(m.progress)
+        let node = p.route.nodes[p.route.nodes.count / 2]
+        let fb = m.fallbackChoices(from: node)
+        #expect(fb.allSatisfy { $0.route.timeS <= NavigatorStateMachine.fallbackMaxS })
+        #expect(zip(fb, fb.dropFirst()).allSatisfy { $0.route.timeS <= $1.route.timeS })
+        m.updatePosition(lat: m.graph.lat[node], lon: m.graph.lon[node])
+        m.noRouteLeft(from: node)
+        if let first = fb.first {
+            #expect(m.state == .navigate && m.currentChoice?.refuge.id == first.refuge.id)
+        } else {
+            #expect(m.state == .stayHere)
+        }
+    }
 }
