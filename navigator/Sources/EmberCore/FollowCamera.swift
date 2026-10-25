@@ -8,7 +8,7 @@ public struct FollowCamera: Equatable, Sendable {
     /// How long the whole route stays on screen when Navigate opens.
     public static let overviewS: TimeInterval = 1.0
     /// Ground width of the follow view.
-    public static let followSpanM = 190.0   // >= 1/1.5 of native imagery pixels on a 3x phone (owner rule #3; 150 m measured 1.76x)
+    public static let followSpanM = 250.0   // imagery <= 1.5x native (0.3 m/px, 3x screen, 402 pt map): 190 m still measured 1.75x (owner rule #3)
     /// The user sits this fraction of the span behind the centre, so the map shows what is ahead.
     public static let aheadFraction = 0.22
     /// Pinch limits in the paused view.

@@ -317,7 +317,13 @@ struct RouteMapView: View {
         }
         // Pins sit on the route by definition (it starts and ends there): the route is cut out around them instead.
         var start = startMarker(size, pt)
-        if let start { reserve("Start dot", start.rect); holes.append(start.rect.insetBy(dx: -4, dy: -4)) }
+        var startDotHidden = false
+        if let you, let s = start, s.rect.intersects(you) {
+            // The person is standing on the Start dot: the arrow shows where they are, the dot would only overlap it
+            // (W2 gate: no two overlays may overlap). The Start pill still anchors to the arrow's halo.
+            start = Marker(anchor: s.anchor, rect: you, onScreen: true)
+            startDotHidden = true
+        } else if let start { reserve("Start dot", start.rect); holes.append(start.rect.insetBy(dx: -4, dy: -4)) }
         var badge = refugeMarker(size, pt)
         if let badge, badge.onScreen { reserve("refuge badge", badge.rect); holes.append(badge.rect.insetBy(dx: -4, dy: -4)) }
         // Re-centre: bottom-centre inside the map, another corner when the route runs there; when every corner is
@@ -341,12 +347,12 @@ struct RouteMapView: View {
                 let r = cands.first { c in !(you.map { $0.intersects(c) } ?? false) } ?? cands[0]
                 placer.reserve(r); holes.append(r.insetBy(dx: -3, dy: -3)); recentre = (r, t)
                 // A pin under the control gives way (the control must stay reachable; the pin is on the route anyway).
-                if let s = start, s.rect.intersects(r) { start = nil; audit.removeAll { $0.name == "Start dot" } }
+                if let s = start, s.rect.intersects(r) { start = nil; startDotHidden = true; audit.removeAll { $0.name == "Start dot" } }
                 if let b = badge, b.onScreen, b.rect.intersects(r) { badge = nil; audit.removeAll { $0.name == "refuge badge" } }
             }
         }
         drawRoute(ctx, pts, full: full, holes: holes)
-        if let start { drawStartDot(ctx, start) }
+        if let start, !startDotHidden { drawStartDot(ctx, start) }
         if let badge, badge.onScreen { drawRefugeBadge(ctx, badge) }
         if let badge { placeRefugePill(ctx, size, &placer, badge, &audit) }
         if let start { placeStartPill(ctx, size, &placer, start, &audit) }
