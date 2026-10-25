@@ -116,11 +116,13 @@ public final class Speaker: NSObject, ObservableObject {
     private func playOne(_ u: Utterance, gen: Int) async {
         if let url = fullClip(u.text) {
             lastSource = "cached"
+            audit(u.text)
             await playFile(url)
             return
         }
         if let urls = fragmentClips(u) {
             lastSource = "fragments"
+            audit(u.text)
             for url in urls {
                 guard gen == generation else { return }
                 await playFile(url)
@@ -171,10 +173,26 @@ public final class Speaker: NSObject, ObservableObject {
 
     /// A corrupt clip must not leave silence: say the text with Apple TTS instead.
     private func speakAppleFallbackForBadClip(_ url: URL) async {
+        lastSource = "badclip:\(url.lastPathComponent)"
         await speakApple(currentText)
     }
 
+    /// Audit hook: with EMBER_AUDIT_SPEECH=1 (env or launch argument) every spoken sentence is appended to
+    /// Documents/speech_audit.log as "<clip key>\t<source>\t<text>". Source "apple" = no clip and no fragments
+    /// (the demo build must never log one); "badclip:<file>" = a clip that exists but would not play.
+    static let auditSpeech: Bool = ProcessInfo.processInfo.environment["EMBER_AUDIT_SPEECH"] == "1"
+        || ProcessInfo.processInfo.arguments.contains("-EMBER_AUDIT_SPEECH")
+    static let auditLog = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("speech_audit.log")
+
+    private func audit(_ text: String) {
+        guard Speaker.auditSpeech else { return }
+        let line = "\(Hashing.clipKey(text))\t\(lastSource)\t\(text)\n"
+        if let h = try? FileHandle(forWritingTo: Speaker.auditLog) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() }
+        else { try? line.write(to: Speaker.auditLog, atomically: true, encoding: .utf8) }
+    }
+
     private func speakApple(_ text: String) async {
+        audit(text)
         let u = AVSpeechUtterance(string: text)
         u.rate = slower ? Speaker.appleRate * 0.85 : Speaker.appleRate
         u.volume = volume
