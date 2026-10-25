@@ -25,7 +25,8 @@
     "That code is not an Ember card. Try again.",
     "No compass. Using the last fire report.",
     "No compass. Using where past fires came from.",
-    "No compass. Treating the fire as straight ahead. Turning away from it."
+    "No compass. Treating the fire as straight ahead. Turning away from it.",
+    "This card does not match the phone's plan. Ask staff for a new card."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
