@@ -4,6 +4,7 @@ collect() gathers every string the navigator can say for this client; generate()
 bundles/<county>/audio/<sha1>.mp3 (+ index.json), or audio/clients/<client_id>/ for a cloned voice, then re-zips.
 """
 import importlib.util
+from pathlib import Path
 import json
 import os
 import threading
@@ -196,6 +197,11 @@ def collect(row, bundle="auto", include_replans=True):
             for s in arr:
                 add(s, l2_code)
 
+    # every spoken constant / inline sentence in the navigator's Swift sources (owner audio gap: "Which way is the
+    # smoke?", "Power is back." etc. had no clip). Read from the sources so the list cannot drift from the app.
+    for s in swift_spoken_strings():
+        add(s)
+
     # fixed phrase set
     for s in P["fixed"]:
         add(s)
@@ -248,6 +254,36 @@ def collect(row, bundle="auto", include_replans=True):
     if profile.get("name"):
         add("Added " + profile["name"].strip() + ".")
     return out
+
+
+_SWIFT_SPOKEN = None
+_SWIFT_PATTERNS = (
+    r'Utterance\("((?:[^"\\]|\\.)*)"',
+    r'\bsay\("((?:[^"\\]|\\.)*)"',
+    r'public static let \w+ = "((?:[^"\\]|\\.)*)"',
+)
+
+
+def swift_spoken_strings(root=None):
+    """Every literal the navigator can speak: Utterance("…"), say("…") and the spoken `public static let` constants in
+    EmberCore + EmberApp. Literals with interpolation (\\(…)) are templates covered elsewhere and skipped."""
+    global _SWIFT_SPOKEN
+    if _SWIFT_SPOKEN is not None and root is None:
+        return _SWIFT_SPOKEN
+    import re
+    base = Path(root) if root else config.ENGINE_DIR.parent / "navigator" / "Sources"
+    out = set()
+    for f in list(base.glob("EmberCore/*.swift")) + list(base.glob("EmberApp/**/*.swift")):
+        txt = f.read_text(encoding="utf-8")
+        for pat in _SWIFT_PATTERNS:
+            for m in re.finditer(pat, txt):
+                lit = m.group(1)
+                if "\\(" in lit or len(lit) < 4 or " " not in lit:
+                    continue
+                out.add(lit.replace('\\"', '"'))
+    if root is None:
+        _SWIFT_SPOKEN = sorted(out)
+    return sorted(out)
 
 
 def keys(strings):
