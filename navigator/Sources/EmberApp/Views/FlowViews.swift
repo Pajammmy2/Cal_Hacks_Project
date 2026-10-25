@@ -152,7 +152,7 @@ struct ChooseView: View {
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.text)
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    Text(a.refuge.name).font(Theme.font(min(big * 1.15, 40), .heavy)).foregroundColor(Theme.text)
+                    Text(typeSize.isAccessibilitySize ? a.refuge.shortName : a.refuge.name).font(Theme.font(min(big * 1.15, 40), .heavy)).foregroundColor(Theme.text)
                         .lineLimit(3).minimumScaleFactor(0.7)      // long OSM names: shrink, never break mid-word (engineer #1)
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
@@ -165,7 +165,7 @@ struct ChooseView: View {
                     // Text only (no postage-stamp map, owner complaint #4): short enough to sit whole above the buttons.
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                        Text("\(b.refuge.name) · \(b.route.minutes) min").font(Theme.font(min(small * 1.2, 28), .bold)).foregroundColor(Theme.text)
+                        Text("\(typeSize.isAccessibilitySize ? b.refuge.shortName : b.refuge.name) · \(b.route.minutes) min").font(Theme.font(min(small * 1.2, 28), .bold)).foregroundColor(Theme.text)
                             .lineLimit(2).minimumScaleFactor(0.7)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
@@ -219,54 +219,74 @@ struct NavigateView: View {
     }
 
     @ViewBuilder
+    func navigateWords(_ p: RouteProgress?, mins: Int, eta: Double?, fireFirst: Bool) -> some View {
+        InstructionText(text: model.displayText)
+        // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
+        // large part of the screen").
+        StatLine(items: [
+            p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
+            ("\(mins) min", "to go", "figure.roll"),
+        ].compactMap { $0 })
+        // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
+        if let eta {
+            StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
+                     systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
+        }
+        if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
+    }
+
+    @ViewBuilder
+    func navigateMap(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
+        if let m, let p {
+            // Re-centre is drawn by the map itself (bottom-centre, inside the map, only while following is paused,
+            // moved by the placer when the route runs there) so it is never clipped and never sits on the route.
+            RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
+                         heading: compass.heading ?? m.travelHeading, walkedM: p.progressM,
+                         satellites: model.satellites, online: voice.online,
+                         camera: model.mapViewport, paused: model.follow.isPaused,
+                         onUserGesture: { model.mapInteracted() },
+                         nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil,
+                         onSize: { model.mapAspect = Double($0.width / max($0.height, 1)) },
+                         showsRecentre: model.follow.showsRecentre, onRecentre: { model.recentreMap() })
+        }
+    }
+
+    var navigateStartOver: some View {
+        // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
+        Button { model.startOver() } label: {
+            StartOverLabel()
+        }
+        .accessibilityLabel("Start over")
+        .accessibilityHint("Stop guidance and go back to the start screen; asks first")
+    }
+
+    @ViewBuilder
     func navigate(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
         // Default sizes: nothing scrolls and the map takes every point left (never cut by the pinned panel); at
         // accessibility sizes the screen scrolls and the map is fixed-height.
-        Screen(scrolls: typeSize.isAccessibilitySize) {
-            InstructionText(text: model.displayText)
-            // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
-            // large part of the screen").
-            StatLine(items: [
-                p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
-                ("\(mins) min", "to go", "figure.roll"),
-            ].compactMap { $0 })
-            // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
-            if let eta {
-                StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
-                         systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
-            }
-            if let m, let p {
-                ZStack(alignment: .bottomTrailing) {
-                    RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
-                                 heading: compass.heading ?? m.travelHeading, walkedM: p.progressM,
-                                 satellites: model.satellites, online: voice.online,
-                                 camera: model.mapViewport, paused: model.follow.isPaused,
-                                 onUserGesture: { model.mapInteracted() },
-                                 nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil,
-                                 onSize: { model.mapAspect = Double($0.width / max($0.height, 1)) })
-                    if model.follow.showsRecentre {
-                        Button { model.recentreMap() } label: { Label("Re-centre", systemImage: "location.fill") }
-                            .buttonStyle(EmberButtonStyle())
-                            .fixedSize()
-                            .padding(10)
-                            .accessibilityLabel("Re-centre")
-                            .accessibilityHint("Follow your position on the map again")
+        Screen(scrolls: false) {
+            if typeSize.isAccessibilitySize {
+                // Accessibility sizes: the words scroll in their own area and the map is pinned whole below them
+                // (240 pt, never under the button panel; engineer #1's AX5 finding). Default sizes: nothing scrolls
+                // and the map takes every point left.
+                ScrollView(showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                        CaregiverInfo(client: m?.client)
+                        navigateStartOver
                     }
+                    .padding(.bottom, 8)
                 }
-                .frame(minHeight: typeSize.isAccessibilitySize ? 300 : 220, maxHeight: typeSize.isAccessibilitySize ? 300 : .infinity)
+                .frame(maxHeight: .infinity)
+                navigateMap(m, p).frame(height: 240)
+            } else {
+                navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                navigateMap(m, p).frame(minHeight: 220, maxHeight: .infinity)
+                navigateStartOver
             }
-            if typeSize.isAccessibilitySize { CaregiverInfo(client: m?.client) }
-            if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
-            // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
-            Button { model.startOver() } label: {
-                Label("Start over", systemImage: "house").font(Theme.font(17, .semibold)).foregroundColor(Theme.dim)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-            }
-            .accessibilityLabel("Start over")
-            .accessibilityHint("Stop guidance and go back to the start screen; asks first")
         } buttons: {
             if m?.pending != nil {
                 // The tapped action waits for an answer: two big buttons, the question is the instruction text above.
@@ -350,5 +370,14 @@ struct ArrivedView: View {
         } buttons: {
             EmberButton(title: "Done", systemImage: "checkmark", hint: "Back to the start screen") { model.done() }
         }
+    }
+}
+
+/// Quiet (dim, unfilled) but still Dynamic Type: the way home must be readable at AX5 too.
+private struct StartOverLabel: View {
+    @ScaledMetric(relativeTo: .body) private var size: CGFloat = 17
+    var body: some View {
+        Label("Start over", systemImage: "house").font(Theme.font(size, .semibold)).foregroundColor(Theme.dim)
+            .frame(maxWidth: .infinity, minHeight: 56)
     }
 }

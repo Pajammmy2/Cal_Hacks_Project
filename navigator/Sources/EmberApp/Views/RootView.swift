@@ -5,7 +5,7 @@ import EmberCore
 public struct RootView: View {
     @EnvironmentObject var model: AppModel
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
-    @AppStorage(Theme.paletteKey) private var palette = "navy"
+    @AppStorage(Theme.paletteKey) private var palette = "offwhite"
 
     public init() {}
 
