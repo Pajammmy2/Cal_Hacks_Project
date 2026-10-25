@@ -157,7 +157,7 @@ struct ChooseView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellites: model.satellites,
-                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 300 : 360)
+                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 280 : 300)
                 }
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
