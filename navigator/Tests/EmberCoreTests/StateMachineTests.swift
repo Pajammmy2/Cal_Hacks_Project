@@ -266,3 +266,35 @@ import Testing
         #expect(turn(m.currentChoice!) <= plain.filter { $0.route.timeS <= limit }.map(turn).min()!)
     }
 }
+
+@Suite struct HistoryPriorTests {
+    let stale = Timestamps.parse("2026-10-23T19:00:00Z")!
+
+    @Test func notSureOnWhichWayPlansWithoutDeadEnd() throws {
+        let m = NavigatorStateMachine(bundle: Fixtures.bundle)
+        m.clock = { stale }
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        #expect(m.state == .whichWay)
+        #expect(!m.fireIsFresh)
+        #expect(m.historyPrior == nil)                        // the fake bundle has no history.json
+        m.skipFireDirection()
+        #expect(m.state == .choose)
+        #expect(m.fireBearing == nil)
+        #expect(m.currentChoice != nil)
+        m.skipFireDirection()                                 // only valid on Which Way
+        #expect(m.state == .choose)
+    }
+
+    @Test func historyFileDecodesEnginePriorAndPhraseExists() throws {
+        let json = """
+        {"since": 2017, "fires": [{"fire": "Camp (2018)", "date": "2018-11-08", "acres": 153335.6}],
+         "prior_bearing_deg": 86.8, "source": "CAL FIRE FRAP"}
+        """.data(using: .utf8)!
+        let h = try JSONDecoder().decode(HistoryFile.self, from: json)
+        #expect(h.priorBearingDeg == 86.8)
+        #expect(h.fires?.first?.fire == "Camp (2018)")
+        let d = Geo.directionWord(86.8, Fixtures.config.templates.directions)
+        #expect(d == "east")
+        #expect(Fixtures.config.phrase("history_dir", ["direction": d]) == "No fresh fire data. Past fires here came from the east.")
+    }
+}

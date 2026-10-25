@@ -129,10 +129,17 @@ public final class NavigatorStateMachine {
         if fireIsFresh, let b = dataFireBearing {
             say(Utterance(config.phrase("fire_dir", ["direction": Geo.directionWord(b, config.templates.directions)]),
                           template: "fire_dir", vars: ["direction": Geo.directionWord(b, config.templates.directions)]))
+        } else if let prior = historyPrior {
+            let d = Geo.directionWord(prior, config.templates.directions)
+            say([Utterance(config.phrase("history_dir", ["direction": d]), template: "history_dir", vars: ["direction": d]),
+                 Utterance("Point the phone at the smoke and tap.")])
         } else {
             say("Point the phone at the smoke and tap.")
         }
     }
+
+    /// Baked historical spread direction (history.json), used only when live data is stale and nothing better exists.
+    public var historyPrior: Double? { bundle.history?.priorBearingDeg }
 
     public func setPosition(lat: Double, lon: Double) { position = (lat, lon) }
 
@@ -150,7 +157,7 @@ public final class NavigatorStateMachine {
     /// still close the wedge later. Better than the old dead end on Which Way.
     public func skipFireDirection() {
         guard state == .whichWay else { return }
-        fireBearing = nil
+        fireBearing = historyPrior
         planChoices()
     }
 

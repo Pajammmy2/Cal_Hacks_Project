@@ -8,6 +8,7 @@ public final class EmberBundle: @unchecked Sendable {
     public let refuges: [Refuge]
     public let perimeters: PerimetersFile?
     public let wind: Wind?
+    public let history: HistoryFile?
     public let config: SharedConfig
 
     public var county: String { manifest?.county ?? dir.lastPathComponent }
@@ -35,6 +36,7 @@ public final class EmberBundle: @unchecked Sendable {
         refuges = rf.refuges
         perimeters = read("perimeters.json", PerimetersFile.self)
         wind = read("wind.json", Wind.self)
+        history = read("history.json", HistoryFile.self)
     }
 
     /// True if the point is inside the manifest bbox (padded ~2 km). GPS outside the county is not used for routing.

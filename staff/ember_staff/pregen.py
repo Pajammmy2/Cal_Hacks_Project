@@ -203,6 +203,7 @@ def collect(row, bundle="auto", include_replans=True):
     for d in T["directions"]:
         add(tp["fire_dir"].format(direction=d))
         add(tp["fire_is"].format(direction=d))
+        add(tp["history_dir"].format(direction=d))
         add(tp["which_way"].format(direction=d))
     for s in all_streets:
         add(tp["blocking"].format(street=s))

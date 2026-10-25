@@ -27,6 +27,7 @@
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
     "fire_is": "Fire is to the {direction}.",
+    "history_dir": "No fresh fire data. Past fires here came from the {direction}.",
     "blocking": "Blocking {street}. Say yes to reroute.",
     "blocking_cross": "Blocking {street} at {cross_street}. Say yes to reroute.",
     "where": "You are on {street}.",

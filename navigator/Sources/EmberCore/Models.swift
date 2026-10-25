@@ -160,6 +160,27 @@ public struct PerimetersFile: Codable, Sendable {
     public init(current: Perimeter?, historical: [Perimeter]? = nil) { self.current = current; self.historical = historical }
 }
 
+/// `history.json`: the bundle's baked historical-fire summary (engine `history.summary`). `priorBearingDeg` is where
+/// recorded fires since `since` came from; the phone uses it when it has no fresh fire data and no compass.
+public struct HistoryFile: Codable, Sendable, Equatable {
+    public struct Fire: Codable, Sendable, Equatable {
+        public var fire: String
+        public var date: String?
+        public var acres: Double?
+    }
+    public var since: Int?
+    public var fires: [Fire]?
+    public var priorBearingDeg: Double?
+    public var source: String?
+    enum CodingKeys: String, CodingKey {
+        case since, fires, source
+        case priorBearingDeg = "prior_bearing_deg"
+    }
+    public init(since: Int? = nil, fires: [Fire]? = nil, priorBearingDeg: Double?, source: String? = nil) {
+        self.since = since; self.fires = fires; self.priorBearingDeg = priorBearingDeg; self.source = source
+    }
+}
+
 public struct Wind: Codable, Sendable, Equatable {
     public var timestamp: String?
     public var directionFromDeg: Double?
