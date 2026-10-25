@@ -215,7 +215,7 @@ struct NavigateView: View {
             } buttons: {
                 ButtonRow {
                     EmberButton(title: "Can't tell", systemImage: "questionmark.circle",
-                                hint: "Use the last fire report or where fires have come from here") { pickingFire = false; model.newFireUnknownDirection() }
+                                hint: "Use the last fire report or where fires have come from here; asks first") { pickingFire = false; model.newFireTapped() }
                     EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Keep the current route") { pickingFire = false }
                 }
             }
@@ -263,9 +263,18 @@ struct NavigateView: View {
             }
             CaregiverInfo(client: m?.client)
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
+            // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
+            EmberButton(title: "Start over", systemImage: "house", hint: "Stop guidance and go back to the start screen; asks first") { model.startOver() }
         } buttons: {
+            if m?.pending != nil {
+                // The tapped action waits for an answer: two big buttons, the question is the instruction text above.
+                ButtonRow {
+                    EmberButton(title: "Yes", systemImage: "checkmark", hint: "Yes, do it") { model.confirmPending() }
+                    EmberButton(title: "No", systemImage: "xmark", hint: "No, keep going as before") { model.cancelPending() }
+                }
+            } else {
             ButtonRow {
-                EmberButton(title: "Blocked", systemImage: "xmark.octagon.fill", hint: "Find a way around") { model.blocked() }
+                EmberButton(title: "Blocked", systemImage: "xmark.octagon.fill", hint: "Find a way around; asks first") { model.blocked() }
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
             }
             ButtonRow {
@@ -275,10 +284,11 @@ struct NavigateView: View {
             }
             ButtonRow {
                 EmberButton(title: "New fire", systemImage: "flame.fill",
-                            hint: compass.heading != nil ? "Point the phone at the fire, then tap" : "Choose the direction of the fire from a list") {
-                    if compass.heading != nil { model.pointAtNewFire() } else { pickingFire = true }
+                            hint: compass.heading != nil ? "Point the phone at the fire, then tap; asks first" : "Choose the direction of the fire from a list") {
+                    if compass.heading != nil { model.newFireTapped() } else { pickingFire = true }
                 }
                 EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
+            }
             }
         }
     }

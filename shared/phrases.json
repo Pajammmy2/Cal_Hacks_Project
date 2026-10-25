@@ -31,7 +31,8 @@
     "No fire information. Showing the nearest safe places.",
     "That is the last step. Stay in the room and keep the phone on.",
     "Which way is the smoke?",
-    "Which way is the new fire?"
+    "Which way is the new fire?",
+    "Stop and go back to the start? Say yes to stop."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",

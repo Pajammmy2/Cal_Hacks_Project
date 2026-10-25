@@ -434,3 +434,63 @@ import Testing
         }
     }
 }
+
+@Suite struct ConfirmStepTests {
+    let stale = Timestamps.parse("2026-10-23T19:00:00Z")!
+    func navigating() throws -> NavigatorStateMachine {
+        let m = NavigatorStateMachine(bundle: Fixtures.bundle)
+        m.clock = { stale }
+        try m.start(client: Fixtures.client("walker", node: 112), caregiver: false)
+        m.point(bearing: 200); m.go()
+        #expect(m.state == .navigate)
+        return m
+    }
+
+    @Test func blockedAsksFirstAndNoKeepsTheRoute() throws {
+        let m = try navigating()
+        let before = m.progress?.route.edges
+        m.requestBlocked()
+        #expect(m.pending == .blocked)
+        #expect(m.utterances.first?.text == NavigatorStateMachine.rerouteQuestion)
+        m.cancelPending()
+        #expect(m.pending == nil)
+        #expect(m.utterances.first?.text == NavigatorStateMachine.okay)
+        #expect(m.progress?.route.edges == before, "No keeps the route")
+        #expect(m.blocked.isEmpty)
+    }
+
+    @Test func blockedYesReroutes() throws {
+        let m = try navigating()
+        let edge = try #require(m.progress?.currentEdge)
+        m.requestBlocked(); m.confirmPending()
+        #expect(m.pending == nil)
+        #expect(m.blocked.contains(edge))
+        #expect(m.state == .navigate || m.state == .shelter)
+    }
+
+    @Test func newFireAsksFirstThenRunsTheNoCompassChain() throws {
+        let m = try navigating()
+        m.requestFire(heading: nil)
+        #expect(m.pending == .newFireNoCompass)
+        #expect(m.utterances.first?.text == NavigatorStateMachine.fireAheadQuestion)
+        m.confirmPending()
+        #expect(m.utterances.first?.text == NavigatorStateMachine.noCompassReport)   // stale report still has a bearing
+    }
+
+    @Test func startOverNeedsAYes() throws {
+        let m = try navigating()
+        m.requestStartOver()
+        #expect(m.utterances.first?.text == NavigatorStateMachine.startOverQuestion)
+        m.cancelPending()
+        #expect(m.state == .navigate)
+        m.requestStartOver(); m.confirmPending()
+        #expect(m.state == .home)
+    }
+
+    @Test func confirmPhrasesArePreRecorded() {
+        let fixed = Fixtures.config.phrases.fixed
+        for t in [NavigatorStateMachine.rerouteQuestion, NavigatorStateMachine.fireAheadQuestion, NavigatorStateMachine.startOverQuestion, NavigatorStateMachine.okay] {
+            #expect(fixed.contains(t), "\(t) must be in shared/phrases.json")
+        }
+    }
+}
