@@ -265,13 +265,13 @@ struct NavigateView: View {
         // The column scrolls at every size (fixed-height map) so the Home chip, words, strip and map never clip
         // against the status bar or the pinned button panel.
         Screen(scrolls: false) {
-            HomeChip { model.homeTapped() }
             if typeSize.isAccessibilitySize {
                 // Accessibility sizes (owner pass 3): the instruction is never truncated and the distance/time strip
                 // (with the demo "Next" at its end) stays under it; the map keeps a minimum height below them and the
                 // whole column scrolls when the words need the room. Nothing sits under the pinned buttons.
                 ScrollView(showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 12) {
+                        HomeChip { model.homeTapped() }
                         navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
                         navigateMap(m, p).frame(height: 220)
                         CaregiverInfo(client: m?.client)
@@ -284,6 +284,7 @@ struct NavigateView: View {
                 // default size scrolls too; the map keeps a fixed height that fits a 6.1" phone without scrolling.
                 ScrollView(showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 12) {
+                        HomeChip { model.homeTapped() }
                         navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
                         navigateMap(m, p).frame(height: 300)
                     }
