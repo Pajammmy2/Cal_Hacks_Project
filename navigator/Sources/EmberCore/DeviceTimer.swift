@@ -57,6 +57,12 @@ public struct DeviceTimer: Sendable, Equatable {
 
     /// The timer belongs to one person on one bundle build. A different card, county or re-synced bundle gives a
     /// different scope and the phone clears the timer instead of carrying it over for ever.
+    /// A county-feed outage report may start the timer only while it is not running and only if the user has not
+    /// turned "Power is out" off for this same card and bundle (the user's word beats the feed).
+    public static func feedMayArm(timerRunning: Bool, userClearedScope: String?, scope: String) -> Bool {
+        !timerRunning && userClearedScope != scope
+    }
+
     public static func scope(clientId: String?, county: String?, builtAt: String?) -> String {
         [clientId ?? "", county ?? "", builtAt ?? ""].joined(separator: "|")
     }

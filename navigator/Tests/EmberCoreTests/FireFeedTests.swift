@@ -18,6 +18,15 @@ import Testing
         for s in ["Power is back."] { #expect(Fixtures.config.phrases.fixed.contains(s)) }
     }
 
+    @Test func feedNeverReArmsAfterTheUserTurnedPowerOff() {
+        let scope = DeviceTimer.scope(clientId: "c_harold", county: "paradise", builtAt: "2026-10-24T23:02:12Z")
+        #expect(DeviceTimer.feedMayArm(timerRunning: false, userClearedScope: nil, scope: scope))
+        #expect(!DeviceTimer.feedMayArm(timerRunning: true, userClearedScope: nil, scope: scope))
+        #expect(!DeviceTimer.feedMayArm(timerRunning: false, userClearedScope: scope, scope: scope))
+        let other = DeviceTimer.scope(clientId: "c_rosa", county: "paradise", builtAt: "2026-10-24T23:02:12Z")
+        #expect(DeviceTimer.feedMayArm(timerRunning: false, userClearedScope: scope, scope: other))   // new card: fresh
+    }
+
     @Test func timerScopeChangesWithCardAndBundle() {
         let a = DeviceTimer.scope(clientId: "harold", county: "paradise", builtAt: "2026-10-24T23:02:12Z")
         #expect(a == DeviceTimer.scope(clientId: "harold", county: "paradise", builtAt: "2026-10-24T23:02:12Z"))

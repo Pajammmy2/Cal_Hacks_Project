@@ -362,7 +362,7 @@ struct RouteMapView: View {
 
     func auditId(_ size: CGSize) -> String {
         let cam = shownCamera.map { "span\(Int($0.spanM))rot\(Int($0.rotationDeg))" } ?? "fit"
-        return "\(thumbnail ? "thumb" : "map")-\(Int(size.width))x\(Int(size.height))-\(cam)-\(Theme.palette)"
+        return "\(thumbnail ? "thumb" : "map")-\(Int(size.width))x\(Int(size.height))-\(cam)-offwhite"
     }
 
     func outlineBox(_ ring: [CGPoint]) -> CGRect {
@@ -523,7 +523,7 @@ struct RouteMapView: View {
         ahead.move(to: split); for p in pts[(splitIndex + 1)...] { ahead.addLine(to: p) }
         let width = 8 * k
         let style = StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
-        ctx.stroke(whole, with: .color(Color.black.opacity(0.9)), style: StrokeStyle(lineWidth: routeWidth, lineCap: .round, lineJoin: .round))
+        ctx.stroke(whole, with: .color(Theme.casing.opacity(0.9)), style: StrokeStyle(lineWidth: routeWidth, lineCap: .round, lineJoin: .round))
         if w > 0 { ctx.stroke(walked, with: .color(Theme.route.opacity(0.45)), style: style) }
         ctx.stroke(ahead, with: .color(Theme.route), style: style)
     }

@@ -5,15 +5,14 @@ import EmberCore
 public struct RootView: View {
     @EnvironmentObject var model: AppModel
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
-    @AppStorage(Theme.paletteKey) private var palette = "offwhite"
 
     public init() {}
 
     public var body: some View {
         VStack(spacing: 0) {
             if let text = model.leaveNow { LeaveNowBanner(text: text, powerBack: { model.powerBack() }).padding([.horizontal, .top], 12) }
-            Group {                 // fonts and colours are read statically: rebuild the screens (not the root, whose
-                switch model.state {   // onAppear launches the app) when either changes; the Settings sheet lives in the model
+            Group {                 // the font is read statically: rebuild the screens (not the root, whose onAppear
+                switch model.state {   // launches the app) when it changes; the Settings sheet lives in the model
                 case .home: HomeView()
                 case .whichWay: WhichWayView()
                 case .choose: ChooseView()
@@ -23,13 +22,13 @@ public struct RootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .id(fontChoice + palette)
+            .id(fontChoice)
         }
         .background(Theme.background.ignoresSafeArea())
         .environmentObject(model.speaker)
         .environmentObject(model.compass)
         .environmentObject(model.voice)
-        .preferredColorScheme(Theme.isLight ? .light : .dark)
+        .preferredColorScheme(.light)
         .onAppear { model.launch() }
     }
 }
