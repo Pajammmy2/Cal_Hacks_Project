@@ -32,4 +32,30 @@ public enum WordFit {
         let (_, w) = widestWord(text, font: font)
         return w <= column ? 1 : column / w
     }
+
+    // MARK: Navigate strip ("130 m to next turn · 33 min to go")
+
+    /// Scale steps the strip tries (ViewThatFits) before its last shrink-to-fit layout; the last step is the
+    /// `minimumScaleFactor` the texts allow, so what fits here never truncates.
+    public static let stripScales: [CGFloat] = [1, 0.85, 0.7, 0.6]
+    public static let stripBig: CGFloat = 26, stripSmall: CGFloat = 17, stripIconGap: CGFloat = 6, stripItemGap: CGFloat = 18
+    public static let stripTrailingGap: CGFloat = 10
+
+    /// Width of the strip at `scale` with the layout's own metrics: per item an SF icon (≈ 1.1 em of the caption
+    /// font), the value in the big font and the caption in the small one; `trailing` is the control at the end.
+    public static func stripWidth(items: [(value: String, caption: String)], fontURL: URL, scale: CGFloat, trailing: CGFloat) -> CGFloat? {
+        guard let big = font(url: fontURL, size: stripBig * scale), let small = font(url: fontURL, size: stripSmall * scale) else { return nil }
+        var total: CGFloat = 0
+        for (i, it) in items.enumerated() {
+            if i > 0 { total += stripItemGap }
+            total += stripSmall * scale * 1.1 + stripIconGap + width(it.value, font: big) + stripIconGap + width(it.caption, font: small)
+        }
+        if trailing > 0 { total += stripTrailingGap + trailing }
+        return total
+    }
+
+    /// The first strip scale at which everything fits `column` whole, nil when even the smallest step overflows.
+    public static func stripScale(items: [(value: String, caption: String)], fontURL: URL, column: CGFloat, trailing: CGFloat) -> CGFloat? {
+        stripScales.first { s in (stripWidth(items: items, fontURL: fontURL, scale: s, trailing: trailing) ?? .infinity) <= column }
+    }
 }

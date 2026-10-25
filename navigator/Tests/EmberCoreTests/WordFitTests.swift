@@ -97,4 +97,26 @@ import CoreGraphics
         let bad = check(Self.toggle, Self.settingsLabels) + check(Self.button, Self.settingsButtons)
         #expect(bad.isEmpty, "\(bad)")
     }
+
+    /// Navigate strip at the default size (owner rule: no "…" anywhere). Margaret's route is 119 minutes: three
+    /// digits plus a four-digit "to next turn" distance did not fit the ladder's smallest step with the demo
+    /// "Next" button and fell into a layout that truncated ("to next t…", "119…"). Every strip the walker route can
+    /// show must fit whole at some ladder step, with and without the button.
+    @Test func navigateStripNeverTruncatesForThreeDigitMinutes() {
+        let worst: [(value: String, caption: String)] = [("1450 m", "to next turn"), ("119 min", "to go")]
+        let typical: [(value: String, caption: String)] = [("710 m", "to next turn"), ("119 min", "to go")]
+        let nextButton: CGFloat = 48
+        for items in [worst, typical] {
+            for trailing in [CGFloat(0), nextButton] {
+                let s = WordFit.stripScale(items: items, fontURL: Self.bold, column: Self.card, trailing: trailing)
+                #expect(s != nil, "\(items) with trailing \(trailing) fits no step of \(WordFit.stripScales)")
+                #expect((s ?? 0) >= 0.6)
+            }
+        }
+        // the smallest step is the texts' minimumScaleFactor: the fallback never has to go below it
+        #expect(WordFit.stripScales.last == 0.6)
+        // negative case: a ladder that stops at 0.7 (the old one) cannot hold the worst strip next to the button
+        let old = WordFit.stripWidth(items: worst, fontURL: Self.bold, scale: 0.7, trailing: nextButton) ?? 0
+        #expect(old > Self.card)
+    }
 }

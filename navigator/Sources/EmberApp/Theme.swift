@@ -1,4 +1,5 @@
 import SwiftUI
+import EmberCore
 
 /// One palette (owner decision): off-white (#F6F3EE) / slate (#2B3440, #3A4654) / orange (#E8731A). Slate text on
 /// off-white 11.4:1, on the card (#ECE7DF) 10.2:1, secondary slate (#3F4B59) on the card 7.3:1, off-white on the slate
@@ -249,15 +250,17 @@ struct StatLine<Trailing: View>: View {
     @Environment(\.dynamicTypeSize) var typeSize
     var body: some View {
         Group {
-            if Trailing.self == EmptyView.self || typeSize.isAccessibilitySize {
+            if typeSize.isAccessibilitySize {
                 HStack(spacing: 10) {
                     stats(fixed: false)
-                    if typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    Spacer(minLength: 0)
                     trailing(false)
                 }
             } else {
                 // Stats never truncate: full words + full "Next" if it fits, else icon-only "Next", else the stats
-                // shrink (as they already may without the button).
+                // shrink step by step (WordFit.stripScales), last of all each item shrinks as one run.
+                // Margaret (119 min, 3 digits) overflowed the single-step layout even without the demo button:
+                // "to next t…" / "119…", so the same ladder now runs with and without a trailing control.
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) { stats(fixed: true); trailing(false) }
                     ForEach(StatLineMetrics.shrinkSteps, id: \.self) { s in
@@ -277,8 +280,9 @@ struct StatLine<Trailing: View>: View {
             ForEach(Array(items.enumerated()), id: \.offset) { _, it in
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Image(systemName: it.2).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
-                    if typeSize.isAccessibilitySize {
-                        // one run of text so it wraps at word boundaries ("130 m" stays together)
+                    if typeSize.isAccessibilitySize || !fixed {
+                        // one run of text so it wraps at word boundaries ("130 m" stays together); in the shrink-to-fit
+                        // fallback the run also scales as a whole (two separate Texts got unequal shares: "119…", "to next t…")
                         (Text(it.0).font(Theme.font(big * scale, .heavy))
                          + Text(" \(it.1)").font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim))
                     } else {
@@ -289,6 +293,7 @@ struct StatLine<Trailing: View>: View {
                 // AX sizes: the row may wrap to a second line (owner: strip stays, may wrap), never "…"
                 .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)
                 .fixedSize(horizontal: fixed && !typeSize.isAccessibilitySize, vertical: typeSize.isAccessibilitySize)
+                .layoutPriority(1)   // the items are sized before the trailing Spacer takes its share
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
