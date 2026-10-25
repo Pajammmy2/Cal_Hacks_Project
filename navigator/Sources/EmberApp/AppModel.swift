@@ -373,7 +373,13 @@ public final class AppModel: ObservableObject {
 
     static let followAnimateS = 0.8
     /// Width / height of the Navigate map as laid out, so the 1 s overview fits the whole route in a wide, short map.
-    @Published public var mapAspect: Double = 1.0
+    @Published public var mapAspect: Double = 1.0 {
+        didSet {   // the size arrives after the overview was framed: re-frame it while still in the 1 s overview
+            if state == .navigate, follow.mode == .overview, cameraAnimation == nil, abs(mapAspect - oldValue) > 0.01 {
+                mapViewport = overviewViewport()
+            }
+        }
+    }
 
     /// Up on the follow map: the compass, else the direction of travel from GPS fixes (v1's CourseEstimator), else
     /// the bearing of the current route edge.
