@@ -197,6 +197,8 @@ public final class AppModel: ObservableObject {
             profiles.removeAll { $0.id == p.id }
             profiles.append(p)
             profileStore.save(profiles)
+            machine?.cardScanned()                  // a run on screen (Navigate, Arrived...) is over: back to Home
+            sync()
             resetPowerOut()                         // a new card: its devices start from full
             selectedId = p.id
             checkPowerScope()

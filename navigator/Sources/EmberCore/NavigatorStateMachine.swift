@@ -661,6 +661,15 @@ public final class NavigatorStateMachine {
 
     public func done() { goHome() }
 
+    /// A card was scanned (QR or deep link) while a run was on screen: the run is over. Back to Home silently; the
+    /// app announces the card itself, and the next Start begins the new client's run (or the same one's) from the top.
+    public func cardScanned() {
+        pending = nil
+        stopped = false
+        arrivedRefuge = nil
+        goHome()
+    }
+
     public func goHome() {
         state = .home
         progress = nil
