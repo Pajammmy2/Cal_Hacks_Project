@@ -69,3 +69,22 @@ def test_bilingual_card_shows_both_languages(sample):
     assert "Empiece en Maxwell Drive." in html and "Start on Maxwell Drive." in html
     assert "Cierre las puertas." in html and "Close the doors." in html
     assert html.index("Empiece en Maxwell Drive.") < html.index("Start on Maxwell Drive.")
+
+
+def test_thumb_route_never_under_outline_or_start_dot():
+    """Owner map rule on the printed thumb: the route stops short of the green refuge outline and of the Start dot."""
+    from ember_staff import card
+    ring = [(300.0, 300.0), (400.0, 300.0), (400.0, 400.0), (300.0, 400.0)]
+    pts = [(40.0, 40.0), (200.0, 200.0), (350.0, 350.0)]
+    drawn = card.trim_to_outline(pts, ring, clearance=25.6)
+    assert drawn[-1] != pts[-1] and not card._inside(drawn[-1], ring)
+    assert all(not card._inside(p, ring) for p in drawn)
+    started = card.trim_start(drawn, 52.0)
+    assert started[0] != pts[0] and abs(((started[0][0] - 40) ** 2 + (started[0][1] - 40) ** 2) ** 0.5 - 52.0) < 0.2
+
+
+def test_thumb_inset_sits_below_the_photo(sample):
+    from ember_staff import db, pdf
+    html = pdf.render_html(db.get("c_margaret"))
+    if 'class="insetbox"' in html:
+        assert html.index('</div>', html.index('class="imgbox"')) < html.index('class="insetbox"')

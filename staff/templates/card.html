@@ -40,9 +40,8 @@
   .headline .min { color: #E8731A; white-space: nowrap; }
   .imgbox { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #DDD7CD; border-radius: 6pt; }
   .imgbox > img, .imgbox > svg.route { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .imgbox > svg.inset { position: absolute; width: 42%; height: 42%; background: #F6F3EE; border-radius: 4pt; }
-  .imgbox > svg.inset.br { right: 0; bottom: 0; } .imgbox > svg.inset.bl { left: 0; bottom: 0; }
-  .imgbox > svg.inset.tr { right: 0; top: 0; }    .imgbox > svg.inset.tl { left: 0; top: 0; }
+  .insetbox { margin-top: 3pt; width: 46%; }
+  .insetbox > svg.inset { display: block; width: 100%; height: auto; border-radius: 4pt; }
   .imgcap { font-size: 14pt; color: #3F4B59; margin-top: 3pt; line-height: 1.2; }
   .alt { margin-top: {{ L.gap + 2 }}pt; }
   .alt .headline { font-size: {{ body_pt }}pt; margin-bottom: 2pt; }
@@ -72,17 +71,25 @@
   {% if bilingual and steps_en %}<div class="l2"><div class="lab">English</div>{{ steplist(steps_en) }}</div>{% endif %}
 {% endmacro %}
 {% macro thumb(R) %}
+  {# Same look as the phone map: aerial photo, green refuge outline (or pin), orange route in black casing that stops
+     short of the outline, white Start dot. Nothing is drawn over the route; the whole-route inset sits BELOW the photo. #}
   <div class="imgbox">
-    {% if R.thumb %}<img src="{{ R.thumb }}" alt="Satellite photo of {{ R.name }} with the route drawn on it">{% endif %}
+    {% if R.thumb %}<img src="{{ R.thumb }}" alt="Aerial photo of {{ R.name }} with the route drawn on it">{% endif %}
     <svg class="route" viewBox="0 0 {{ R.thumb_w }} {{ R.thumb_h }}" preserveAspectRatio="none" aria-hidden="true">
+      {% set k = R.thumb_w / 160 %}
+      {% if R.outline_pts %}
+      <polygon points="{{ R.outline_pts }}" fill="#4DCC73" fill-opacity="0.35" stroke="#4DCC73" stroke-width="{{ 2.5 * k }}" stroke-linejoin="round"/>
+      {% else %}
+      <circle cx="{{ R.centroid_pt[0] }}" cy="{{ R.centroid_pt[1] }}" r="{{ 18 * k }}" fill="#4DCC73" fill-opacity="0.35" stroke="#4DCC73" stroke-width="{{ 2.5 * k }}"/>
+      {% endif %}
       {% if R.route_pts %}
-      <polyline points="{{ R.route_pts }}" fill="none" stroke="#2B3440" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
-      <polyline points="{{ R.route_pts }}" fill="none" stroke="#E8731A" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
-      {% if R.end_pt %}<circle cx="{{ R.end_pt[0] }}" cy="{{ R.end_pt[1] }}" r="28" fill="#E8731A" stroke="#2B3440" stroke-width="10"/>{% endif %}
+      <polyline points="{{ R.route_pts }}" fill="none" stroke="#000" stroke-width="{{ 9 * k }}" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="{{ R.route_pts }}" fill="none" stroke="#E8731A" stroke-width="{{ 5 * k }}" stroke-linejoin="round" stroke-linecap="round"/>
+      {% if R.home_on_thumb %}<circle cx="{{ R.home_pt[0] }}" cy="{{ R.home_pt[1] }}" r="{{ 7 * k }}" fill="#fff" stroke="#000" stroke-width="{{ 3 * k }}"/>{% endif %}
       {% endif %}
     </svg>
-    {% if R.off_thumb %}{{ R.inset | replace('class="inset"', 'class="inset ' ~ R.inset_corner ~ '"') | safe }}{% endif %}
   </div>
+  {% if R.off_thumb %}<div class="insetbox">{{ R.inset | safe }}</div>{% endif %}
 {% endmacro %}
 <div class="sheet">
   <div class="head">
