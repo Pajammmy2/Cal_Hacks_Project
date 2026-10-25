@@ -25,6 +25,9 @@ public final class NavigatorStateMachine {
     public static let noRoute = "No route. Stay where you are. Start the shelter steps."
     public static let sayAgain = "Say again?"
     public static let fireAhead = "Fire ahead. Turning away from it."
+    public static let noCompassReport = "No compass. Using the last fire report."
+    public static let noCompassHistory = "No compass. Using where past fires came from."
+    public static let noCompassAhead = "No compass. Treating the fire as straight ahead. Turning away from it."
 
     public let bundle: EmberBundle
     public var config: SharedConfig { bundle.config }
@@ -299,6 +302,36 @@ public final class NavigatorStateMachine {
             return
         }
         rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.fireAhead)])
+    }
+
+    /// "New fire" tapped on a phone with no compass (the Simulator, some older phones). Never a silent no-op and
+    /// never a silent drop to shelter: the best bearing we have, said aloud so the person can correct it with
+    /// "Fire" / a new report: the fire report (fresh or stale) -> the historical prior -> straight ahead (the direction
+    /// of travel). Returns the source used, for the UI and the tests.
+    @discardableResult
+    public func newFireWithoutCompass() -> String {
+        guard state == .navigate || state == .choose else {
+            say(NavigatorStateMachine.sayAgain)
+            return "none"
+        }
+        func fireIs(_ b: Double) -> Utterance {
+            let d = Geo.directionWord(b, config.templates.directions)
+            return Utterance(config.phrase("fire_is", ["direction": d]), template: "fire_is", vars: ["direction": d])
+        }
+        if let b = dataFireBearing {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassReport), fireIs(b), Utterance("Rerouting.")])
+            return "report"
+        }
+        if let b = historyPrior {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassHistory), fireIs(b), Utterance("Rerouting.")])
+            return "history"
+        }
+        if let b = travelHeading ?? fireBearing {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassAhead)])
+            return "ahead"
+        }
+        say("Point the phone at the smoke and tap.")
+        return "none"
     }
 
     /// "Point" mid-route: the compass bearing of the phone, pointed at new smoke. Updates `fireBearing`, closes the

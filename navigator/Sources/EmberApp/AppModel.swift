@@ -224,7 +224,9 @@ public final class AppModel: ObservableObject {
     /// Navigate/Choose "Point": the phone is pointed at new smoke; the fire bearing is updated and the route turns away.
     public func pointAtNewFire() {
         guard let h = compass.heading else {
-            speaker.speak([Utterance("Point the phone at the smoke and tap.")])
+            // No compass: the machine picks the best bearing it has (report -> history -> ahead) and says which.
+            machine?.newFireWithoutCompass()
+            sync()
             return
         }
         machine?.pointAtNewFire(bearing: h)

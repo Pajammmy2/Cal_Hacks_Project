@@ -22,7 +22,10 @@
     "Find a new route? Say yes to reroute.",
     "Fire ahead. Turning away from it.",
     "Fire ahead. Turning away from it. Say yes to reroute.",
-    "That code is not an Ember card. Try again."
+    "That code is not an Ember card. Try again.",
+    "No compass. Using the last fire report.",
+    "No compass. Using where past fires came from.",
+    "No compass. Treating the fire as straight ahead. Turning away from it."
   ],
   "templates": {
     "fire_dir": "Fire is to the {direction}. OK?",
