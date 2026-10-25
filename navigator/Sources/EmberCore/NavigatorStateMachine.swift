@@ -142,6 +142,8 @@ public final class NavigatorStateMachine {
     }
     public var fireIsFresh: Bool { fireData.isFresh(now: clock()) }
     public var clock: () -> Date = { Date() }
+    private var startedAt = Date.distantPast
+    private var startSerial = -1
 
     /// Bearing to the fire from the cached data at the client's position (WhichWay "OK").
     public var dataFireBearing: Double? {
@@ -179,7 +181,14 @@ public final class NavigatorStateMachine {
     // MARK: Home
 
     /// Start on Home: bedbound always goes to Shelter; everyone else to WhichWay.
+    /// A repeated Start for the same card within `TapGuard.settleS` of the last one, with nothing said or done since,
+    /// is the second half of a double tap (Walter: step 1 was spoken twice, or skipped once the screen had switched)
+    /// and is ignored.
     public func start(client: ClientProfile, caregiver: Bool) throws {
+        let now = clock()
+        if state != .home, self.client == client, self.caregiver == caregiver, serial == startSerial,
+           !TapGuard.accepts(tapAt: now, screenShownAt: startedAt) { return }
+        defer { startedAt = now; startSerial = serial }
         self.client = client
         self.caregiver = caregiver
         profile = try Profile(client.profileKey(caregiver: caregiver), batteryPct: client.batteryPct, config: config)
