@@ -272,8 +272,9 @@ struct StatLine<Trailing: View>: View {
                     Text(it.0).font(Theme.font(big * scale, .heavy))
                     Text(it.1).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
                 }
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .fixedSize(horizontal: fixed, vertical: false)
+                // AX sizes: the row may wrap to a second line (owner: strip stays, may wrap), never "…"
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)
+                .fixedSize(horizontal: fixed && !typeSize.isAccessibilitySize, vertical: typeSize.isAccessibilitySize)
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
