@@ -149,6 +149,7 @@ struct InstructionText: View {
     var body: some View {
         Text(text)
             .font(Theme.font(min(size, 56), .bold))     // bounded: a 6-word instruction must stay on one screen at AX5
+            .minimumScaleFactor(0.7)                    // rule #4: a long word ("Supermarket" at 56 pt) shrinks whole, never breaks
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
