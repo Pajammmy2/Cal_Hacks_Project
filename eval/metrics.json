@@ -1,6 +1,6 @@
 {
  "county": "paradise",
- "generated_at": "2026-10-25 01:49 UTC",
+ "generated_at": "2026-10-25 02:02 UTC",
  "route_quality": {
   "profiles": {
    "walker": {
@@ -550,11 +550,11 @@
   ],
   "all_aaa": true,
   "ax5_screens": {
-   "Home": null,
-   "Which way": null,
-   "Choose": null,
-   "Navigate": null,
-   "Settings": null
+   "Home": true,
+   "Which way": true,
+   "Choose": true,
+   "Navigate": true,
+   "Settings": true
   },
   "rule": "EmberButtonStyle: lineLimit(1) + minimumScaleFactor(0.5); ButtonRow stacks at accessibility sizes"
  },
@@ -601,23 +601,23 @@
  "staff": {
   "imported": 200,
   "skipped": 0,
-  "import_s": 0.26,
+  "import_s": 0.16,
   "planned": 200,
   "failed": 0,
-  "plan_s": 9.48,
+  "plan_s": 7.1,
   "stamped": 200,
-  "stamp_s": 0.47,
+  "stamp_s": 0.34,
   "pdf_n": 39,
-  "pdf_s": 21.35,
+  "pdf_s": 15.36,
   "pdf_pages_max": 2,
   "pdf_pages_over_2": 0,
   "pdf_too_long": [
    "t0031"
   ],
   "n": 200,
-  "plans_per_hour": 75949,
-  "stamps_per_hour": 1531915,
-  "pdfs_per_hour": 6576
+  "plans_per_hour": 101408,
+  "stamps_per_hour": 2117647,
+  "pdfs_per_hour": 9141
  },
  "tests": {
   "engine": {
@@ -636,5 +636,5 @@
    "ok": true
   }
  },
- "seconds": 135.2
+ "seconds": 99.6
 }
