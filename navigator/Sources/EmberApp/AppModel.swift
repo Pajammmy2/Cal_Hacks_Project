@@ -372,6 +372,8 @@ public final class AppModel: ObservableObject {
     // MARK: Navigate map camera
 
     static let followAnimateS = 0.8
+    /// Width / height of the Navigate map as laid out, so the 1 s overview fits the whole route in a wide, short map.
+    @Published public var mapAspect: Double = 1.0
 
     /// Up on the follow map: the compass, else the direction of travel from GPS fixes (v1's CourseEstimator), else
     /// the bearing of the current route edge.
@@ -392,7 +394,7 @@ public final class AppModel: ObservableObject {
         var s = pts[0].lat, n = pts[0].lat, w = pts[0].lon, e = pts[0].lon
         for q in pts { s = min(s, q.lat); n = max(n, q.lat); w = min(w, q.lon); e = max(e, q.lon) }
         return FollowCamera.Viewport(lat: (s + n) / 2, lon: (w + e) / 2,
-                                     spanM: FollowCamera.overviewSpanM(points: pts, aspect: 1.0), rotationDeg: 0)
+                                     spanM: FollowCamera.overviewSpanM(points: pts, aspect: mapAspect), rotationDeg: 0)
     }
 
     func enterNavigateCamera() {

@@ -26,6 +26,8 @@ struct RouteMapView: View {
     var onUserGesture: (() -> Void)? = nil
     /// Node where the next turn happens: its street label always wins at close zoom.
     var nextTurnNode: Int? = nil
+    /// Reports the laid-out size (the overview camera needs the aspect).
+    var onSize: ((CGSize) -> Void)? = nil
 
     @State private var manual: FollowCamera.Viewport? = nil
     @State private var gestureBase: FollowCamera.Viewport? = nil
@@ -174,6 +176,11 @@ struct RouteMapView: View {
                 SatelliteMapView(fit: box.region, camera: shownCamera, onVisible: { r in liveRect = r }, onMap: { liveMap = $0 })
             }
             #endif
+            GeometryReader { g in
+                Color.clear
+                    .onAppear { onSize?(g.size) }
+                    .onChange(of: g.size) { onSize?($0) }
+            }
             Canvas(rendersAsynchronously: false) { ctx, size in
                 guard let proj = projection(size) else { return }
                 if case .snapshot(let s) = mode {
