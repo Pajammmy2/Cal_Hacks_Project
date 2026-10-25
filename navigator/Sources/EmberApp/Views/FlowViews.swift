@@ -262,8 +262,8 @@ struct NavigateView: View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
-        // Default sizes: nothing scrolls and the map takes every point left (never cut by the pinned panel); at
-        // accessibility sizes the screen scrolls and the map is fixed-height.
+        // The column scrolls at every size (fixed-height map) so the Home chip, words, strip and map never clip
+        // against the status bar or the pinned button panel.
         Screen(scrolls: false) {
             HomeChip { model.homeTapped() }
             if typeSize.isAccessibilitySize {
@@ -280,8 +280,16 @@ struct NavigateView: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
-                navigateMap(m, p).frame(minHeight: 220, maxHeight: .infinity)
+                // Owner (demo/v3 on a 14 Pro): with the Home chip the fixed column clipped top and bottom, so the
+                // default size scrolls too; the map keeps a fixed height that fits a 6.1" phone without scrolling.
+                ScrollView(showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                        navigateMap(m, p).frame(height: 300)
+                    }
+                    .padding(.bottom, 8)
+                }
+                .frame(maxHeight: .infinity)
             }
         } buttons: {
             if m?.pending != nil {
