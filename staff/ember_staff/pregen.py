@@ -275,7 +275,9 @@ def swift_spoken_strings(root=None):
     out = set()
     for f in list(base.glob("EmberCore/*.swift")) + list(base.glob("EmberApp/**/*.swift")):
         txt = f.read_text(encoding="utf-8")
-        for pat in _SWIFT_PATTERNS:
+        # `static let` constants are spoken only in the state machine; elsewhere they are source names, prompts, keys
+        pats = _SWIFT_PATTERNS if f.name == "NavigatorStateMachine.swift" else _SWIFT_PATTERNS[:2]
+        for pat in pats:
             for m in re.finditer(pat, txt):
                 lit = m.group(1)
                 if "\\(" in lit or len(lit) < 4 or " " not in lit:
