@@ -46,6 +46,8 @@ public final class NavigatorStateMachine {
     public static let fireAheadQuestion = "Fire ahead. Turning away from it. Say yes to reroute."
     public static let startOverQuestion = "Stop and go back to the start? Say yes to stop."
     public static let okay = "Okay."
+    /// Voice "help": the command list, one recorded sentence.
+    public static let helpLine = "You can say: blocked, fire, repeat, louder, slower, where am I, how long, which way, can't move, or go home."
 
     /// What a tapped button is waiting to do until the person answers Yes / No.
     public enum Pending: Equatable, Sendable { case blocked, fireAhead(heading: Double?), newFireNoCompass, startOver }
@@ -398,6 +400,8 @@ public final class NavigatorStateMachine {
     /// Demo stepping (Settings): while on, real GPS fixes are ignored and `demoStep()` moves the position along the
     /// route instead, so a rehearsal on a desk fires exactly what arriving there would.
     public var demoStepping = false
+    /// Set by the voice intent "call 911"; the app reads and clears it to open the dialer.
+    public var call911Requested = false
 
     public enum PositionSource { case gps, demo }
     /// Where the current `position` came from: a stepped (demo) position must not survive a new card or Start over,
@@ -763,6 +767,22 @@ public final class NavigatorStateMachine {
             } else {
                 say(NavigatorStateMachine.sayAgain)
             }
+        case .goHome:
+            requestStartOver()
+        case .otherWay:
+            if (state == .choose || state == .navigate) && choices.count > 1 { other() } else { say(NavigatorStateMachine.sayAgain) }
+        case .callHelp:
+            call911Requested = true          // the app opens the dialer; the spoken answer is the recorded "Okay."
+            say(NavigatorStateMachine.okay)
+        case .whereFire:
+            if let b = dataFireBearing ?? fireBearing {
+                let d = Geo.directionWord(b, config.templates.directions)
+                say(Utterance(config.phrase("fire_is", ["direction": d]), template: "fire_is", vars: ["direction": d]))
+            } else {
+                say(NavigatorStateMachine.sayAgain)
+            }
+        case .help:
+            say(NavigatorStateMachine.helpLine)
         case .stop:
             stopped = true
             say("Stopped. Speak or tap a button when you are ready.")

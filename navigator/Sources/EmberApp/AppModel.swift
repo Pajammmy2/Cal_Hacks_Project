@@ -424,6 +424,10 @@ public final class AppModel: ObservableObject {
             default: break
             }
             m.apply(cmd)
+            if m.call911Requested {
+                m.call911Requested = false
+                if let u = URL(string: "tel://911") { UIApplication.shared.open(u) }
+            }
             sync()
         }
     }
