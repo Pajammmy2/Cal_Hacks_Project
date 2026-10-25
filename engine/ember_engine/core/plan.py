@@ -7,7 +7,7 @@ import math
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import cues as cuemod
+from . import cues as cuemod, history
 from . import router, shared
 from .geocode import Geocoder
 
@@ -47,10 +47,16 @@ class Bundle:
         return next((r for r in self.refuges if r["id"] == rid), None)
 
 
-def fire_bearing(bundle):
-    """Pre-season plans use the prevailing wind: the fire is upwind, i.e. toward direction_from."""
+def fire_bearing(bundle, lat=None, lon=None):
+    """Pre-season plans use the prevailing wind: the fire is upwind, i.e. toward direction_from.
+    Without wind data, the historical prior (history.prior_bearing: where recorded fires came from) is used."""
     if bundle.wind and bundle.wind.get("direction_from_deg") is not None:
         return float(bundle.wind["direction_from_deg"]), "wind"
+    hist = (bundle.perimeters or {}).get("historical") or []
+    if lat is not None and lon is not None:
+        b, _ = history.prior_bearing(lat, lon, hist)
+        if b is not None:
+            return b, "history"
     return None, "none"
 
 
@@ -117,7 +123,9 @@ def make_plan(bundle, address, client, blocked=frozenset(), client_id=None):
     if node is None:
         raise PlanError("No usable path near this address.")
 
-    bearing, bsrc = fire_bearing(bundle)
+    bearing, bsrc = fire_bearing(bundle, lat, lon)
+    prior, prior_from = history.prior_bearing(lat, lon, (bundle.perimeters or {}).get("historical") or [])
+    home_history = history.burn_history(lat, lon, (bundle.perimeters or {}).get("historical") or [])
     room, sh_steps = shelter_steps(client)
     choices = []
     perimeter = ((bundle.perimeters or {}).get("current") or {}).get("polygon")
@@ -138,6 +146,8 @@ def make_plan(bundle, address, client, blocked=frozenset(), client_id=None):
         "origin": {"lat": lat, "lon": lon, "node": node, "snap_m": round(snap_d, 1), "geocode": how, "matched": matched},
         "fire_bearing_deg": bearing,
         "fire_bearing_source": bsrc,
+        "history": {"prior_bearing_deg": prior, "prior_from": prior_from, "home_fires": home_history["fires"],
+                    "home_recent": home_history["recent"]},
         "profile_key": key,
         "choices": choices,
         "shelter": {"room": room, "steps": sh_steps},
