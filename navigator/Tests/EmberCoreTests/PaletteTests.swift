@@ -21,11 +21,11 @@ struct PaletteTests {
         }
     }
 
-    @Test func offWhiteIsTheDefaultAndUnknownChoicesFallBackToIt() {
+    @Test func offWhiteIsTheOnlyPalette() {
         #expect(Palette.named(nil) == Palette.offWhite)
         #expect(Palette.named("purple") == Palette.offWhite)
-        #expect(Palette.named("navy") == Palette.navy)
-        #expect(Palette.all.first?.id == "offwhite")
+        #expect(Palette.named("navy") == Palette.offWhite)       // an old stored choice resolves to the one palette
+        #expect(Palette.all.map(\.id) == ["offwhite"])
     }
 
     @Test func wcagMathMatchesKnownValues() {

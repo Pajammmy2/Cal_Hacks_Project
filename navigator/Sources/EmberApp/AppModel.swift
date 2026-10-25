@@ -230,8 +230,21 @@ public final class AppModel: ObservableObject {
         powerOutSince = on ? (powerOutSince ?? date) : nil
         UserDefaults.standard.set(powerOutSince?.timeIntervalSince1970 ?? 0, forKey: "powerOutSince")
         UserDefaults.standard.set(on ? powerScope : nil, forKey: AppModel.powerScopeKey)
+        // Once the user says the power is back, no feed report re-arms the timer for this card and bundle; only the
+        // user (or a new card / bundle) can. Stored by scope so a new card starts fresh.
+        UserDefaults.standard.set(on ? nil : powerScope, forKey: AppModel.powerUserClearedKey)
         leaveNowSpoken = false
         periodic()
+    }
+
+    static let powerUserClearedKey = "powerUserCleared"
+
+    /// May a county-feed outage report start the timer? Not while the timer runs, and never after the user cleared
+    /// it for this card and bundle.
+    var feedMayArmPower: Bool {
+        DeviceTimer.feedMayArm(timerRunning: powerIsOut,
+                               userClearedScope: UserDefaults.standard.string(forKey: AppModel.powerUserClearedKey),
+                               scope: powerScope)
     }
 
     /// "Power is back": clears the timer and the Leave-now banner, and says so.
@@ -249,6 +262,7 @@ public final class AppModel: ObservableObject {
         powerOutSince = nil
         UserDefaults.standard.set(0, forKey: "powerOutSince")
         UserDefaults.standard.removeObject(forKey: AppModel.powerScopeKey)
+        UserDefaults.standard.removeObject(forKey: AppModel.powerUserClearedKey)
         leaveNow = nil
         leaveNowSpoken = false
     }
@@ -439,7 +453,7 @@ public final class AppModel: ObservableObject {
         if m.state == .navigate, let p = m.progress, !m.feedBlocked.isDisjoint(with: p.route.edges) {
             m.replan(origin: nil)
         }
-        if let o = ApifyFeed.outage(s, zip: selected?.zip), !powerIsOut {
+        if let o = ApifyFeed.outage(s, zip: selected?.zip), feedMayArmPower {
             setPowerOut(true, at: r.fetchedAt ?? Date())
             feedNote = "Power outage reported for \(o.area)."
         }

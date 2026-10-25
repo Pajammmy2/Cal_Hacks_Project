@@ -138,14 +138,12 @@ struct SettingsView: View {
 
     static let fonts = [("inter", "Inter"), ("system", "Apple"), ("hyperlegible", "Hyperlegible")]
     static let mapStyles = [("satellite", "Satellite", "photo.fill"), ("drawn", "Drawn", "map.fill")]
-    static let palettes = [("offwhite", "Off-white", "sun.max.fill"), ("navy", "Navy", "moon.fill")]
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
     @AppStorage(Theme.mapStyleKey) private var mapStyle = "satellite"
-    @AppStorage(Theme.paletteKey) private var palette = "offwhite"
 
-    /// Colours and fonts are read statically: rebuild the sheet's content (not the sheet, whose state holds the
-    /// half-typed keys) when either changes, so no heading keeps the old palette.
-    var body: some View { content.id(fontChoice + palette) }
+    /// The font is read statically: rebuild the sheet's content (not the sheet, whose state holds the half-typed
+    /// keys) when it changes.
+    var body: some View { content.id(fontChoice) }
 
     private var content: some View {
         Screen {
@@ -180,17 +178,6 @@ struct SettingsView: View {
                 ForEach(SettingsView.fonts.dropFirst(2), id: \.0) { f in
                     EmberButton(title: f.1, systemImage: fontChoice == f.0 ? "checkmark.circle.fill" : "circle",
                                 hint: "Use the \(f.1) font everywhere") { fontChoice = f.0 }
-                }
-            }
-            .card()
-            VStack(alignment: .leading, spacing: 10) {
-                SecondaryText(text: "Colours")
-                HelpText(text: "Navy with a blue route, or off-white with an orange route. Both are high contrast.")
-                ButtonRow {
-                    ForEach(SettingsView.palettes, id: \.0) { c in
-                        EmberButton(title: c.1, systemImage: palette == c.0 ? "checkmark.circle.fill" : c.2,
-                                    hint: "Use the \(c.1.lowercased()) colours everywhere") { palette = c.0 }
-                    }
                 }
             }
             .card()
