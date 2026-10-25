@@ -183,6 +183,7 @@ public final class NavigatorStateMachine {
         arrivedRefuge = nil
         stopped = false
         fireBearing = nil
+        if positionSource == .demo { position = nil; positionSource = .gps }
         let planFile = bundle.plan(clientId: client.id)
         shelter = planFile?.shelter ?? PlanText.shelterSteps(client)
         planRefugeIds = (planFile?.choices ?? []).prefix(2).map { $0.refuge.id }
@@ -235,7 +236,7 @@ public final class NavigatorStateMachine {
     /// Baked historical spread direction (history.json), used only when live data is stale and nothing better exists.
     public var historyPrior: Double? { bundle.history?.priorBearingDeg }
 
-    public func setPosition(lat: Double, lon: Double) { position = (lat, lon) }
+    public func setPosition(lat: Double, lon: Double) { position = (lat, lon); positionSource = .gps }
 
     /// Where the next demo step lands: the point on the route where the next cue group is announced (exactly where
     /// a walking GPS fix would first speak it — if two groups announce within the same lookahead they merge the same
@@ -380,10 +381,14 @@ public final class NavigatorStateMachine {
     public var demoStepping = false
 
     public enum PositionSource { case gps, demo }
+    /// Where the current `position` came from: a stepped (demo) position must not survive a new card or Start over,
+    /// or the next route would start at the refuge the rehearsal ended at.
+    public internal(set) var positionSource: PositionSource = .gps
 
     public func updatePosition(lat: Double, lon: Double, source: PositionSource = .gps) {
         if demoStepping, source == .gps, state == .navigate { return }
         position = (lat, lon)
+        positionSource = source
         guard state == .navigate, var p = progress, let c = currentChoice else { return }
         if Router.arrived(lat: lat, lon: lon, refuge: c.refuge) {
             arrive(c.refuge)

@@ -105,6 +105,26 @@ import Testing
         try stepToArrived(m)
     }
 
+    /// Owner's phone: after a rehearsal ended at the refuge, scanning again said the route was already done, because
+    /// the stepped position was still the origin. A new start forgets a demo position (a real GPS fix is kept).
+    @Test func newStartAfterADemoRunBeginsAtTheClientsHomeNotTheRefuge() throws {
+        let m = try navigating()
+        try stepToArrived(m)
+        let g = Fixtures.bundle.graph
+        let harold = Fixtures.client("power_chair", devices: [ClientDevice(kind: "oxygen", hours: 4)], node: 112)
+        try m.start(client: harold, caregiver: false)
+        #expect(m.originPoint?.lat == g.lat[112] && m.originPoint?.lon == g.lon[112])
+        m.confirmFire(); m.go()
+        #expect(m.state == .navigate)
+        #expect((m.currentChoice?.route.timeS ?? 0) > 0)
+        m.demoStepping = true
+        try stepToArrived(m)
+        m.demoStepping = false
+        m.updatePosition(lat: g.lat[112], lon: g.lon[112])            // real fix after the toggle is off: kept
+        try m.start(client: harold, caregiver: false)
+        #expect(m.originPoint?.lat == g.lat[112])
+    }
+
     @Test func gpsIsIgnoredWhileSteppingAndResumesWhenOff() throws {
         let m = try navigating()
         let start = try #require(m.progress).progressM
