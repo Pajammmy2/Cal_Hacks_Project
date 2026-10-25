@@ -245,7 +245,8 @@ struct NavigateView: View {
                                  satellites: model.satellites, online: voice.online,
                                  camera: model.mapViewport, paused: model.follow.isPaused,
                                  onUserGesture: { model.mapInteracted() },
-                                 nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil)
+                                 nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil,
+                                 onSize: { model.mapAspect = Double($0.width / max($0.height, 1)) })
                     if model.follow.showsRecentre {
                         Button { model.recentreMap() } label: { Label("Re-centre", systemImage: "location.fill") }
                             .buttonStyle(EmberButtonStyle())
@@ -260,7 +261,12 @@ struct NavigateView: View {
             if typeSize.isAccessibilitySize { CaregiverInfo(client: m?.client) }
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
             // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
-            EmberButton(title: "Start over", systemImage: "house", hint: "Stop guidance and go back to the start screen; asks first") { model.startOver() }
+            Button { model.startOver() } label: {
+                Label("Start over", systemImage: "house").font(Theme.font(17, .semibold)).foregroundColor(Theme.dim)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+            }
+            .accessibilityLabel("Start over")
+            .accessibilityHint("Stop guidance and go back to the start screen; asks first")
         } buttons: {
             if m?.pending != nil {
                 // The tapped action waits for an answer: two big buttons, the question is the instruction text above.
