@@ -22,7 +22,7 @@ The full spec is in [docs/spec.md](docs/spec.md); the cross-lane interfaces are 
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r engine/requirements.txt -r staff/requirements.txt
-.venv/bin/python -m playwright install chromium
+.venv/bin/python -m playwright install chromium chromium-headless-shell   # both: card print (PDF) uses the headless shell
 cp .env.example .env            # every key is optional
 
 # 1. Bundles
