@@ -358,22 +358,27 @@ public final class AppModel: ObservableObject {
     /// "Fire ahead" without a bearing: the fire is where the user is heading (compass, else the route edge).
     public func fireAhead() { machine?.fireAhead(heading: compass.heading); Platform.haptic(.fire); sync() }
 
-    public func go() { machine?.go(); sync() }
+    /// When the current screen appeared (TapGuard): the second half of a double tap on the previous screen's button
+    /// lands here and must not act (Choose "Go" ×2 reached Navigate "Can't move" and opened the shelter script).
+    private var screenShownAt = Date.distantPast
+    var settled: Bool { TapGuard.accepts(tapAt: Date(), screenShownAt: screenShownAt) }
+
+    public func go() { guard settled else { return }; machine?.go(); sync() }
     public func other() { machine?.other(); sync() }
-    public func cantMove() { machine?.cantMove(); sync() }
-    public func blocked() { machine?.requestBlocked(); sync() }
-    public func confirmPending() { machine?.confirmPending(); sync() }
+    public func cantMove() { guard settled else { return }; machine?.cantMove(); sync() }
+    public func blocked() { guard settled else { return }; machine?.requestBlocked(); sync() }
+    public func confirmPending() { guard settled else { return }; machine?.confirmPending(); sync() }
     public func cancelPending() { machine?.cancelPending(); sync() }
     public func startOver() { machine?.requestStartOver(); sync() }
     /// "New fire" tapped: with a compass the phone's heading is the fire's direction; asks before rerouting.
-    public func newFireTapped() { machine?.requestFire(heading: compass.heading); sync() }
+    public func newFireTapped() { guard settled else { return }; machine?.requestFire(heading: compass.heading); sync() }
     public func repeatInstruction() { machine?.repeatCurrent(); sync() }
-    public func shelterNext() { machine?.shelterNext(); sync() }
+    public func shelterNext() { guard settled else { return }; machine?.shelterNext(); sync() }
     public func shelterBack() { machine?.shelterBack(); sync() }
     /// Settings sheet flag lives here so a font/colour change (which rebuilds the screens) never closes Settings.
     @Published public var settingsShown = false
 
-    public func done() { machine?.done(); speaker.stop(); sync() }
+    public func done() { guard settled else { return }; machine?.done(); speaker.stop(); sync() }
     /// Back to Home from any screen (Which way "Back", Navigate "Start over"): stops speech and guidance.
     public func goHome() { leaveNavigateCamera(); machine?.goHome(); speaker.stop(); sync() }
     /// Re-check after a confirmed Start over: the camera and timers go with the route.
@@ -626,6 +631,7 @@ public final class AppModel: ObservableObject {
         guard let m = machine else { state = .home; leaveNavigateCamera(); return }
         let was = state
         state = m.state
+        if m.state != was { screenShownAt = Date() }
         if m.state == .navigate, was != .navigate {
             enterNavigateCamera()
             if let first = m.progress?.currentGroup.first, let h = HapticCue.forCue(first) { Platform.haptic(h) }
