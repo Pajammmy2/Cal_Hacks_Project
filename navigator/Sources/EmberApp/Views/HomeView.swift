@@ -144,11 +144,16 @@ struct SettingsView: View {
             .card()
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Font")
+                // two per row at most: three across truncated "Hyperlegible" to "Hyp…" on a 390 pt phone
                 ButtonRow {
-                    ForEach(SettingsView.fonts, id: \.0) { f in
+                    ForEach(SettingsView.fonts.prefix(2), id: \.0) { f in
                         EmberButton(title: f.1, systemImage: fontChoice == f.0 ? "checkmark.circle.fill" : "circle",
                                     hint: "Use the \(f.1) font everywhere") { fontChoice = f.0 }
                     }
+                }
+                ForEach(SettingsView.fonts.dropFirst(2), id: \.0) { f in
+                    EmberButton(title: f.1, systemImage: fontChoice == f.0 ? "checkmark.circle.fill" : "circle",
+                                hint: "Use the \(f.1) font everywhere") { fontChoice = f.0 }
                 }
             }
             .card()

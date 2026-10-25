@@ -33,7 +33,7 @@ from ember_engine.core import geo, history, plan as planmod, router  # noqa: E40
 PROFILES = ["walker", "manual_chair", "manual_chair_pushed", "power_chair"]
 THRESHOLDS_MIN = [20, 30, 45]
 FRONT_KMH = 7.5      # Camp Fire: ignition 06:33 near Pulga (2018-11-08), in Paradise by ~08:00, ~11 km: see SOURCES
-HOURS = [1, 2, 3]
+HOURS = [1, 1.25, 1.5, 1.75, 2, 3]
 SOURCES = [
     ("CAL FIRE FRAP, California Historic Fire Perimeters (fire25_1)", "perimeters.json / history.json in the bundle; "
      "fetched by ember_engine.perimeters.fetch_frap at bundle build"),
@@ -70,6 +70,19 @@ def pct(n, d):
     return round(100.0 * n / d, 1) if d else None
 
 
+def make_plan_for(bundle, key, client):
+    """make_plan for the engine's client profiles; the 'pushed' chair (a caregiver pushing, shared/profiles.json) is
+    not a client mobility value, so it goes straight through Router.choose like staff/pregen._pushed_choices does."""
+    if key != "manual_chair_pushed":
+        return planmod.make_plan(bundle, "", client)
+    prof = router.Profile(key)
+    node, _ = bundle.graph.snap(client["lat"], client["lon"], router.usable_origin(bundle.graph, prof))
+    if node is None:
+        raise planmod.PlanError("no usable origin")
+    ch = router.choose(bundle.graph, bundle.refuges, prof, node)
+    return {"no_route": not ch, "choices": ch, "profile_key": key, "origin": {"node": node}}
+
+
 def client_for(profile_key, lat, lon, i):
     return {"id": f"e{i}", "name": f"Eval {i}", "mobility": profile_key.replace("_pushed", ""), "lat": lat, "lon": lon,
             "transfer": "standing", "devices": [], "pushed": profile_key.endswith("_pushed")}
@@ -77,22 +90,21 @@ def client_for(profile_key, lat, lon, i):
 
 # ----------------------------------------------------------------------------------------------------- route quality
 def route_quality(bundle, addresses):
-    out = {"profiles": {}, "n_addresses": len(addresses), "thresholds_min": THRESHOLDS_MIN, "points": []}
+    out = {"profiles": {}, "n_addresses": len(addresses), "thresholds_min": THRESHOLDS_MIN, "points": [], "plans": []}
     for key in PROFILES:
         rows = []
         for i, a in enumerate(addresses):
             c = client_for(key, a["lat"], a["lon"], i)
-            if key == "manual_chair_pushed":
-                c["mobility"] = "manual_chair"
-                c["caregiver"] = True
             try:
-                p = planmod.make_plan(bundle, "", c)
+                p = make_plan_for(bundle, key, c)
             except planmod.PlanError:
                 rows.append(None)
                 continue
             if p["no_route"]:
                 rows.append(None)
                 continue
+            if key == "manual_chair":
+                out["plans"].append(p)
             ch = p["choices"][0]
             rows.append({"minutes": ch["route"]["minutes"], "length_m": ch["route"]["length_m"],
                          "refuge": ch["refuge"]["name"], "n_choices": len(p["choices"]),
@@ -153,22 +165,34 @@ def robustness(bundle, addresses, seed=7, blocks_per_plan=10):
 
 
 # ---------------------------------------------------------------------------------------------- historical replay
+def front_along(bearing_from, origin_lat, origin_lon):
+    """metres along the upwind axis (bigger = closer to where the fire came from)."""
+    k = math.cos(math.radians(origin_lat))
+    th = math.radians(bearing_from)
+    ux, uy = math.sin(th), math.cos(th)
+
+    def along(lat, lon):
+        return ((lon - origin_lon) * k * ux + (lat - origin_lat) * uy) * 111320.0
+    return along
+
+
 def front_region(polygon, bearing_from, hours, origin_lat, origin_lon):
     """Points of `polygon` already burned `hours` after the front entered it: a straight front advancing from the
     `bearing_from` side of the (clipped) perimeter at FRONT_KMH. Returns a predicate(lat, lon)."""
-    k = math.cos(math.radians(origin_lat))
-    th = math.radians(bearing_from)
-    ux, uy = math.sin(th), math.cos(th)          # unit vector pointing TOWARD where the fire came from
-
-    def along(lat, lon):                          # metres along the upwind axis (bigger = more upwind)
-        return ((lon - origin_lon) * k * ux + (lat - origin_lat) * uy) * 111320.0
-
-    upwind_edge = max(along(p[1], p[0]) for p in polygon)
-    reach = upwind_edge - FRONT_KMH * 1000.0 * hours
+    along = front_along(bearing_from, origin_lat, origin_lon)
+    reach = max(along(p[1], p[0]) for p in polygon) - FRONT_KMH * 1000.0 * hours
 
     def burned(lat, lon):
         return along(lat, lon) >= reach and geo.point_in_polygon(lat, lon, polygon)
     return burned
+
+
+def _inside_sets(parts, points):
+    """Indices of `points` ((lat, lon)) inside any polygon part, via shapely (same library the perimeter fetcher uses)."""
+    from shapely.geometry import Point, Polygon
+    from shapely.prepared import prep
+    polys = [prep(Polygon(p["polygon"]).buffer(0)) for p in parts if len(p.get("polygon") or []) >= 3]
+    return {i for i, (la, lo) in enumerate(points) if any(pp.contains(Point(lo, la)) for pp in polys)}
 
 
 def replay(bundle, plans):
@@ -180,39 +204,46 @@ def replay(bundle, plans):
     clat, clon = (bbox[1] + bbox[3]) / 2, (bbox[0] + bbox[2]) / 2
     out = {"fires": [], "n_plans": len(plans), "front_kmh": FRONT_KMH, "hours": HOURS}
     g = bundle.graph
+    mids = [((g.lat[e["a"]] + g.lat[e["b"]]) / 2, (g.lon[e["a"]] + g.lon[e["b"]]) / 2) for e in g.edges]
+    rpts = [(r["centroid"][1], r["centroid"][0]) for r in bundle.refuges]
     for name, parts in fires.items():
         prior, used = history.prior_bearing(clat, clon, [p for p in parts if p.get("centroid")] or parts)
         bearing = prior if prior is not None else 0.0
+        along = front_along(bearing, clat, clon)
+        upwind = max(along(p[1], p[0]) for part in parts for p in part["polygon"])
+        inside_edges = _inside_sets(parts, mids)
+        inside_nodes = _inside_sets(parts, list(zip(g.lat, g.lon)))
+        inside_refuges = _inside_sets(parts, rpts)
         row = {"fire": name, "date": (parts[0].get("timestamp") or "")[:10], "acres": parts[0].get("acres"),
-               "front_from_deg": bearing, "hours": {}, "final": {}}
+               "front_from_deg": round(bearing, 1), "hours": {}}
         for hours in HOURS + ["final"]:
-            preds = [front_region(p["polygon"], bearing, 1e6 if hours == "final" else hours, clat, clon) for p in parts]
-            cut = rerouted = 0
+            reach = -1e12 if hours == "final" else upwind - FRONT_KMH * 1000.0 * hours
+            burned_edges = {i for i in inside_edges if along(*mids[i]) >= reach}
+            burned_ref = {i for i in inside_refuges if along(*rpts[i]) >= reach}
+            refs = [r for i, r in enumerate(bundle.refuges) if i not in burned_ref]
+            cut = rerouted = home_burned = 0
             deltas = []
-            burned_edges = set()
-            for i, e in enumerate(g.edges):
-                la, lo = (g.lat[e["a"]] + g.lat[e["b"]]) / 2, (g.lon[e["a"]] + g.lon[e["b"]]) / 2
-                if any(pr(la, lo) for pr in preds):
-                    burned_edges.add(i)
             for p in plans:
                 if p["no_route"]:
                     continue
                 ch = p["choices"][0]
+                o = p["origin"]["node"]
+                if along(g.lat[o], g.lon[o]) >= reach and o in inside_nodes:
+                    home_burned += 1          # the front reached the home itself: too late to start, not a routing failure
+                    continue
                 if not any(ei in burned_edges for ei in ch["route"]["edges"]):
                     continue
                 cut += 1
-                prof = router.Profile(p["profile_key"])
-                o = p["origin"]["node"]
-                refs = [r for r in bundle.refuges if not any(pr(r["centroid"][1], r["centroid"][0]) for pr in preds)]
-                alt = router.choose(g, refs, prof, o, blocked=frozenset(burned_edges))
+                alt = router.choose(g, refs, router.Profile(p["profile_key"]), p["origin"]["node"], blocked=frozenset(burned_edges))
                 if alt:
                     rerouted += 1
                     deltas.append(alt[0]["route"]["minutes"] - ch["route"]["minutes"])
-            key = str(hours)
             d = sorted(deltas)
-            row["hours"][key] = {"cut": cut, "cut_pct": pct(cut, len(plans)), "rerouted": rerouted,
-                                 "rerouted_pct": pct(rerouted, cut), "delta_median_min": d[len(d) // 2] if d else None,
-                                 "burned_edges": len(burned_edges), "burned_edges_pct": pct(len(burned_edges), len(g.edges))}
+            row["hours"][str(hours)] = {"cut": cut, "cut_pct": pct(cut, len(plans)), "rerouted": rerouted, "home_burned": home_burned,
+                                        "home_burned_pct": pct(home_burned, len(plans)),
+                                        "rerouted_pct": pct(rerouted, cut), "delta_median_min": d[len(d) // 2] if d else None,
+                                        "burned_edges": len(burned_edges), "burned_edges_pct": pct(len(burned_edges), len(g.edges)),
+                                        "refuges_left": len(refs)}
         row["sources"] = [u["fire"] for u in used]
         out["fires"].append(row)
     return out
@@ -328,14 +359,17 @@ rows = db.list_clients(); n_stamp = 0
 for r in rows:
     if r.get("plan"): workflow.stamp(r["id"], "Eval", True); n_stamp += 1
 t3 = time.perf_counter()
-n_pdf = 0; pages = []
-for r in db.list_clients()[:20]:
+n_pdf = 0; pages = []; too_long = []
+for r in db.list_clients()[:40]:
     if r.get("plan"):
-        b = pdf.render_pdf(r); pages.append(pdf.page_count(b)); n_pdf += 1
+        try:
+            _, n_pages, _ = pdf.render_pdf(r); pages.append(n_pages); n_pdf += 1
+        except pdf.CardTooLong:
+            too_long.append(r["id"])
 t4 = time.perf_counter()
 print(json.dumps({"imported": len(ps), "skipped": len(errs), "import_s": round(t1-t0, 2), "planned": s["done"], "failed": s["failed"],
                   "plan_s": round(t2-t1, 2), "stamped": n_stamp, "stamp_s": round(t3-t2, 2), "pdf_n": n_pdf, "pdf_s": round(t4-t3, 2),
-                  "pdf_pages_max": max(pages) if pages else None, "pdf_pages_over_2": sum(1 for p in pages if p > 2)}))
+                  "pdf_pages_max": max(pages) if pages else None, "pdf_pages_over_2": sum(1 for p in pages if p > 2), "pdf_too_long": too_long}))
 """
     with tempfile.TemporaryDirectory() as td:
         env = dict(os.environ, EMBER_DATA_DIR=td, EMBER_BUNDLES_DIR=str(bundle_dir.parent), EMBER_COUNTY=bundle_dir.name,
@@ -449,16 +483,16 @@ def render(m):
     # replay
     parts.append(f"<section class='wide'><h2>Historical replay: past fires against today's plans</h2><p class='muted'>FRAP perimeters since {history.RECENT_YEAR} baked into the bundle. "
                  f"A straight fire front enters the county from the historical side (engine <code>history.prior_bearing</code>) and advances at {rp['front_kmh']} km/h (Camp Fire, Pulga to Paradise, 2018-11-08: see sources). "
-                 f"A plan is <b>cut</b> when any edge of its primary route has burned; <b>rerouted</b> when a route to an unburned refuge still exists around the burned edges. {rp['n_plans']} client plans.</p>"
-                 "<div style='display:grid;grid-template-columns:1fr 1fr;gap:20px'><div><table><tr><th>Fire</th><th>Front</th><th>Hour</th><th class='n'>Burned edges</th><th class='n'>Routes cut</th><th class='n'>Rerouted</th><th class='n'>Δ median</th></tr>")
+                 f"A plan is <b>cut</b> when any edge of its primary route has burned; <b>rerouted</b> when a route to an unburned refuge still exists around the burned edges; a plan whose home has already burned is counted separately (leaving earlier, not routing, is the fix there). {rp['n_plans']} plans: {e(rp['plan_sources'])}.</p>"
+                 "<div style='display:grid;grid-template-columns:1fr 1fr;gap:20px'><div><table><tr><th>Fire</th><th>Front</th><th>Hour</th><th class='n'>Streets burned</th><th class='n'>Homes burned</th><th class='n'>Routes cut (home not yet)</th><th class='n'>Rerouted</th><th class='n'>Δ median</th><th class='n'>Refuges left</th></tr>")
     for f in rp["fires"]:
         first = True
         for hk, hv in f["hours"].items():
             parts.append(f"<tr><td>{e(f['fire']) + ' · ' + e(f['date']) + f' · {int(f['acres'] or 0):,} ac' if first else ''}</td><td>{('from ' + str(round(f['front_from_deg'])) + '°') if first else ''}</td>"
-                         f"<td>{'final perimeter' if hk == 'final' else 'h' + hk}</td><td class='n'>{hv['burned_edges_pct']}%</td><td class='n'>{hv['cut']}/{rp['n_plans']} ({hv['cut_pct']}%)</td>"
-                         f"<td class='n {'ok' if hv['rerouted'] == hv['cut'] else ('warn' if hv['rerouted'] else 'bad')}'>{hv['rerouted']}/{hv['cut']}</td><td class='n'>{'' if hv['delta_median_min'] is None else f'+{hv['delta_median_min']} min'}</td></tr>")
+                         f"<td>{'final perimeter' if hk == 'final' else hk + ' h'}</td><td class='n'>{hv['burned_edges_pct']}%</td><td class='n'>{hv['home_burned']} ({hv['home_burned_pct']}%)</td><td class='n'>{hv['cut']} ({hv['cut_pct']}%)</td>"
+                         f"<td class='n {'ok' if hv['rerouted'] == hv['cut'] else ('warn' if hv['rerouted'] else 'bad')}'>{hv['rerouted']}/{hv['cut']}</td><td class='n'>{'' if hv['delta_median_min'] is None else f'+{hv['delta_median_min']} min'}</td><td class='n'>{hv['refuges_left']}</td></tr>")
             first = False
-    parts.append(f"</table><p class='muted'>Honest reading: the Camp Fire's final perimeter contains all of Paradise, so at the end every route and every in-town refuge is inside it; the hour columns show how long the plans and the reroute logic keep working while the front crosses town, and the staff tool flags every client whose home burned.</p></div>"
+    parts.append(f"</table><p class='muted'>Honest reading: the Camp Fire's final perimeter contains all of Paradise, so at the end every home, route and in-town refuge is inside it; the hour columns show how the plans and the reroute logic hold up while the front crosses town. The front bearing is the engine's centroid proxy ({', '.join(str(round(f['front_from_deg'])) + '° for ' + f['fire'] for f in rp['fires'])}); the documented Camp Fire wind was north-easterly. Refuges outside the perimeter would need a wider bundle than this 10 km one.</p></div>"
                  f"<div>{m['replay_svg'].replace('<svg ', '<svg class=\"map\" ', 1)}<p class='legend'><span><i class='dot' style='background:#ff5a3c'></i>perimeter since {history.RECENT_YEAR}</span><span><i class='dot' style='background:#8a7a66'></i>older perimeter</span><span><i class='dot' style='background:#8dd9ff'></i>primary routes</span><span><i class='dot' style='background:#4ccc73'></i>refuges</span></p></div></div></section>")
 
     # audio + accessibility
@@ -488,7 +522,7 @@ def render(m):
         parts.append(f"<section><h2>Staff throughput</h2><p class='bad'>failed: {e(st['error'])}</p></section>")
     else:
         parts.append(f"<section><h2>Staff throughput ({st['n']} clients)</h2><div class='kpi'><div><b class='big'>{st['plans_per_hour']:,}</b><span>plans / hour (Run all: {st['planned']} planned in {st['plan_s']} s, {st['failed']} failed)</span></div>"
-                     f"<div><b class='big'>{st['stamps_per_hour']:,}</b><span>stamps / hour</span></div><div><b class='big'>{st['pdfs_per_hour']:,}</b><span>printed cards / hour ({st['pdf_n']} rendered, max {st['pdf_pages_max']} pages, {st['pdf_pages_over_2']} over 2)</span></div></div>"
+                     f"<div><b class='big'>{st['stamps_per_hour']:,}</b><span>stamps / hour</span></div><div><b class='big'>{st['pdfs_per_hour']:,}</b><span>printed cards / hour ({st['pdf_n']} rendered, max {st['pdf_pages_max']} pages, {st['pdf_pages_over_2']} over 2{', ' + str(len(st['pdf_too_long'])) + ' refused as too long' if st['pdf_too_long'] else ''})</span></div></div>"
                      f"<p class='muted'>Synthetic registry: the sample clients cycled over the county's {bd['addresses']} OSM addresses, imported in {st['import_s']} s. A volunteer's real bottleneck is reading each card; the tool keeps the queue visible (Clients → Review → Print queue).</p></section>")
     parts.append("<section class='wide'><h2>Sources</h2><table>" + "".join(f"<tr><td><b>{e(a)}</b></td><td class='muted'>{e(b)}</td></tr>" for a, b in SOURCES) + "</table></section>")
     parts.append(f"</main><footer>Regenerate: <code>cd eval && ../.venv/bin/python build_dashboard.py --bundle &lt;bundle dir&gt; --run-tests</code>. Metrics also written to <code>eval/metrics.json</code>.</footer></body></html>")
@@ -515,7 +549,10 @@ def main():
     m = {"county": bundle.county, "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
     print("route quality…"); m["route_quality"] = route_quality(bundle, addresses)
     print("robustness…"); m["robustness"] = robustness(bundle, addresses)
-    print("replay…"); m["replay"] = replay(bundle, plans)
+    replay_plans = plans + m["route_quality"]["plans"]
+    print("replay…"); m["replay"] = replay(bundle, replay_plans)
+    m["replay"]["plan_sources"] = f"{len(plans)} bundle plan{'s' if len(plans) != 1 else ''} + {len(m['route_quality']['plans'])} manual-chair plans from the county addresses"
+    del m["route_quality"]["plans"]
     print("audio…"); m["audio"] = audio_coverage(bdir, bundle, Path(a.registry))
     m["accessibility"] = accessibility()
     m["bundle"] = bundle_readiness(bdir, bundle)
@@ -526,7 +563,7 @@ def main():
     if a.run_tests and not a.quick:
         print("tests…"); m["tests"] = run_tests()
     m["coverage_svg"] = coverage_map_svg(bundle, m["route_quality"]["points"])
-    m["replay_svg"] = replay_map_svg(bundle, plans)
+    m["replay_svg"] = replay_map_svg(bundle, replay_plans)
     m["seconds"] = round(time.time() - t0, 1)
     (HERE / "metrics.json").write_text(json.dumps({k: v for k, v in m.items() if not k.endswith("_svg")}, indent=1))
     Path(a.out).write_text(render(m))
