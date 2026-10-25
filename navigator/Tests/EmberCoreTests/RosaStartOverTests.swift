@@ -78,9 +78,9 @@ import Testing
         expectFreshStart(m, "Start over → Start")
     }
 
-    @Test func startOverFromHomeIsANoOp() {
+    @Test func startOverFromHomeStaysHomeAndAnswers() {
         let m = NavigatorStateMachine(bundle: Fixtures.bundle)
         m.requestStartOver()
-        #expect(m.state == .home && m.utterances.isEmpty)
+        #expect(m.state == .home && m.utterances.map(\.text) == [NavigatorStateMachine.okay])
     }
 }
