@@ -223,7 +223,9 @@ struct NavigateView: View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
-        Screen {
+        // Default sizes: nothing scrolls and the map takes every point left (never cut by the pinned panel); at
+        // accessibility sizes the screen scrolls and the map is fixed-height.
+        Screen(scrolls: typeSize.isAccessibilitySize) {
             InstructionText(text: model.displayText)
             // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
             // large part of the screen").
@@ -253,9 +255,9 @@ struct NavigateView: View {
                             .accessibilityHint("Follow your position on the map again")
                     }
                 }
-                .frame(height: typeSize.isAccessibilitySize ? 300 : 340)
+                .frame(minHeight: typeSize.isAccessibilitySize ? 300 : 220, maxHeight: typeSize.isAccessibilitySize ? 300 : .infinity)
             }
-            CaregiverInfo(client: m?.client)
+            if typeSize.isAccessibilitySize { CaregiverInfo(client: m?.client) }
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
             // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
             EmberButton(title: "Start over", systemImage: "house", hint: "Stop guidance and go back to the start screen; asks first") { model.startOver() }
