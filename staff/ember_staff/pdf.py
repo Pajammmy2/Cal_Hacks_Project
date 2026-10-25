@@ -7,7 +7,7 @@ import io
 from . import card
 from .templating import templates
 
-MAX_TIGHTEN = len(card.LEVELS) - 1
+MAX_TIGHTEN = 2   # owner: never print below 16 pt; a long card goes to two pages instead
 
 
 class CardTooLong(Exception):
