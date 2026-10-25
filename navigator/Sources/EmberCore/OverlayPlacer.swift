@@ -228,10 +228,13 @@ public struct OverlayAuditRecord: Codable, Sendable, Equatable {
     public var outline: [[Double]]?
     /// Rects cut out of the route when it was drawn (pins it starts/ends at): no route pixel exists inside them.
     public var holes: [Item]?
+    /// How far the backdrop imagery is stretched past its native pixels at this zoom (1 = native, 2 = each image
+    /// pixel covers 2 screen pixels); nil when the map is drawn from vectors only. Owner rule #3 wants ≤ 1.5.
+    public var imageryScale: Double?
 
     public init(id: String, size: CGSize, route: [CGPoint], routeWidth: CGFloat, overlays: [Item], outline: [CGPoint]?,
-                holes: [CGRect] = []) {
-        self.id = id; width = size.width; height = size.height
+                holes: [CGRect] = [], imageryScale: Double? = nil) {
+        self.id = id; width = size.width; height = size.height; self.imageryScale = imageryScale
         self.route = route.map { [$0.x, $0.y] }; self.routeWidth = routeWidth; self.overlays = overlays
         self.outline = outline.map { $0.map { [$0.x, $0.y] } }
         self.holes = holes.isEmpty ? nil : holes.map { Item(name: "hole", rect: $0) }
