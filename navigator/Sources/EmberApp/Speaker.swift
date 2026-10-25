@@ -14,6 +14,8 @@ public final class Speaker: NSObject, ObservableObject {
 
     @Published public private(set) var currentText = ""
     @Published public private(set) var lastSource = ""
+    /// W1 watchdog: clips that would not start or never finished (shown in diagnostics; every one is a silent gap avoided).
+    @Published public private(set) var stalls = 0
     /// "slower": cached clips play at 0.85x (time-stretched), Apple TTS slows to match.
     @Published public var slower = false
     public static let normalVolume: Float = 0.85
@@ -143,13 +145,28 @@ public final class Speaker: NSObject, ObservableObject {
         p.rate = slower ? 0.85 : 1.0
         p.volume = volume
         player = p
+        var started = true
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             playerDone = c
             if !p.play() {
                 playerDone = nil
+                started = false
+                stalls += 1
                 c.resume()
+                return
+            }
+            // Watchdog: if the delegate never calls back, move the queue on after the clip's own length + grace.
+            let timeout = SpeechWatchdog.timeoutS(clipDuration: p.duration, rate: Double(p.rate))
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                guard let self, let cur = self.player, cur === p, self.playerDone != nil else { return }
+                self.stalls += 1
+                cur.stop()
+                self.playerDone?.resume()
+                self.playerDone = nil
             }
         }
+        if !started { await speakAppleFallbackForBadClip(url) }   // a clip that will not start must not mean silence
     }
 
     /// A corrupt clip must not leave silence: say the text with Apple TTS instead.
