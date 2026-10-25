@@ -573,8 +573,12 @@ public final class NavigatorStateMachine {
 
     /// No route to any chosen refuge: away from home go to the nearest fallback refuge, else "Stay here" with the
     /// location to read to 911; at home (within 100 m of the plan origin) the plan's own shelter script still applies.
+    /// A bedbound or shelter-only client cannot move, so "stay in the open" is never the answer for them whatever the
+    /// GPS says: they get the home script even when the fix is away from the card's address.
+    var mustShelterInPlace: Bool { client?.isBedbound == true || profile?.shelterOnly == true }
+
     func noRouteLeft(from node: Int?) {
-        if awayFromHome {
+        if awayFromHome, !mustShelterInPlace {
             if let node, let profile, !fallbackChoices(from: node).isEmpty {
                 choices = fallbackChoices(from: node)
                 choiceIndex = 0
@@ -611,7 +615,7 @@ public final class NavigatorStateMachine {
     }
 
     func enterShelter(lead: String?) {
-        if awayFromHome { enterStayHere(); return }     // the home script is never spoken away from home
+        if awayFromHome, !mustShelterInPlace { enterStayHere(); return }     // the home script is never spoken away from home
         state = .shelter
         shelterIndex = 0
         progress = nil
