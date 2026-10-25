@@ -45,9 +45,9 @@ def test_card_content(sample):
         assert s in html, s
     assert html.count("<polyline") >= 4          # route drawn on both satellite thumbnails
     # the ranking terms are for the reviewer, not for whoever picks the client up: preview only
-    assert "score" not in html and "Claude, satellite photo" not in html
+    assert "of 100" not in html and "Claude, satellite photo" not in html
     preview = pdf.render_html(db.get("c_harold"), for_print=False)
-    assert "score" in preview and "Claude, satellite photo" in preview
+    assert "of 100" in preview and "Claude, satellite photo" in preview
 
 
 def test_bedbound_card(sample):
