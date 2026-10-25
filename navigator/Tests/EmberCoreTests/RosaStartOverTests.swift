@@ -80,7 +80,15 @@ import Testing
 
     @Test func startOverFromHomeStaysHomeAndAnswers() {
         let m = NavigatorStateMachine(bundle: Fixtures.bundle)
-        m.requestStartOver()
+        #expect(m.requestStartOver(), "the reset happened now: the app may clear its Power-out clock")
         #expect(m.state == .home && m.utterances.map(\.text) == [NavigatorStateMachine.okay])
+    }
+
+    /// Mid-run the machine only asks "Start over?"; the app must not clear its Power-out clock until the Yes.
+    @Test func startOverMidRunOnlyAsks() throws {
+        let m = NavigatorStateMachine(bundle: Fixtures.bundle)
+        try m.start(client: Fixtures.client("walker"), caregiver: false)
+        #expect(!m.requestStartOver())
+        #expect(m.state == .whichWay && m.pending == .startOver)
     }
 }

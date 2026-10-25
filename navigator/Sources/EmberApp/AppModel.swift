@@ -373,7 +373,12 @@ public final class AppModel: ObservableObject {
     public func blocked() { guard settled else { return }; machine?.requestBlocked(); sync() }
     public func confirmPending() { guard settled else { return }; machine?.confirmPending(); sync() }
     public func cancelPending() { machine?.cancelPending(); sync() }
-    public func startOver() { machine?.requestStartOver(); sync() }
+    /// Settings -> Start over. The "Power is out" clock is cleared only when the machine really reset (on Home), not
+    /// when it merely asked "Start over?" mid-run.
+    public func startOver() {
+        if machine?.requestStartOver() == true { resetPowerOut() }
+        sync()
+    }
     /// "New fire" tapped: with a compass the phone's heading is the fire's direction; asks before rerouting.
     public func newFireTapped() { guard settled else { return }; machine?.requestFire(heading: compass.heading); sync() }
     public func repeatInstruction() { machine?.repeatCurrent(); sync() }
