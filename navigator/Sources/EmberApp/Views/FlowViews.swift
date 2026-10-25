@@ -278,7 +278,11 @@ struct NavigateView: View {
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
             }
             ButtonRow {
-                EmberButton(title: "Louder", systemImage: "speaker.wave.3.fill", hint: "Full volume, then the instruction again") { model.louder() }
+                // At accessibility sizes the rows stack: Louder leaves the pinned panel (voice "louder" and Repeat remain)
+                // so the instruction and the map stay on screen (engineer #2's finding).
+                if !typeSize.isAccessibilitySize {
+                    EmberButton(title: "Louder", systemImage: "speaker.wave.3.fill", hint: "Full volume, then the instruction again") { model.louder() }
+                }
                 EmberButton(title: voice.listening ? "Done" : "Speak", systemImage: voice.listening ? "mic.fill" : "mic",
                             hint: "Say blocked, fire, repeat, louder, where am I, or how long") { model.micTapped() }
             }

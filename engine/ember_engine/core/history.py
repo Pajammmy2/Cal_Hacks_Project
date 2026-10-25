@@ -154,8 +154,7 @@ def summary(historical, bbox):
         "all_perimeters": len({h["fire"] for h in historical or []}),
         "prior_bearing_deg": bearing,
         "prior_from": used,
-        "method": "vector mean over perimeters since %d within %d km of the county centre of the bearing to each "
-                  "perimeter's area centroid, weighted by log10(acres) and recency" % (RECENT_YEAR, NEAR_M / 1000),
+        "method": "vector mean over FRAP perimeters since 2017 that contain the location or lie within 40 km of it, of the bearing to each fire's documented ignition point (CAL FIRE incident pages / NIFC WFIGS; area centroid when undocumented), weighted by log10(acres) and recency",
         "source": "CAL FIRE FRAP California Historic Fire Perimeters (fire25_1 layer), clipped to the county bbox",
     }
 
