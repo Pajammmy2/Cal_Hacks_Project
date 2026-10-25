@@ -36,7 +36,7 @@ struct WhichWayView: View {
                     EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
                 }
                 ButtonRow {
-                    EmberButton(title: hasCompass ? "Point" : "Tap the direction",
+                    EmberButton(title: hasCompass ? "Point" : "Direction",
                                 systemImage: hasCompass ? "location.north.line.fill" : "hand.tap.fill",
                                 hint: hasCompass ? "Hold the phone flat, point the top at the smoke, then tap" : "Choose the direction of the smoke from a list") {
                         if hasCompass { model.pointAtSmoke() } else { picking = true }
@@ -162,23 +162,18 @@ struct ChooseView: View {
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
                 if let b {
-                    HStack(spacing: 12) {
-                        RouteMapView(graph: m.graph, route: b.route, position: m.position, refuge: b.refuge,
-                                     satellites: model.satellites,
-                                     online: voice.online, thumbnail: true, height: 140)
-                            .frame(width: 150)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                            Text(b.refuge.name).font(Theme.font(min(small * 1.3, 30), .bold)).foregroundColor(Theme.text)
-                                .lineLimit(3).minimumScaleFactor(0.7)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text("\(b.route.minutes) min").font(Theme.font(small * 1.2, .bold)).foregroundColor(Theme.dim)
-                        }
+                    // Text only (no postage-stamp map, owner complaint #4): short enough to sit whole above the buttons.
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+                        Text("\(b.refuge.name) · \(b.route.minutes) min").font(Theme.font(min(small * 1.2, 28), .bold)).foregroundColor(Theme.text)
+                            .lineLimit(2).minimumScaleFactor(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                     }
                     .card(padding: 12)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Or \(b.refuge.name), \(b.route.minutes) minutes. Tap Other to choose it.")
+                }
                 }
             }
         } buttons: {
