@@ -21,11 +21,11 @@ struct PaletteTests {
         }
     }
 
-    @Test func navyIsTheDefaultAndUnknownChoicesFallBackToIt() {
-        #expect(Palette.named(nil) == Palette.navy)
-        #expect(Palette.named("purple") == Palette.navy)
-        #expect(Palette.named("offwhite") == Palette.offWhite)
-        #expect(Palette.all.first?.id == "navy")
+    @Test func offWhiteIsTheDefaultAndUnknownChoicesFallBackToIt() {
+        #expect(Palette.named(nil) == Palette.offWhite)
+        #expect(Palette.named("purple") == Palette.offWhite)
+        #expect(Palette.named("navy") == Palette.navy)
+        #expect(Palette.all.first?.id == "offwhite")
     }
 
     @Test func wcagMathMatchesKnownValues() {

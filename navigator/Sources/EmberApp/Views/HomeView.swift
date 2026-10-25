@@ -123,10 +123,10 @@ struct SettingsView: View {
 
     static let fonts = [("inter", "Inter"), ("system", "Apple"), ("hyperlegible", "Hyperlegible")]
     static let mapStyles = [("satellite", "Satellite", "photo.fill"), ("drawn", "Drawn", "map.fill")]
-    static let palettes = [("navy", "Navy", "moon.fill"), ("offwhite", "Off-white", "sun.max.fill")]
+    static let palettes = [("offwhite", "Off-white", "sun.max.fill"), ("navy", "Navy", "moon.fill")]
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
     @AppStorage(Theme.mapStyleKey) private var mapStyle = "satellite"
-    @AppStorage(Theme.paletteKey) private var palette = "navy"
+    @AppStorage(Theme.paletteKey) private var palette = "offwhite"
 
     var body: some View {
         Screen {
