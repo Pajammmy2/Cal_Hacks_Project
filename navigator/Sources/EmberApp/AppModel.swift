@@ -245,16 +245,7 @@ public final class AppModel: ObservableObject {
     }
 
     /// Navigate/Choose "Point": the phone is pointed at new smoke; the fire bearing is updated and the route turns away.
-    public func pointAtNewFire() {
-        guard let h = compass.heading else {
-            // No compass: the machine picks the best bearing it has (report -> history -> ahead) and says which.
-            machine?.newFireWithoutCompass()
-            sync()
-            return
-        }
-        machine?.pointAtNewFire(bearing: h)
-        sync()
-    }
+    public func pointAtNewFire() { newFireTapped() }
 
     /// "Fire ahead" without a bearing: the fire is where the user is heading (compass, else the route edge).
     public func fireAhead() { machine?.fireAhead(heading: compass.heading); sync() }
@@ -262,7 +253,12 @@ public final class AppModel: ObservableObject {
     public func go() { machine?.go(); sync() }
     public func other() { machine?.other(); sync() }
     public func cantMove() { machine?.cantMove(); sync() }
-    public func blocked() { machine?.blockCurrent(); sync() }
+    public func blocked() { machine?.requestBlocked(); sync() }
+    public func confirmPending() { machine?.confirmPending(); sync() }
+    public func cancelPending() { machine?.cancelPending(); sync() }
+    public func startOver() { machine?.requestStartOver(); sync() }
+    /// "New fire" tapped: with a compass the phone's heading is the fire's direction; asks before rerouting.
+    public func newFireTapped() { machine?.requestFire(heading: compass.heading); sync() }
     public func repeatInstruction() { machine?.repeatCurrent(); sync() }
     public func shelterNext() { machine?.shelterNext(); sync() }
     public func shelterBack() { machine?.shelterBack(); sync() }
@@ -272,6 +268,8 @@ public final class AppModel: ObservableObject {
     public func done() { machine?.done(); speaker.stop(); sync() }
     /// Back to Home from any screen (Which way "Back", Navigate "Start over"): stops speech and guidance.
     public func goHome() { leaveNavigateCamera(); machine?.goHome(); speaker.stop(); sync() }
+    /// Re-check after a confirmed Start over: the camera and timers go with the route.
+    func syncAfterPending() { if state == .home { leaveNavigateCamera() } }
 
     public func micTapped() {
         voice.toggle { [weak self] text in

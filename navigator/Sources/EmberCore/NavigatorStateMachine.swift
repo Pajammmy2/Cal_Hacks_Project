@@ -35,6 +35,53 @@ public final class NavigatorStateMachine {
     public static let shelterLast = "That is the last step. Stay in the room and keep the phone on."
     public static let whichWaySmoke = "Which way is the smoke?"
     public static let whichWayNewFire = "Which way is the new fire?"
+    // Confirm step (round 2, all five found the mis-tap risk): a tap on Blocked / New fire / Start over asks first.
+    public static let rerouteQuestion = "Find a new route? Say yes to reroute."
+    public static let fireAheadQuestion = "Fire ahead. Turning away from it. Say yes to reroute."
+    public static let startOverQuestion = "Stop and go back to the start? Say yes to stop."
+    public static let okay = "Okay."
+
+    /// What a tapped button is waiting to do until the person answers Yes / No.
+    public enum Pending: Equatable, Sendable { case blocked, fireAhead(heading: Double?), newFireNoCompass, startOver }
+    public private(set) var pending: Pending?
+
+    /// "Blocked" tapped: ask before throwing the route away (one mis-tap doubled Harold's trip).
+    public func requestBlocked() {
+        guard state == .navigate else { return }
+        pending = .blocked
+        say(NavigatorStateMachine.rerouteQuestion)
+    }
+
+    /// "New fire" tapped with a compass heading (nil: no compass, the report -> history -> ahead chain runs on Yes).
+    public func requestFire(heading: Double?) {
+        guard state == .navigate || state == .choose else { return }
+        pending = heading == nil ? .newFireNoCompass : .fireAhead(heading: heading)
+        say(NavigatorStateMachine.fireAheadQuestion)
+    }
+
+    /// "Start over" tapped on Navigate / Choose: back to Home only after a Yes.
+    public func requestStartOver() {
+        guard state != .home else { return }
+        pending = .startOver
+        say(NavigatorStateMachine.startOverQuestion)
+    }
+
+    public func confirmPending() {
+        guard let p = pending else { return }
+        pending = nil
+        switch p {
+        case .blocked: blockCurrent()
+        case .fireAhead(let h): fireAhead(heading: h)
+        case .newFireNoCompass: newFireWithoutCompass()
+        case .startOver: goHome()
+        }
+    }
+
+    public func cancelPending() {
+        guard pending != nil else { return }
+        pending = nil
+        say([Utterance(NavigatorStateMachine.okay)] + currentRepeat())
+    }
 
     public let bundle: EmberBundle
     public var config: SharedConfig { bundle.config }
