@@ -184,8 +184,8 @@ struct RouteMapView: View {
             #endif
             GeometryReader { g in
                 Color.clear
-                    .onAppear { onSize?(g.size) }
-                    .onChange(of: g.size) { onSize?($0) }
+                    .onAppear { onSize?(g.size); OverlayAuditDump.mapOrigin = g.frame(in: .global).origin }
+                    .onChange(of: g.size) { onSize?($0); OverlayAuditDump.mapOrigin = g.frame(in: .global).origin }
             }
             Canvas(rendersAsynchronously: false) { ctx, size in
                 guard let proj = projection(size) else { return }
@@ -289,7 +289,7 @@ struct RouteMapView: View {
         if case .drawn = mode { drawStreets(ctx, size, proj, skipping: routeEdges) }
         let outline = drawRefugeArea(ctx, pt)
         var placer = OverlayPlacer(bounds: CGRect(origin: .zero, size: size).insetBy(dx: 5 * k, dy: 5 * k),
-                                   routeClearance: routeWidth / 2 + 3, gap: 4 * k)
+                                   routeClearance: routeWidth / 2 + 8, gap: 4 * k)   // >= 8 pt between route and any chrome (reviewers: scale bar)
         var audit: [OverlayAuditRecord.Item] = []
         var holes: [CGRect] = []
         // `audited`: a label/pin/control the route may never touch. The user marker (the person stands on the route),
@@ -302,17 +302,24 @@ struct RouteMapView: View {
         // Route: trimmed so no pixel of it (casing included) touches the refuge outline.
         let full = route.nodes.map { pt(graph.lat[$0], graph.lon[$0]) }
         var pts = full
-        if let outline { pts = OverlayPlacer.trim(pts, outside: outline, clearance: routeWidth / 2 + 1.25 * k + 2) }
+        if let outline { pts = OverlayPlacer.trim(pts, outside: outline, clearance: routeWidth / 2 + 1.25 * k + 4) }
         placer.addRoute(pts)
         if case .drawn = mode {} else { reserve("Apple attribution", CGRect(x: 0, y: size.height - 24 * k, width: 110 * k, height: 24 * k), audited: false) }
         if let outline { reserve("refuge outline", outlineBox(outline), audited: false) }
         let you = youRect(pt)
-        if let you { reserve("you", you, audited: false) }
+        if let you {
+            // The person stands on the route: the route is cut out under the arrow (owner review d) so no route pixel
+            // runs beneath it, and the arrow itself is audited like a pin.
+            reserve("you", you, audited: false)
+            let arrow = you.insetBy(dx: 4 * k, dy: 4 * k)
+            holes.append(arrow)
+            audit.append(.init(name: "position arrow", rect: arrow.insetBy(dx: 3, dy: 3)))
+        }
         // Pins sit on the route by definition (it starts and ends there): the route is cut out around them instead.
         var start = startMarker(size, pt)
-        if let start { reserve("Start dot", start.rect); holes.append(start.rect.insetBy(dx: -2, dy: -2)) }
+        if let start { reserve("Start dot", start.rect); holes.append(start.rect.insetBy(dx: -4, dy: -4)) }
         var badge = refugeMarker(size, pt)
-        if let badge, badge.onScreen { reserve("refuge badge", badge.rect); holes.append(badge.rect.insetBy(dx: -2, dy: -2)) }
+        if let badge, badge.onScreen { reserve("refuge badge", badge.rect); holes.append(badge.rect.insetBy(dx: -4, dy: -4)) }
         // Re-centre: bottom-centre inside the map, another corner when the route runs there; when every corner is
         // taken it stays bottom-centre and the route is cut out under it (it must stay reachable).
         var recentre: (CGRect, GraphicsContext.ResolvedText)? = nil
@@ -321,7 +328,12 @@ struct RouteMapView: View {
             let m = t.measure(in: CGSize(width: 400, height: 100))
             let sz = CGSize(width: m.width + m.height * 0.9 + 8 + 24, height: max(44, m.height + 16))
             let corners: [OverlayPlacer.Corner] = [.bottomCentre, .bottomRight, .bottomLeft, .topRight, .topLeft, .topCentre]
-            if let r = placer.placeChrome(size: sz, corners: corners, margin: 10 * k) {
+            // Owner rule #2: bottom-centre at every size. When the control is too wide to clear Apple's attribution
+            // (AX sizes) it is lifted above the attribution, still centred, before any other corner is tried.
+            let lifted: CGFloat = { if case .drawn = mode { return 0 } else { return 26 * k } }()
+            if let r = placer.placeChrome(size: sz, corners: [.bottomCentre], margin: 10 * k)
+                ?? (lifted > 0 ? placer.placeChrome(size: sz, corners: [.bottomCentre], margin: 10 * k + lifted) : nil)
+                ?? placer.placeChrome(size: sz, corners: Array(corners.dropFirst()), margin: 10 * k) {
                 recentre = (r, t)
             } else {
                 // Every corner has route under it: cut the route out instead, at the first corner clear of the person.
@@ -748,8 +760,12 @@ enum OverlayAuditDump {
     static let dir: String? = ProcessInfo.processInfo.environment["EMBER_OVERLAY_AUDIT"]
     nonisolated(unsafe) static var seen: Set<String> = []
 
+    /// Where the map sits in the window (points), so the sidecar can be checked against a whole-screen screenshot.
+    nonisolated(unsafe) static var mapOrigin: CGPoint = .zero
+
     static func record(_ r: OverlayAuditRecord) {
         guard let dir else { return }
+        writeSidecar(r, dir: dir)
         guard let data = try? JSONEncoder().encode(r) else { return }
         let key = "\(r.id)-\(data.hashValue)"
         guard !seen.contains(key) else { return }
@@ -757,5 +773,40 @@ enum OverlayAuditDump {
         let name = r.id.replacingOccurrences(of: "/", with: "_") + "-\(String(format: "%08x", UInt32(truncatingIfNeeded: data.hashValue))).json"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+    }
+
+    /// W2's overlay-gate format (`<screenshot>.overlays.json`): every pill / pin / control / the refuge outline in
+    /// window points, the map's own rect as `canvas`, and the imagery scale. Overwritten on every layout; the shot
+    /// script copies the latest one next to each PNG so `tools/overlay_check.py` really checks the pixels.
+    static func writeSidecar(_ r: OverlayAuditRecord, dir: String) {
+        #if os(iOS)
+        let screen = UIScreen.main.bounds.size, scale = Double(UIScreen.main.scale)
+        #else
+        let screen = CGSize(width: 402, height: 874), scale = 3.0
+        #endif
+        let o = mapOrigin
+        func kind(_ name: String) -> String {
+            let n = name.lowercased()
+            if n.contains("pill") || n.contains("street") || n.contains("name") { return "chip" }
+            if n.contains("compass") || n == "north" { return "north" }
+            if n.contains("scale") { return "scale" }
+            if n.contains("re-centre") { return "button" }
+            return "pin"
+        }
+        var items: [[String: Any]] = [["view": "map", "kind": "canvas", "x": o.x, "y": o.y, "w": r.width, "h": r.height]]
+        for it in r.overlays {
+            items.append(["view": "map", "kind": kind(it.name), "name": it.name,
+                          "x": it.x + o.x, "y": it.y + o.y, "w": it.w, "h": it.h])
+        }
+        if let ring = r.outline, ring.count >= 3 {
+            items.append(["view": "map", "kind": "refuge", "x": 0, "y": 0, "w": 0, "h": 0,
+                          "poly": ring.map { [$0[0] + o.x, $0[1] + o.y] }])
+        }
+        var doc: [String: Any] = ["screen_pt": [screen.width, screen.height], "scale": scale,
+                                  "route_rgb": [232, 115, 26], "tol": 30, "overlays": items, "id": r.id]
+        if let s = r.imageryScale { doc["imagery"] = ["map": s] }
+        guard let data = try? JSONSerialization.data(withJSONObject: doc, options: [.prettyPrinted, .sortedKeys]) else { return }
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try? data.write(to: URL(fileURLWithPath: dir).appendingPathComponent("latest.overlays.json"))
     }
 }

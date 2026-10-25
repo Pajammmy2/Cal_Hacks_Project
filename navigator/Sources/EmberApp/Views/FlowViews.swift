@@ -150,7 +150,7 @@ struct ChooseView: View {
                         Label("Go here", systemImage: "arrow.forward.circle.fill")
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.accent)
                         if !typeSize.isAccessibilitySize { Spacer() }
-                        Label("\(a.route.minutes) min", systemImage: "figure.roll")
+                        Label("\(a.route.minutes) min", systemImage: m.client?.mobilityIcon ?? "figure.walk")
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.text)
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -159,7 +159,7 @@ struct ChooseView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellites: model.satellites,
-                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 280 : 300)
+                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 190 : 300)   // AX: whole map above the pinned buttons (owner pass 3)
                 }
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
@@ -227,7 +227,7 @@ struct NavigateView: View {
         // large part of the screen").
         StatLine(items: [
             p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
-            ("\(mins) min", "to go", "figure.roll"),
+            ("\(mins) min", "to go", model.machine?.client?.mobilityIcon ?? "figure.walk"),
         ].compactMap { $0 })
         // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
         if let eta {
@@ -253,15 +253,6 @@ struct NavigateView: View {
         }
     }
 
-    var navigateStartOver: some View {
-        // Home exit (base finding, unfixed in all five): small, at the end of the content, never in the pinned row, confirmed.
-        Button { model.startOver() } label: {
-            StartOverLabel()
-        }
-        .accessibilityLabel("Start over")
-        .accessibilityHint("Stop guidance and go back to the start screen; asks first")
-    }
-
     @ViewBuilder
     func navigate(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
@@ -271,23 +262,21 @@ struct NavigateView: View {
         // accessibility sizes the screen scrolls and the map is fixed-height.
         Screen(scrolls: false) {
             if typeSize.isAccessibilitySize {
-                // Accessibility sizes: the words scroll in their own area and the map is pinned whole below them
-                // (240 pt, never under the button panel; engineer #1's AX5 finding). Default sizes: nothing scrolls
-                // and the map takes every point left.
+                // Accessibility sizes (owner pass 3): the instruction is never truncated and the distance/time strip
+                // stays under it; the map keeps a minimum height below them and the whole column scrolls when the words
+                // need the room. Nothing sits under the pinned buttons.
                 ScrollView(showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 12) {
                         navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                        navigateMap(m, p).frame(height: 220)
                         CaregiverInfo(client: m?.client)
-                        navigateStartOver
                     }
                     .padding(.bottom, 8)
                 }
                 .frame(maxHeight: .infinity)
-                navigateMap(m, p).frame(height: 240)
             } else {
                 navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
                 navigateMap(m, p).frame(minHeight: 220, maxHeight: .infinity)
-                navigateStartOver
             }
         } buttons: {
             if m?.pending != nil {
@@ -370,11 +359,3 @@ struct ArrivedView: View {
     }
 }
 
-/// Quiet (dim, unfilled) but still Dynamic Type: the way home must be readable at AX5 too.
-private struct StartOverLabel: View {
-    @ScaledMetric(relativeTo: .body) private var size: CGFloat = 17
-    var body: some View {
-        Label("Start over", systemImage: "house").font(Theme.font(size, .semibold)).foregroundColor(Theme.dim)
-            .frame(maxWidth: .infinity, minHeight: 56)
-    }
-}

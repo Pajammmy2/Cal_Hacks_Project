@@ -22,15 +22,29 @@ struct HomeView: View {
                                 .foregroundColor(selected ? Theme.onAccent : Theme.text)
                         }
                         VStack(alignment: .leading, spacing: 2) {
+                            // Rule #4: the name gets the full card width at AX sizes (the tick moves under it) and shrinks
+                            // as a whole word before it would ever break mid-word ("Margar / et", owner pass 3).
                             Text(p.name).font(Theme.font(nameSize, .bold))
-                            Text(p.mobilityLabel).font(Theme.font(nameSize * 0.72, .medium)).foregroundColor(Theme.dim)
+                                .lineLimit(typeSize.isAccessibilitySize ? 2 : nil).minimumScaleFactor(0.6)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(p.mobilityLabel).font(Theme.font(nameSize * 0.72, .medium)).foregroundColor(Theme.dim)
+                                    .lineLimit(2).minimumScaleFactor(0.6)
+                                if typeSize.isAccessibilitySize {
+                                    Spacer(minLength: 0)
+                                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                        .font(Theme.font(nameSize * 0.9, .bold))
+                                        .foregroundColor(selected ? Theme.accent : Theme.dim)
+                                }
+                            }
                         }
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .font(Theme.font(nameSize * 1.1, .bold))
-                            .foregroundColor(selected ? Theme.accent : Theme.dim)
+                        if !typeSize.isAccessibilitySize {
+                            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                .font(Theme.font(nameSize * 1.1, .bold))
+                                .foregroundColor(selected ? Theme.accent : Theme.dim)
+                        }
                     }
                     .foregroundColor(Theme.text)
                     .frame(minHeight: Theme.minButtonHeight)
@@ -83,14 +97,7 @@ struct HomeView: View {
         }
     }
 
-    func icon(_ p: ClientProfile) -> String {
-        switch p.mobility {
-        case "manual_chair", "power_chair": return "figure.roll"
-        case "walker", "cane": return "figure.walk"
-        case "bedbound": return "bed.double.fill"
-        default: return "person.fill"
-        }
-    }
+    func icon(_ p: ClientProfile) -> String { p.mobilityIcon }
 }
 
 /// Label that wraps, switch on the right, at every text size.
@@ -169,6 +176,13 @@ struct SettingsView: View {
                 }
             }
             .card()
+            // Owner review (rule #5): "Start over" lives here, not between the Navigate map and its buttons.
+            Button { model.settingsShown = false; model.startOver() } label: {
+                Label("Start over", systemImage: "house").font(Theme.font(20, .semibold)).foregroundColor(Theme.text)
+                    .frame(maxWidth: .infinity, minHeight: Theme.minButtonHeight, alignment: .leading)
+            }
+            .card()
+            .accessibilityHint("Stop guidance and go back to the start screen; asks first")
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Font")
                 // two per row at most: three across truncated "Hyperlegible" to "Hyp…" on a 390 pt phone
