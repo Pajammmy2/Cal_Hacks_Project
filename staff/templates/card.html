@@ -4,134 +4,144 @@
 <meta charset="utf-8">
 <title>Plan card: {{ p.name }}</title>
 <style>
+  @font-face { font-family: "Inter"; src: url("{{ font_dir }}/Inter-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "Inter"; src: url("{{ font_dir }}/Inter-Bold.ttf"); font-weight: 700; }
   @page { size: Letter; margin: {{ L.margin }}in; }
   * { box-sizing: border-box; }
-  html, body { background: #fff; color: #000; margin: 0; padding: 0; }
-  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: {{ body_pt }}pt; line-height: {{ L.lh }}; }
-  .sheet { width: {{ 8.5 - 2 * L.margin }}in; margin: 0 auto; }
+  html, body { background: #F6F3EE; color: #2B3440; margin: 0; padding: 0; }
+  body { font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: {{ body_pt }}pt; line-height: {{ L.lh }}; }
+  .sheet { width: {{ 8.5 - 2 * L.margin }}in; margin: 0 auto; position: relative; }
   {% if not for_print %}
-  .sheet { width: 8.5in; padding: {{ L.margin }}in; }
-  .page { min-height: {{ 11 - 2 * L.margin }}in; }
-  .page.front { border-bottom: 3px dashed #888; margin-bottom: {{ L.margin * 2 }}in; padding-bottom: 0.1in; }
+  .sheet { width: 8.5in; padding: {{ L.margin }}in; min-height: 11in; }
   {% if scale and scale != 1 %}body { zoom: {{ scale }}; }{% endif %}
   {% endif %}
-  h1, h2 { font-size: {{ head_pt }}pt; line-height: 1.1; margin: 0; font-weight: 800; }
-  h2 { margin-top: {{ L.h2_top }}in; border-bottom: 3px solid #000; padding-bottom: 1pt; margin-bottom: {{ L.gap + 1 }}pt;
-       display: flex; justify-content: space-between; align-items: baseline; gap: 0.15in; }
-  h2 .aside { font-size: {{ body_pt }}pt; font-weight: 400; }
-  p { margin: 0 0 {{ L.gap }}pt 0; }
-  ol, ul { margin: 0; padding-left: 1.25em; }
-  li { margin: 0 0 {{ L.gap }}pt 0; }
-  .who { display: flex; justify-content: space-between; align-items: baseline; gap: 0.2in; }
-  .tag { border: 2px solid #000; padding: 0 6pt; white-space: nowrap; }
-  .refuge { display: grid; gap: 0.14in; align-items: start; margin-top: {{ L.gap + 2 }}pt; }
-  .refuge.a { grid-template-columns: {{ L.img_a }}in 1fr; }
-  .refuge.b { grid-template-columns: {{ L.img_b }}in 1fr; }
-  {% if L.flow %}
-  /* deepest levels: steps flow beside and then under the photo, reclaiming the column below it */
-  .refuge { display: flow-root; }
-  .refuge > .imgbox { float: left; margin: 0 0.14in 0.06in 0; }
-  .refuge.a > .imgbox { width: {{ L.img_a }}in; }
-  .refuge.b > .imgbox { width: {{ L.img_b }}in; }
-  .refuge > div:last-child { display: block; }
-  p.step { margin: 0 0 {{ L.gap }}pt 0; }
-  {% endif %}
-  .rname { font-weight: 800; margin-bottom: {{ L.gap }}pt; line-height: 1.15; }
-  .refuge.a .rname { font-size: {{ body_pt + 4 }}pt; }
-  .refuge.b .rname { font-size: {{ body_pt + 1 }}pt; }
-  .imgbox { position: relative; width: 100%; aspect-ratio: 1 / 1; border: 2px solid #000; overflow: hidden; background: #bbb; }
+  b, strong { font-weight: 700; }
+  p, ol, ul { margin: 0; }
+  /* header grid: name / address left, mobility badge right, zone + alert line below */
+  .head { display: grid; grid-template-columns: 1fr auto; column-gap: 0.25in; row-gap: 2pt; align-items: end;
+          padding-bottom: {{ L.gap }}pt; border-bottom: 4px solid #E8731A; }
+  h1 { font-size: {{ head_pt }}pt; line-height: 1.05; margin: 0; font-weight: 700; }
+  .addr { font-size: {{ sub_pt }}pt; }
+  .badge { font-size: {{ sub_pt }}pt; font-weight: 700; color: #F6F3EE; background: #3A4654; border-radius: 6pt; padding: 2pt 10pt; white-space: nowrap; }
+  .meta { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 0 0.3in; }
+  .meta .line { border-bottom: 2px solid #E8731A; min-width: 2.2in; display: inline-block; vertical-align: baseline; padding: 0 4pt; }
+  h2 { font-size: {{ sub_pt }}pt; line-height: 1.15; margin: {{ L.gap + 4 }}pt 0 {{ L.gap }}pt; font-weight: 700;
+       display: flex; justify-content: space-between; align-items: baseline; gap: 0.15in;
+       border-bottom: 2px solid #E8731A; padding-bottom: 2pt; }
+  h2 .aside { font-size: {{ body_pt }}pt; font-weight: 400; color: #3F4B59; }
+  /* numbered rows that align: number column + text column */
+  .rows { display: grid; grid-template-columns: 1.4em 1fr; column-gap: 0.08in; row-gap: {{ L.gap }}pt; }
+  .rows .n { font-weight: 700; text-align: right; }
+  .rows .n::after { content: "."; }
+  .calls .who { font-weight: 700; }
+  /* refuge block: fixed image column, steps never wrap under the image */
+  .refuge { display: grid; grid-template-columns: {{ L.img }}in 1fr; column-gap: 0.2in; align-items: start; }
+  .headline { font-size: {{ sub_pt }}pt; font-weight: 700; line-height: 1.15; margin-bottom: {{ L.gap }}pt; }
+  .headline .min { color: #E8731A; white-space: nowrap; }
+  .imgbox { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #DDD7CD; border-radius: 6pt; }
   .imgbox > img, .imgbox > svg.route { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .imgbox > svg.inset { position: absolute; width: 42%; height: 42%; background: #fff; }
+  .imgbox > svg.inset { position: absolute; width: 42%; height: 42%; background: #F6F3EE; border-radius: 4pt; }
   .imgbox > svg.inset.br { right: 0; bottom: 0; } .imgbox > svg.inset.bl { left: 0; bottom: 0; }
   .imgbox > svg.inset.tr { right: 0; top: 0; }    .imgbox > svg.inset.tl { left: 0; top: 0; }
-  .back { {% if for_print %}break-before: page;{% endif %} }
-  .score { margin-bottom: {{ L.gap }}pt; }
-  .stamp { display: grid; grid-template-columns: 1fr auto; gap: 0.2in; align-items: end; margin-top: {{ L.h2_top + 0.04 }}in; }
-  .box { border: 3px solid #000; padding: 4pt 8pt; }
-  .fill { border-bottom: 2px solid #000; display: inline-block; min-width: 1.9in; padding: 0 4pt; }
+  .imgcap { font-size: 14pt; color: #3F4B59; margin-top: 3pt; line-height: 1.2; }
+  .alt { margin-top: {{ L.gap + 2 }}pt; }
+  .alt .headline { font-size: {{ body_pt }}pt; margin-bottom: 2pt; }
+  /* bottom: two columns for 3 / 4+5 */
+  .cols { display: block; }   /* sections 3-5 stack full width so Chromium can break the page between rows */
+  .kv b { font-weight: 700; }
+  .warn { font-weight: 700; border-left: 6px solid #E8731A; padding-left: 8pt; margin-bottom: {{ L.gap }}pt; }
+  /* fixed footer: review line left, QR + bundle id in the bottom-right corner */
+  .foot { display: grid; grid-template-columns: 1fr {{ L.qr }}in; column-gap: 0.2in; align-items: end;
+          margin-top: {{ L.gap + 4 }}pt; padding-top: {{ L.gap }}pt; border-top: 2px solid #E8731A; font-size: 14pt; color: #3F4B59; }
+  .foot .line { border-bottom: 2px solid #E8731A; display: inline-block; min-width: 1.6in; padding: 0 4pt; color: #2B3440; }
   .qr img { width: {{ L.qr }}in; height: auto; display: block; image-rendering: pixelated; }
-  .warn { border: 3px solid #000; padding: 4pt 8pt; font-weight: 800; }
+  .qr .bid { font-size: 14pt; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .score { font-size: 14pt; color: #3F4B59; margin-top: {{ L.gap }}pt; }
+  .l2 { margin-top: {{ L.gap }}pt; padding-top: {{ L.gap }}pt; border-top: 1.5pt dotted #E8731A; }
+  .l2 .lab { font-weight: 700; color: #3F4B59; font-size: 14pt; margin-bottom: 2pt; }
+  .head, .foot, .imgbox, .headline { break-inside: avoid; }
+  h2 { break-after: avoid; }
 </style>
 </head>
 <body>
-{% macro refuge_block(R, steps, cls) %}
-  <div class="refuge {{ cls }}">
-    <div class="imgbox">
-      {% if R.thumb %}<img src="{{ R.thumb }}" alt="Satellite photo of {{ R.name }} with the route drawn on it">{% endif %}
-      <svg class="route" viewBox="0 0 {{ R.thumb_w }} {{ R.thumb_h }}" preserveAspectRatio="none" aria-hidden="true">
-        {% if R.route_pts %}
-        <polyline points="{{ R.route_pts }}" fill="none" stroke="#fff" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
-        <polyline points="{{ R.route_pts }}" fill="none" stroke="#000" stroke-width="18" stroke-linejoin="round" stroke-linecap="round"/>
-        {% if R.end_pt %}<circle cx="{{ R.end_pt[0] }}" cy="{{ R.end_pt[1] }}" r="30" fill="#000" stroke="#fff" stroke-width="10"/>{% endif %}
-        {% endif %}
-      </svg>
-      {% if R.off_thumb %}{{ R.inset | replace('class="inset"', 'class="inset ' ~ R.inset_corner ~ '"') | safe }}{% endif %}
-    </div>
-    <div>
-      <div class="rname">{% if cls == 'a' %}{{ H.go_to }}{% else %}{{ H.or }}{% endif %} {{ R.name }}. {{ R.minutes }} {{ H.minutes }}.</div>
-      {% if L.flow %}
-        {% for s in steps %}<p class="step"><b>{{ loop.index }}.</b> {{ s }}</p>{% endfor %}
-      {% else %}
-      <ol>
-        {% for s in steps %}<li>{{ s }}</li>{% endfor %}
-      </ol>
+{% macro steplist(steps) %}
+  <div class="rows">{% for s in steps %}<div class="n">{{ loop.index }}</div><div>{{ s }}</div>{% endfor %}</div>
+{% endmacro %}
+{% macro both(steps, steps_en) %}
+  {{ steplist(steps) }}
+  {% if bilingual and steps_en %}<div class="l2"><div class="lab">English</div>{{ steplist(steps_en) }}</div>{% endif %}
+{% endmacro %}
+{% macro thumb(R) %}
+  <div class="imgbox">
+    {% if R.thumb %}<img src="{{ R.thumb }}" alt="Satellite photo of {{ R.name }} with the route drawn on it">{% endif %}
+    <svg class="route" viewBox="0 0 {{ R.thumb_w }} {{ R.thumb_h }}" preserveAspectRatio="none" aria-hidden="true">
+      {% if R.route_pts %}
+      <polyline points="{{ R.route_pts }}" fill="none" stroke="#2B3440" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="{{ R.route_pts }}" fill="none" stroke="#E8731A" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+      {% if R.end_pt %}<circle cx="{{ R.end_pt[0] }}" cy="{{ R.end_pt[1] }}" r="28" fill="#E8731A" stroke="#2B3440" stroke-width="10"/>{% endif %}
       {% endif %}
-    </div>
+    </svg>
+    {% if R.off_thumb %}{{ R.inset | replace('class="inset"', 'class="inset ' ~ R.inset_corner ~ '"') | safe }}{% endif %}
   </div>
-{% endmacro %}
-{% macro devices_block() %}
-  <h2>{{ H.devices }}</h2>
-  {% if devices %}
-  <ul>
-    {% for s in devices %}<li>{{ s }}</li>{% endfor %}
-  </ul>
-  {% else %}<p>{{ H.no_devices }}</p>{% endif %}
-{% endmacro %}
-{% macro whoever_block() %}
-  <h2>{{ H.whoever }}</h2>
-  <p><b>{{ mobility_label }}.</b> <b>Transfer:</b> {{ transfer_label }}. {{ transfer_note }}
-     <b>{{ aid_label }} is kept:</b> {{ chair_location or 'not recorded' }}. <b>Pets:</b> {{ pets or 'none' }}.
-     <b>Getting in:</b> {{ entry or 'not recorded' }}. <b>Sleeps in:</b> {{ room or 'not recorded' }}.</p>
 {% endmacro %}
 <div class="sheet">
-<section class="page front">
-  <div class="who">
-    <h1>{{ p.name }}</h1>
-    <span class="tag">{{ mobility_label }}</span>
+  <div class="head">
+    <div>
+      <h1>{{ p.name }}</h1>
+      <div class="addr">{{ p.address or (plan.origin.matched if plan.origin else '') }}</div>
+    </div>
+    <div class="badge">{{ mobility_label }}</div>
+    <div class="meta">
+      <div><b>{{ H.zone }}:</b> {{ zone or '______' }}</div>
+      <div><b>{{ H.alert }}:</b> {% if alert_line %}{{ alert_line }}{% else %}<span class="line">&nbsp;</span>{% endif %}</div>
+    </div>
   </div>
-  <div>{{ p.address or (plan.origin.matched if plan.origin else '') }}</div>
 
   <h2>{{ H.leave }}{% if contacts %}<span class="aside">{{ H.contacts }}</span>{% endif %}</h2>
   {% if contacts %}
-  <ol>
+  <div class="rows calls">
     {% for c in contacts %}
-    <li><b>{{ c.name }}</b> {{ c.phone }}{% if c.accessible_vehicle %}, {{ H.accessible }}{% endif %}{% if c.distance %}, {{ c.distance }}{% endif %}</li>
+    <div class="n">{{ loop.index }}</div>
+    <div><span class="who">{{ c.name }}</span> &nbsp;{{ c.phone }}{% if c.accessible_vehicle %} · {{ H.accessible }}{% endif %}{% if c.distance %} · {{ c.distance }}{% endif %}</div>
     {% endfor %}
-  </ol>
+  </div>
   {% endif %}
-  <p><b>{{ H.zone }}:</b> {{ zone or '______' }}. <b>{{ H.alert }}:</b> {{ alert_line or '_____________' }}</p>
-  {% if L.devices_front %}{{ devices_block() }}{% endif %}
-  {% if L.whoever_front %}{{ whoever_block() }}{% endif %}
 
   <h2>{{ H.noone }}</h2>
   {% if no_route %}<p class="warn">{{ H.bedbound if p.mobility == 'bedbound' else H.no_route }}</p>{% endif %}
-  {% if A %}{{ refuge_block(A, steps_a, 'a') }}{% endif %}
-  {% if B and not L.b_on_back %}{{ refuge_block(B, steps_b, 'b') }}{% endif %}
-</section>
-
-<section class="page back">
-  {% if B and L.b_on_back %}
-  <h2>{{ H.noone }} <span class="aside">({{ H.cont }})</span></h2>
-  {{ refuge_block(B, steps_b, 'b') }}
+  {% if A %}
+  <div class="refuge">
+    <div>
+      {{ thumb(A) }}
+      <div class="imgcap">{{ A.name }}</div>
+    </div>
+    <div>
+      <div class="headline">{{ H.go_to }} {{ A.name }}. <span class="min">{{ A.minutes }} {{ H.minutes }}.</span></div>
+      {{ both(steps_a, steps_a_en) }}
+      {% if B %}
+      <div class="alt">
+        <div class="headline">{{ H.or }} {{ B.name }}. <span class="min">{{ B.minutes }} {{ H.minutes }}.</span></div>
+        {{ both(steps_b, steps_b_en) }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
   {% endif %}
-  <h2>{{ H.cannot }}</h2>
-  <ol>
-    {% for s in shelter %}<li>{{ s }}</li>{% endfor %}
-  </ol>
 
-  {% if not L.devices_front %}{{ devices_block() }}{% endif %}
-
-  {% if not L.whoever_front %}{{ whoever_block() }}{% endif %}
+  <div class="cols">
+    <div>
+      <h2>{{ H.cannot }}</h2>
+      {{ both(shelter, shelter_en) }}
+      <h2>{{ H.devices }}</h2>
+      {% if devices %}
+      {{ both(devices, devices_en) }}
+      {% else %}<p>{{ H.no_devices }}</p>{% endif %}
+      <h2>{{ H.whoever }}</h2>
+      <p class="kv"><b>{{ mobility_label }}.</b> <b>Transfer:</b> {{ transfer_label }}. {{ transfer_note }}
+         <b>{{ aid_label }} is kept:</b> {{ chair_location or 'not recorded' }}. <b>Pets:</b> {{ pets or 'none' }}.
+         <b>Getting in:</b> {{ entry or 'not recorded' }}. <b>Sleeps in:</b> {{ room or 'not recorded' }}.</p>
+    </div>
+  </div>
 
   {% if A and not for_print %}
   {% for R in [A, B] if R %}
@@ -144,14 +154,13 @@
   {% endfor %}
   {% endif %}
 
-  <div class="stamp">
+  <div class="foot">
     <div>
-      <div class="box">Reviewed by <span class="fill">{{ reviewed_by or '' }}</span><br>on <span class="fill">{{ reviewed_at or '' }}</span></div>
-      {% if voice_line %}<p style="margin-top:{{ L.gap + 2 }}pt">{{ voice_line }}</p>{% endif %}
+      Reviewed by <span class="line">{{ reviewed_by or '' }}</span> on <span class="line">{{ reviewed_at or '' }}</span>
+      {% if voice_line %}<br>{{ voice_line }}{% endif %}
     </div>
-    {% if qr %}<div class="qr"><img src="{{ qr }}" alt="QR code that opens this plan in the Ember app"></div>{% endif %}
+    {% if qr %}<div class="qr"><img src="{{ qr }}" alt="QR code that opens this plan in the Ember app"><div class="bid">{{ bundle_id }}</div></div>{% endif %}
   </div>
-</section>
 </div>
 </body>
 </html>

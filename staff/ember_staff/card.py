@@ -287,20 +287,16 @@ def _renumber(H, level):
     return H
 
 
+# Letter, up to two pages. Levels only tighten spacing and the image column; body type never goes below 14 pt.
 LEVELS = [
-    dict(margin=0.45, lh=1.25, h2_top=0.14, gap=5, img_a=2.4, img_b=1.7, qr=1.6, flow=False, b_on_back=False),
-    dict(margin=0.4, lh=1.2, h2_top=0.1, gap=4, img_a=2.25, img_b=1.6, qr=1.5, flow=False, b_on_back=False),
-    dict(margin=0.35, lh=1.15, h2_top=0.07, gap=2, img_a=2.1, img_b=1.5, qr=1.4, flow=False, b_on_back=False),
-    dict(margin=0.3, lh=1.12, h2_top=0.05, gap=1, img_a=2.1, img_b=1.5, qr=1.3, flow=True, b_on_back=False),
-    dict(margin=0.3, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True),
-    # Two real 7-step OSM routes overflow the back even at the level above (front: 300 px spare, back: 140 px over).
-    # Move "for whoever comes" to the front, next to the contacts a responder also needs.
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True, whoever_front=True),
-    # 22 pt cards with a 7-step route B: the devices list also moves to the front (the front still has room).
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True, whoever_front=True, devices_front=True),
+    dict(margin=0.5, lh=1.3, gap=6, img=2.1, qr=1.0, body_delta=0),
+    dict(margin=0.45, lh=1.25, gap=5, img=2.0, qr=0.95, body_delta=0),
+    dict(margin=0.4, lh=1.2, gap=4, img=1.9, qr=0.9, body_delta=-1),
+    dict(margin=0.4, lh=1.15, gap=3, img=1.8, qr=0.9, body_delta=-2),
+    dict(margin=0.35, lh=1.12, gap=2, img=1.7, qr=0.85, body_delta=-2),
+    dict(margin=0.3, lh=1.08, gap=1, img=1.5, qr=0.8, body_delta=-4),
 ]
+FONT_DIR = (Path(__file__).resolve().parents[1] / "static" / "fonts").as_uri()
 AID_KEPT = {"manual_chair": "Wheelchair", "power_chair": "Wheelchair", "walker": "Walker", "cane": "Cane",
             "bedbound": "Wheelchair"}
 
@@ -316,6 +312,7 @@ def context(row, tighten=0, for_print=False):
     lang = text.get("language")
     use_l2 = bool(lang and S.get("steps_l2") is not None and (S.get("steps_l2") or not a))
     sfx = "l2" if use_l2 else "en"
+    bilingual = bool(use_l2 and S.get("steps_en") is not None)   # owner: both languages on the card, English second
     L = LEVELS[min(tighten, len(LEVELS) - 1)]
     H = _renumber(HEADINGS["es" if (use_l2 and lang == "es") else "en"], L)
 
@@ -332,7 +329,12 @@ def context(row, tighten=0, for_print=False):
     pets = (home.get("pets") or "").strip()
     return {
         "row": row, "p": profile, "plan": plan, "H": H, "county": county,
-        "body_pt": 22 if big else 18, "head_pt": 28, "tighten": tighten, "for_print": for_print,
+        # 28 / 20 / 16 pt hierarchy (18 pt body for low vision); levels may take the body down to 14, never lower.
+        "body_pt": max(14, (18 if big else 16) + L["body_delta"]), "head_pt": 28, "sub_pt": 20,
+        "tighten": tighten, "for_print": for_print, "font_dir": FONT_DIR, "bilingual": bilingual,
+        "lang_label": (lang or "").strip(), "bundle_id": plan.get("bundle") or plan.get("bundle_id") or county,
+        "steps_a_en": S.get("steps_en") if bilingual else None, "steps_b_en": S.get("steps_b_en") if bilingual else None,
+        "shelter_en": S.get("shelter_en") if bilingual else None, "devices_en": S.get("devices_en") if bilingual else None,
         "L": LEVELS[min(tighten, len(LEVELS) - 1)], "aid_label": AID_KEPT.get(profile.get("mobility"), "Wheelchair"),
         "A": refuge_view(a, bdir, graph, "A") if a else None,
         "B": refuge_view(b, bdir, graph, "B") if b else None,

@@ -1,4 +1,4 @@
-"""HTML -> PDF with headless Chromium (Playwright). Letter, one sheet front and back (exactly 2 pages).
+"""HTML -> PDF with headless Chromium (Playwright). Letter, one sheet: one page, two at most (front and back).
 
 If the card runs long we tighten spacing and image sizes level by level; we never shrink the fonts.
 """
@@ -46,13 +46,17 @@ def render_pdf(row, allow_long=False):
         browser = p.chromium.launch()
         try:
             page = browser.new_page()
-            last = None
+            last = best = None
             for level in range(MAX_TIGHTEN + 1):
                 pdf = html_to_pdf(render_html(row, tighten=level), page)
                 n = page_count(pdf)
                 last = (pdf, n, level)
-                if n <= 2:
-                    return last
+                if n <= 1:
+                    return last                     # one page beats two: keep tightening while it helps
+                if n <= 2 and best is None:
+                    best = last                     # loosest layout that fits the sheet
+            if best is not None:
+                return best
         finally:
             browser.close()
     if allow_long:
