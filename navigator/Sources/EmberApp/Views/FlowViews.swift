@@ -14,6 +14,7 @@ struct WhichWayView: View {
         let fresh = !model.fireIsStale && model.fireBearingWord != nil
         let hasCompass = compass.heading != nil
         Screen {
+            HomeChip { model.homeTapped() }
             InstructionText(text: picking ? NavigatorStateMachine.whichWaySmoke : model.displayText)
             if picking {
                 DirectionPicker { bearing in
@@ -144,6 +145,7 @@ struct ChooseView: View {
         let b = m?.alternateChoice
         let header = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         Screen {
+            HomeChip { model.homeTapped() }
             if let a, let m {
                 VStack(alignment: .leading, spacing: 10) {
                     header {
@@ -263,6 +265,7 @@ struct NavigateView: View {
         // Default sizes: nothing scrolls and the map takes every point left (never cut by the pinned panel); at
         // accessibility sizes the screen scrolls and the map is fixed-height.
         Screen(scrolls: false) {
+            HomeChip { model.homeTapped() }
             if typeSize.isAccessibilitySize {
                 // Accessibility sizes (owner pass 3): the instruction is never truncated and the distance/time strip
                 // (with the demo "Next" at its end) stays under it; the map keeps a minimum height below them and the
@@ -316,6 +319,7 @@ struct ShelterView: View {
     var body: some View {
         let m = model.machine
         Screen {
+            HomeChip { model.homeTapped() }
             if let room = m?.shelter.room {
                 // Bounded and shrink-to-fit: at AX5 a 60 pt scaled title wrapped mid-word ("bedro / om"; found by engineer #2).
                 Text(room).font(Theme.font(min(roomSize, 48), .black)).foregroundColor(Theme.onAccent)
@@ -368,6 +372,7 @@ struct StayHereView: View {
 
     var body: some View {
         Screen {
+            HomeChip { model.homeTapped() }
             InstructionText(text: model.displayText)
             Text(model.machine?.stayHereText ?? "")
                 .font(Theme.font(min(coord, 44), .heavy)).foregroundColor(Theme.text)
@@ -388,6 +393,33 @@ struct StayHereView: View {
 
 /// Settings → "Demo: step through route": a small secondary button at the end of the distance/time strip. Slate
 /// outline, ≥ 44 pt, never wraps; the approved layout and the map are untouched.
+/// Owner: "a Home button to instantly return to the Home screen from any position in the route". Small slate-outline
+/// chip at the top of every in-run screen (44 pt, VoiceOver "Home"). Mid-route it asks first through the existing
+/// Start-over question ("Stop and go back to the start? Say yes to stop."); elsewhere it goes straight Home.
+struct HomeChip: View {
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Button(action: action) {
+                Label("Home", systemImage: "house")
+                    .padding(.horizontal, 12)
+                    .font(Theme.font(min(size, 24), .bold))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(minWidth: 44, minHeight: 44)
+                    .foregroundColor(Theme.text)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.text, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Home")
+            .accessibilityHint("Back to the start screen; asks first while you are on a route")
+        }
+    }
+}
+
 struct DemoNextButton: View {
     var compact = false
     let action: () -> Void

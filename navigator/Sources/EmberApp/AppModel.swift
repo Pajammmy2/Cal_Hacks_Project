@@ -390,6 +390,12 @@ public final class AppModel: ObservableObject {
     public func done() { guard settled else { return }; machine?.done(); speaker.stop(); sync() }
     /// Back to Home from any screen (Which way "Back", Navigate "Start over"): stops speech and guidance.
     public func goHome() { leaveNavigateCamera(); machine?.goHome(); speaker.stop(); sync() }
+    /// Home chip on every in-run screen: mid-route it asks first (same question and Yes/No as Settings -> Start over);
+    /// on Which way / Choose / shelter / arrived / stay-here nothing is lost, so it goes straight Home.
+    public func homeTapped() {
+        guard let m = machine else { goHome(); return }
+        if m.state == .navigate { startOver() } else { goHome() }
+    }
     /// Re-check after a confirmed Start over: the camera and timers go with the route.
     func syncAfterPending() { if state == .home { leaveNavigateCamera() } }
 
