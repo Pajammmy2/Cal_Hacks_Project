@@ -28,6 +28,12 @@ struct RouteMapView: View {
     var nextTurnNode: Int? = nil
     /// Reports the laid-out size (the overview camera needs the aspect).
     var onSize: ((CGSize) -> Void)? = nil
+    /// Navigate, following paused: the Re-centre control is drawn by the map (bottom-centre, moved or hidden by the
+    /// placer like every overlay) and tapped through `onRecentre`.
+    var showsRecentre = false
+    var onRecentre: (() -> Void)? = nil
+
+    @State private var recentreRect: CGRect? = nil
 
     @State private var manual: FollowCamera.Viewport? = nil
     @State private var gestureBase: FollowCamera.Viewport? = nil
@@ -208,6 +214,15 @@ struct RouteMapView: View {
             }
             .contentShape(Rectangle())
             .gesture(camera == nil ? nil : mapGesture)
+            if showsRecentre, let r = recentreRect {
+                Color.clear.contentShape(Rectangle())
+                    .frame(width: r.width, height: r.height)
+                    .position(x: r.midX, y: r.midY)
+                    .onTapGesture { onRecentre?() }
+                    .accessibilityLabel("Re-centre")
+                    .accessibilityHint("Follow your position on the map again")
+                    .accessibilityAddTraits(.isButton)
+            }
         }
         .onChange(of: paused) { now in if !now { manual = nil; gestureBase = nil } }
         .frame(height: thumbnail ? (height ?? thumbHeight) : nil)
@@ -263,30 +278,108 @@ struct RouteMapView: View {
         p.x >= -margin && p.y >= -margin && p.x <= size.width + margin && p.y <= size.height + margin
     }
 
-    /// Draw order (owner rule): streets, refuge area, the route, then every overlay above the route. Pills are placed by
-    /// `OverlayPlacer` so none touches the route, another pill, the user marker, the scale bar, the compass or the map
-    /// edge; a pill with no free spot is hidden. Priority: refuge name, Start, then street names.
+    /// Draw order (owner rule): streets, refuge area, the route, then every overlay above the route. Every overlay
+    /// (pills, the Start dot, the refuge badge, the scale bar, the compass, Re-centre) goes through one
+    /// `OverlayPlacer`: none may touch the route, another overlay, the user marker or the map edge; whatever has no
+    /// free spot is hidden, never drawn over. The route itself stops short of the refuge outline and of any badge it
+    /// would otherwise run under. Priority: refuge name, Start, Re-centre, scale bar, compass, then street names.
     func drawOverlays(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection) {
         let pt = proj.point
         let routeEdges = Set(route.edges)
         if case .drawn = mode { drawStreets(ctx, size, proj, skipping: routeEdges) }
-        drawRefugeArea(ctx, pt)
-        drawRoute(ctx, pt)
+        let outline = drawRefugeArea(ctx, pt)
         var placer = OverlayPlacer(bounds: CGRect(origin: .zero, size: size).insetBy(dx: 5 * k, dy: 5 * k),
-                                   routeClearance: 7 * k + 3, gap: 4 * k)
-        placer.addRoute(route.nodes.map { pt(graph.lat[$0], graph.lon[$0]) })
-        for r in chromeRects(ctx, size, proj.metersPerPoint) { placer.addObstacle(r) }
+                                   routeClearance: routeWidth / 2 + 3, gap: 4 * k)
+        var audit: [OverlayAuditRecord.Item] = []
+        var holes: [CGRect] = []
+        // `audited`: a label/pin/control the route may never touch. The user marker (the person stands on the route),
+        // Apple's attribution (not ours to move) and the refuge footprint (a map feature) are keep-outs for pills only.
+        func reserve(_ name: String, _ r: CGRect, audited: Bool = true) {
+            placer.addObstacle(r)
+            if audited { audit.append(.init(name: name, rect: r)) }
+        }
+
+        // Route: trimmed so no pixel of it (casing included) touches the refuge outline.
+        let full = route.nodes.map { pt(graph.lat[$0], graph.lon[$0]) }
+        var pts = full
+        if let outline { pts = OverlayPlacer.trim(pts, outside: outline, clearance: routeWidth / 2 + 1.25 * k + 2) }
+        placer.addRoute(pts)
+        if case .drawn = mode {} else { reserve("Apple attribution", CGRect(x: 0, y: size.height - 24 * k, width: 110 * k, height: 24 * k), audited: false) }
+        if let outline { reserve("refuge outline", outlineBox(outline), audited: false) }
         let you = youRect(pt)
-        if let you { placer.addObstacle(you) }
-        let start = drawStartDot(ctx, size, pt)
-        if let start { placer.addObstacle(start.rect) }
-        let badge = drawRefugeBadge(ctx, size, pt)
-        if let badge { placer.addObstacle(badge.rect) }
-        if let badge { placeRefugePill(ctx, size, &placer, badge) }
-        if let start { placeStartPill(ctx, size, &placer, start) }
-        if size.height >= 200 { drawTurnStreetNames(ctx, size, pt, &placer) }
+        if let you { reserve("you", you, audited: false) }
+        // Pins sit on the route by definition (it starts and ends there): the route is cut out around them instead.
+        var start = startMarker(size, pt)
+        if let start { reserve("Start dot", start.rect); holes.append(start.rect.insetBy(dx: -2, dy: -2)) }
+        var badge = refugeMarker(size, pt)
+        if let badge, badge.onScreen { reserve("refuge badge", badge.rect); holes.append(badge.rect.insetBy(dx: -2, dy: -2)) }
+        // Re-centre: bottom-centre inside the map, another corner when the route runs there; when every corner is
+        // taken it stays bottom-centre and the route is cut out under it (it must stay reachable).
+        var recentre: (CGRect, GraphicsContext.ResolvedText)? = nil
+        if showsRecentre {
+            let t = ctx.resolve(Text("Re-centre").font(Theme.font(min(recentreFont, 21), .bold)).foregroundColor(Theme.onAccent))
+            let m = t.measure(in: CGSize(width: 400, height: 100))
+            let sz = CGSize(width: m.width + m.height * 0.9 + 8 + 24, height: max(44, m.height + 16))
+            let corners: [OverlayPlacer.Corner] = [.bottomCentre, .bottomRight, .bottomLeft, .topRight, .topLeft, .topCentre]
+            if let r = placer.placeChrome(size: sz, corners: corners, margin: 10 * k) {
+                recentre = (r, t)
+            } else {
+                // Every corner has route under it: cut the route out instead, at the first corner clear of the person.
+                let cands = corners.map { OverlayPlacer.rect(size: sz, corner: $0, bounds: placer.bounds, margin: 10 * k) }
+                let r = cands.first { c in !(you.map { $0.intersects(c) } ?? false) } ?? cands[0]
+                placer.reserve(r); holes.append(r.insetBy(dx: -3, dy: -3)); recentre = (r, t)
+                // A pin under the control gives way (the control must stay reachable; the pin is on the route anyway).
+                if let s = start, s.rect.intersects(r) { start = nil; audit.removeAll { $0.name == "Start dot" } }
+                if let b = badge, b.onScreen, b.rect.intersects(r) { badge = nil; audit.removeAll { $0.name == "refuge badge" } }
+            }
+        }
+        drawRoute(ctx, pts, full: full, holes: holes)
+        if let start { drawStartDot(ctx, start) }
+        if let badge, badge.onScreen { drawRefugeBadge(ctx, badge) }
+        if let badge { placeRefugePill(ctx, size, &placer, badge, &audit) }
+        if let start { placeStartPill(ctx, size, &placer, start, &audit) }
+        if let (r, t) = recentre {
+            drawRecentre(ctx, r, t)
+            audit.append(.init(name: "Re-centre", rect: r))
+        }
+        placeChrome(ctx, size, proj.metersPerPoint, &placer, &audit)
+        if size.height >= 200 { drawTurnStreetNames(ctx, size, pt, &placer, &audit) }
         drawYou(ctx, pt)
-        drawCompassAndScale(ctx, size, proj.metersPerPoint)
+        publishRecentre(recentre?.0)
+        OverlayAuditDump.record(OverlayAuditRecord(id: auditId(size), size: size, route: pts, routeWidth: routeWidth,
+                                                   overlays: audit, outline: outline, holes: holes))
+    }
+
+    var routeWidth: CGFloat { 8 * k + 6 * k }     // stroke plus the black casing
+
+    @ScaledMetric(relativeTo: .body) var recentreFont: CGFloat = 17
+
+    /// Updates the tappable Re-centre area once per layout change (never during a draw with an equal value).
+    func publishRecentre(_ r: CGRect?) {
+        guard r != recentreRect else { return }
+        DispatchQueue.main.async { recentreRect = r }
+    }
+
+    func auditId(_ size: CGSize) -> String {
+        let cam = shownCamera.map { "span\(Int($0.spanM))rot\(Int($0.rotationDeg))" } ?? "fit"
+        return "\(thumbnail ? "thumb" : "map")-\(Int(size.width))x\(Int(size.height))-\(cam)-\(Theme.palette)"
+    }
+
+    func outlineBox(_ ring: [CGPoint]) -> CGRect {
+        var r = CGRect(origin: ring[0], size: .zero)
+        for p in ring.dropFirst() { r = r.union(CGRect(origin: p, size: .zero)) }
+        return r.insetBy(dx: -1.25 * k, dy: -1.25 * k)
+    }
+
+    func drawRecentre(_ ctx: GraphicsContext, _ r: CGRect, _ t: GraphicsContext.ResolvedText) {
+        let shape = Path(roundedRect: r, cornerRadius: 12, style: .continuous)
+        ctx.fill(shape, with: .color(Theme.accent))
+        ctx.stroke(shape, with: .color(Color.white.opacity(0.35)), lineWidth: 1)
+        let m = t.measure(in: CGSize(width: 400, height: 100))
+        let iconS = m.height * 0.9
+        let x0 = r.midX - (m.width + iconS + 8) / 2
+        symbol(ctx, "location.fill", at: CGPoint(x: x0 + iconS / 2, y: r.midY), size: iconS, color: Theme.onAccent)
+        ctx.draw(t, at: CGPoint(x: x0 + iconS + 8, y: r.midY), anchor: .leading)
     }
 
     func drawStreets(_ ctx: GraphicsContext, _ size: CGSize, _ proj: Projection, skipping: Set<Int>) {
@@ -317,45 +410,55 @@ struct RouteMapView: View {
         road(major, width: 6, fill: Theme.mapRoadMajor)
     }
 
-    /// The refuge outline/fill, under the route.
-    func drawRefugeArea(_ ctx: GraphicsContext, _ pt: (Double, Double) -> CGPoint) {
-        guard let r = refuge else { return }
+    /// The refuge outline/fill, under the route; returns the ring (screen points) so the route can stop short of it.
+    @discardableResult
+    func drawRefugeArea(_ ctx: GraphicsContext, _ pt: (Double, Double) -> CGPoint) -> [CGPoint]? {
+        guard let r = refuge else { return nil }
         if let ring = r.polygon, ring.count >= 3 {
             var p = Path()
+            var out: [CGPoint] = []
             for (i, v) in ring.enumerated() where v.count >= 2 {
                 let q = pt(v[1], v[0])
+                out.append(q)
                 if i == 0 { p.move(to: q) } else { p.addLine(to: q) }
             }
             p.closeSubpath()
             ctx.fill(p, with: .color(Theme.safe.opacity(0.35)))
             ctx.stroke(p, with: .color(Theme.safe), style: StrokeStyle(lineWidth: 2.5 * k, lineJoin: .round))
+            return out
         } else {
             let c = pt(r.centroidLat, r.centroidLon), rr = 18 * k
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr)), with: .color(Theme.safe.opacity(0.35)))
+            return nil
         }
     }
 
     struct Marker { var anchor: CGPoint; var rect: CGRect; var onScreen: Bool }
 
-    /// The refuge badge (P / building / tree) above the route. Off-screen at close zoom: no badge, the pill alone
-    /// sits at the edge nearest the refuge pointing the way.
-    func drawRefugeBadge(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint) -> Marker? {
+    /// Where the refuge badge (P / building / tree) goes. Off-screen or cut by the edge at close zoom: no badge, the
+    /// pill alone sits at the edge nearest the refuge pointing the way.
+    func refugeMarker(_ size: CGSize, _ pt: (Double, Double) -> CGPoint) -> Marker? {
         guard let r = refuge else { return nil }
         let c = pt(r.centroidLat, r.centroidLon)
         let badge = 17 * k
-        guard onCanvas(c, size, margin: 40) || shownCamera == nil else {
+        let rect = CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)
+        guard CGRect(origin: .zero, size: size).insetBy(dx: 5 * k, dy: 5 * k).contains(rect) || shownCamera == nil else {
             let edge = CGPoint(x: min(max(c.x, 12 * k), size.width - 12 * k), y: min(max(c.y, 44 * k), size.height - 12 * k))
             return Marker(anchor: edge, rect: CGRect(x: edge.x, y: edge.y, width: 0, height: 0), onScreen: false)
         }
-        let rect = CGRect(x: c.x - badge, y: c.y - badge, width: 2 * badge, height: 2 * badge)
-        ctx.fill(Path(ellipseIn: rect), with: .color(.white))
-        ctx.stroke(Path(ellipseIn: rect), with: .color(Theme.safe), lineWidth: 2.5 * k)
-        symbol(ctx, RouteMapView.symbolName(for: r.kind), at: c, size: badge * 1.15, color: Color(red: 0.05, green: 0.4, blue: 0.2))
         return Marker(anchor: c, rect: rect, onScreen: true)
     }
 
+    func drawRefugeBadge(_ ctx: GraphicsContext, _ m: Marker) {
+        guard let r = refuge else { return }
+        ctx.fill(Path(ellipseIn: m.rect), with: .color(.white))
+        ctx.stroke(Path(ellipseIn: m.rect), with: .color(Theme.safe), lineWidth: 2.5 * k)
+        symbol(ctx, RouteMapView.symbolName(for: r.kind), at: m.anchor, size: m.rect.width / 2 * 1.15, color: Color(red: 0.05, green: 0.4, blue: 0.2))
+    }
+
     /// Refuge name pill: full name first, the short name when the full one has no free spot, hidden when neither fits.
-    func placeRefugePill(_ ctx: GraphicsContext, _ size: CGSize, _ placer: inout OverlayPlacer, _ m: Marker) {
+    func placeRefugePill(_ ctx: GraphicsContext, _ size: CGSize, _ placer: inout OverlayPlacer, _ m: Marker,
+                         _ audit: inout [OverlayAuditRecord.Item]) {
         guard let r = refuge else { return }
         let font = Theme.font(thumbnail ? 15 : 17, .bold)
         let prefix = m.onScreen ? "" : "→ "
@@ -367,6 +470,7 @@ struct RouteMapView: View {
             guard sz.width <= size.width - 20 * k else { continue }          // would be clipped: try the short name
             if let rect = placer.place(size: sz, anchor: m.anchor, offset: offset, sides: sides, maxDistance: m.onScreen ? 60 * k : 40 * k) {
                 drawPill(ctx, t, in: rect, fill: Color.black.opacity(0.82), stroke: Theme.safe)
+                audit.append(.init(name: "refuge pill", rect: rect))
                 return
             }
         }
@@ -382,11 +486,26 @@ struct RouteMapView: View {
         }
     }
 
-    func drawRoute(_ ctx: GraphicsContext, _ pt: (Double, Double) -> CGPoint) {
-        let pts = route.nodes.map { pt(graph.lat[$0], graph.lon[$0]) }
+    /// `pts` is the trimmed centre line (`full` the untrimmed one, for distances); `holes` (Start dot, refuge badge,
+    /// a Re-centre control with no free corner) are cut out of the route so no route pixel lies under them.
+    func drawRoute(_ ctx: GraphicsContext, _ pts: [CGPoint], full: [CGPoint], holes: [CGRect]) {
         guard pts.count >= 2 else { return }
+        var ctx = ctx
+        if !holes.isEmpty {
+            var keep = Path(CGRect(x: -10, y: -10, width: 100_000, height: 100_000))
+            for h in holes { keep.addRoundedRect(in: h, cornerSize: CGSize(width: 8, height: 8)) }
+            ctx.clip(to: keep, style: FillStyle(eoFill: true))
+        }
         var cum = [0.0]
         for ei in route.edges where ei < graph.edges.count { cum.append(cum[cum.count - 1] + graph.edges[ei].lengthM) }
+        if cum.count == full.count, pts.count < full.count {
+            // Trimmed at the refuge: the last point is part-way along edge i-1 → i; scale that edge's metres.
+            let i = pts.count - 1
+            let segLen = hypot(full[i].x - full[i - 1].x, full[i].y - full[i - 1].y)
+            let f = segLen > 0 ? hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y) / segLen : 0
+            cum = Array(cum.prefix(i + 1))
+            cum[i] = cum[i - 1] + (cum[i] - cum[i - 1]) * Double(f)
+        }
         var whole = Path(), walked = Path(), ahead = Path()
         whole.move(to: pts[0]); for p in pts.dropFirst() { whole.addLine(to: p) }
         let w = min(walkedM ?? 0, cum.last ?? 0)
@@ -404,7 +523,7 @@ struct RouteMapView: View {
         ahead.move(to: split); for p in pts[(splitIndex + 1)...] { ahead.addLine(to: p) }
         let width = 8 * k
         let style = StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
-        ctx.stroke(whole, with: .color(Color.black.opacity(0.9)), style: StrokeStyle(lineWidth: width + 6 * k, lineCap: .round, lineJoin: .round))
+        ctx.stroke(whole, with: .color(Color.black.opacity(0.9)), style: StrokeStyle(lineWidth: routeWidth, lineCap: .round, lineJoin: .round))
         if w > 0 { ctx.stroke(walked, with: .color(Theme.route.opacity(0.45)), style: style) }
         ctx.stroke(ahead, with: .color(Theme.route), style: style)
     }
@@ -413,7 +532,8 @@ struct RouteMapView: View {
     /// each other, the Start pill or the refuge name. At most `maxTurnLabels`; the rest of the route stays clean.
     static let maxTurnLabels = 4
 
-    func drawTurnStreetNames(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint, _ placer: inout OverlayPlacer) {
+    func drawTurnStreetNames(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint, _ placer: inout OverlayPlacer,
+                             _ audit: inout [OverlayAuditRecord.Item]) {
         let edges = route.edges.filter { $0 < graph.edges.count }
         guard edges.count >= 1, route.nodes.count == edges.count + 1 else { return }
         var labels: [(String, Int)] = []   // (street, node index where it begins)
@@ -458,28 +578,34 @@ struct RouteMapView: View {
             if let rect = placer.place(size: sz, anchor: mid, offset: 10 * k, sides: OverlayPlacer.sides(forSegmentFrom: p, to: q),
                                        maxDistance: 44 * k) {
                 drawPill(ctx, t, in: rect, fill: Color.black.opacity(0.78), stroke: Color.white.opacity(0.6))
+                audit.append(.init(name: "street \(name)", rect: rect))
             }
         }
     }
 
-    /// The Start dot (above the route). Off-screen in the close follow view.
-    func drawStartDot(_ ctx: GraphicsContext, _ size: CGSize, _ pt: (Double, Double) -> CGPoint) -> Marker? {
+    /// The Start dot: drawn only when it is whole on the canvas (never cut by the edge).
+    func startMarker(_ size: CGSize, _ pt: (Double, Double) -> CGPoint) -> Marker? {
         guard let n = route.nodes.first else { return nil }
         let p = pt(graph.lat[n], graph.lon[n])
-        guard onCanvas(p, size, margin: 20) else { return nil }
         let r = 8 * k
         let rect = CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)
-        ctx.fill(Path(ellipseIn: rect), with: .color(.white))
-        ctx.stroke(Path(ellipseIn: rect), with: .color(.black), lineWidth: 3 * k)
+        guard CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2).contains(rect) else { return nil }
         return Marker(anchor: p, rect: rect, onScreen: true)
     }
 
-    func placeStartPill(_ ctx: GraphicsContext, _ size: CGSize, _ placer: inout OverlayPlacer, _ m: Marker) {
+    func drawStartDot(_ ctx: GraphicsContext, _ m: Marker) {
+        ctx.fill(Path(ellipseIn: m.rect), with: .color(.white))
+        ctx.stroke(Path(ellipseIn: m.rect), with: .color(.black), lineWidth: 3 * k)
+    }
+
+    func placeStartPill(_ ctx: GraphicsContext, _ size: CGSize, _ placer: inout OverlayPlacer, _ m: Marker,
+                        _ audit: inout [OverlayAuditRecord.Item]) {
         let t = Text("Start").font(Theme.font(thumbnail ? 13 : 15, .bold)).foregroundColor(.black)
         let sz = pillSize(ctx, t, in: size)
         if let rect = placer.place(size: sz, anchor: m.anchor, offset: m.rect.width / 2 + 4 * k,
                                    sides: [.right, .left, .below, .above], maxDistance: 48 * k) {
             drawPill(ctx, t, in: rect, fill: .white, stroke: .black)
+            audit.append(.init(name: "Start pill", rect: rect))
         }
     }
 
@@ -517,18 +643,14 @@ struct RouteMapView: View {
         }
     }
 
-    // MARK: chrome (scale bar top-left, north arrow top-right)
+    // MARK: chrome (scale bar and north arrow: placed like every other overlay, hidden when no corner is free)
 
-    struct ScaleGeometry { var box: CGRect; var barWidth: CGFloat; var text: GraphicsContext.ResolvedText }
+    struct ScaleGeometry { var size: CGSize; var barWidth: CGFloat; var text: GraphicsContext.ResolvedText }
 
-    func compassRect(_ size: CGSize) -> CGRect {
-        let m = 8 * k, r = 15 * k
-        return CGRect(x: size.width - m - 2 * r, y: m, width: 2 * r, height: 2 * r)
-    }
+    var compassSize: CGSize { CGSize(width: 30 * k, height: 30 * k) }
 
     func scaleGeometry(_ ctx: GraphicsContext, _ size: CGSize, _ metersPerPoint: Double) -> ScaleGeometry? {
         guard metersPerPoint > 0, metersPerPoint.isFinite else { return nil }
-        let m = 8 * k
         let maxPts = Double(size.width) * 0.32
         let candidates: [Double] = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
         let metres = candidates.last { $0 / metersPerPoint <= maxPts } ?? 10
@@ -536,42 +658,40 @@ struct RouteMapView: View {
         let label = metres >= 1000 ? "\(Int(metres / 1000)) km" : "\(Int(metres)) m"
         let t = ctx.resolve(Text(label).font(Theme.font(11 * k + 2, .bold)).foregroundColor(.white))
         let tw = t.measure(in: CGSize(width: 200, height: 40))
-        let box = CGRect(x: m, y: m, width: max(w, tw.width) + 16 * k, height: tw.height + 10 * k)
-        return ScaleGeometry(box: box, barWidth: w, text: t)
+        return ScaleGeometry(size: CGSize(width: max(w, tw.width) + 16 * k, height: tw.height + 10 * k), barWidth: w, text: t)
     }
 
-    /// Rects of the fixed chrome, reserved before any pill is placed.
-    func chromeRects(_ ctx: GraphicsContext, _ size: CGSize, _ metersPerPoint: Double) -> [CGRect] {
-        var r = [compassRect(size)]
-        if let s = scaleGeometry(ctx, size, metersPerPoint) { r.append(s.box) }
-        // Apple's " Maps / Legal" attribution sits bottom-left of the satellite view and must stay readable.
-        if case .drawn = mode {} else { r.append(CGRect(x: 0, y: size.height - 28 * k, width: 150 * k, height: 28 * k)) }
-        return r
-    }
-
-    func drawCompassAndScale(_ ctx: GraphicsContext, _ size: CGSize, _ metersPerPoint: Double) {
-        let cr = compassRect(size), r = cr.width / 2
-        let c = CGPoint(x: cr.midX, y: cr.midY)
-        ctx.fill(Path(ellipseIn: cr), with: .color(Color.black.opacity(0.7)))
-        var tri = Path()
-        tri.move(to: CGPoint(x: 0, y: -r * 0.75))
-        tri.addLine(to: CGPoint(x: r * 0.32, y: -r * 0.05))
-        tri.addLine(to: CGPoint(x: -r * 0.32, y: -r * 0.05))
-        tri.closeSubpath()
-        ctx.drawLayer { l in           // the arrow turns with the map so it keeps pointing north; the letter stays upright
-            l.translateBy(x: c.x, y: c.y)
-            l.rotate(by: .degrees(-rotation))
-            l.fill(tri, with: .color(.white))
+    func placeChrome(_ ctx: GraphicsContext, _ size: CGSize, _ metersPerPoint: Double, _ placer: inout OverlayPlacer,
+                     _ audit: inout [OverlayAuditRecord.Item]) {
+        let m = 8 * k
+        if let s = scaleGeometry(ctx, size, metersPerPoint),
+           let box = placer.placeChrome(size: s.size, corners: [.topLeft, .bottomLeft, .topRight, .bottomRight], margin: m) {
+            ctx.fill(Path(roundedRect: box, cornerRadius: 6 * k), with: .color(Color.black.opacity(0.7)))
+            var bar = Path()
+            let y = box.maxY - 5 * k, x0 = box.minX + 8 * k
+            bar.move(to: CGPoint(x: x0, y: y - 4 * k)); bar.addLine(to: CGPoint(x: x0, y: y))
+            bar.addLine(to: CGPoint(x: x0 + s.barWidth, y: y)); bar.addLine(to: CGPoint(x: x0 + s.barWidth, y: y - 4 * k))
+            ctx.stroke(bar, with: .color(.white), lineWidth: 2)
+            ctx.draw(s.text, at: CGPoint(x: x0, y: box.minY + 3 * k), anchor: .topLeading)
+            audit.append(.init(name: "scale bar", rect: box))
         }
-        ctx.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
-        guard let s = scaleGeometry(ctx, size, metersPerPoint) else { return }
-        ctx.fill(Path(roundedRect: s.box, cornerRadius: 6 * k), with: .color(Color.black.opacity(0.7)))
-        var bar = Path()
-        let y = s.box.maxY - 5 * k, x0 = s.box.minX + 8 * k
-        bar.move(to: CGPoint(x: x0, y: y - 4 * k)); bar.addLine(to: CGPoint(x: x0, y: y))
-        bar.addLine(to: CGPoint(x: x0 + s.barWidth, y: y)); bar.addLine(to: CGPoint(x: x0 + s.barWidth, y: y - 4 * k))
-        ctx.stroke(bar, with: .color(.white), lineWidth: 2)
-        ctx.draw(s.text, at: CGPoint(x: x0, y: s.box.minY + 3 * k), anchor: .topLeading)
+        if let cr = placer.placeChrome(size: compassSize, corners: [.topRight, .topLeft, .bottomRight, .bottomLeft], margin: m) {
+            let r = cr.width / 2
+            let c = CGPoint(x: cr.midX, y: cr.midY)
+            ctx.fill(Path(ellipseIn: cr), with: .color(Color.black.opacity(0.7)))
+            var tri = Path()
+            tri.move(to: CGPoint(x: 0, y: -r * 0.75))
+            tri.addLine(to: CGPoint(x: r * 0.32, y: -r * 0.05))
+            tri.addLine(to: CGPoint(x: -r * 0.32, y: -r * 0.05))
+            tri.closeSubpath()
+            ctx.drawLayer { l in           // the arrow turns with the map so it keeps pointing north; the letter stays upright
+                l.translateBy(x: c.x, y: c.y)
+                l.rotate(by: .degrees(-rotation))
+                l.fill(tri, with: .color(.white))
+            }
+            ctx.draw(Text("N").font(Theme.font(10 * k + 2, .heavy)).foregroundColor(.white), at: CGPoint(x: c.x, y: c.y + r * 0.42), anchor: .center)
+            audit.append(.init(name: "compass", rect: cr))
+        }
     }
 
     // MARK: helpers
@@ -590,9 +710,32 @@ struct RouteMapView: View {
 
     /// A rounded label in a rect the placer approved.
     func drawPill(_ ctx: GraphicsContext, _ text: Text, in rect: CGRect, fill: Color, stroke: Color) {
+        let resolved = ctx.resolve(text)
+        guard resolved.measure(in: CGSize(width: 2000, height: 200)).width <= rect.width else { return }   // never overflow the pill
         let shape = Path(roundedRect: rect, cornerRadius: rect.height / 2)
         ctx.fill(shape, with: .color(fill))
         ctx.stroke(shape, with: .color(stroke), lineWidth: 1.5 * k)
-        ctx.draw(ctx.resolve(text), at: CGPoint(x: rect.midX, y: rect.midY), anchor: .center)
+        ctx.draw(resolved, at: CGPoint(x: rect.midX, y: rect.midY), anchor: .center)
+    }
+}
+
+extension CGRect {
+    var corners: [CGPoint] { [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: minY), CGPoint(x: maxX, y: maxY), CGPoint(x: minX, y: maxY)] }
+}
+
+/// Writes each distinct map layout to $EMBER_OVERLAY_AUDIT/<id>-<hash>.json for the rasterising test.
+enum OverlayAuditDump {
+    static let dir: String? = ProcessInfo.processInfo.environment["EMBER_OVERLAY_AUDIT"]
+    nonisolated(unsafe) static var seen: Set<String> = []
+
+    static func record(_ r: OverlayAuditRecord) {
+        guard let dir else { return }
+        guard let data = try? JSONEncoder().encode(r) else { return }
+        let key = "\(r.id)-\(data.hashValue)"
+        guard !seen.contains(key) else { return }
+        seen.insert(key)
+        let name = r.id.replacingOccurrences(of: "/", with: "_") + "-\(String(format: "%08x", UInt32(truncatingIfNeeded: data.hashValue))).json"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try? data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
     }
 }

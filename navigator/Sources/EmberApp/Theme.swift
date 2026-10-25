@@ -193,6 +193,16 @@ struct InstructionText: View {
     }
 }
 
+/// Explanatory line under a heading: dim, but Dynamic Type like everything else.
+struct HelpText: View {
+    let text: String
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        Text(text).font(Theme.font(size)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 struct SecondaryText: View {
     let text: String
     @ScaledMetric(relativeTo: .title3) var size: CGFloat = 22
