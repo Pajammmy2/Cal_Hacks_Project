@@ -269,8 +269,14 @@ struct StatLine<Trailing: View>: View {
             ForEach(Array(items.enumerated()), id: \.offset) { _, it in
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Image(systemName: it.2).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
-                    Text(it.0).font(Theme.font(big * scale, .heavy))
-                    Text(it.1).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                    if typeSize.isAccessibilitySize {
+                        // one run of text so it wraps at word boundaries ("130 m" stays together)
+                        (Text(it.0).font(Theme.font(big * scale, .heavy))
+                         + Text(" \(it.1)").font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim))
+                    } else {
+                        Text(it.0).font(Theme.font(big * scale, .heavy))
+                        Text(it.1).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                    }
                 }
                 // AX sizes: the row may wrap to a second line (owner: strip stays, may wrap), never "…"
                 .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)
