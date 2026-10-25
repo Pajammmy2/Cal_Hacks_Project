@@ -5,6 +5,7 @@ import EmberCore
 public struct RootView: View {
     @EnvironmentObject var model: AppModel
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
+    @AppStorage(Theme.paletteKey) private var palette = "navy"
 
     public init() {}
 
@@ -24,11 +25,11 @@ public struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(Theme.background.ignoresSafeArea())
-        .id(fontChoice)
+        .id(fontChoice + palette)   // fonts and colours are read statically; rebuild the tree when either changes
         .environmentObject(model.speaker)
         .environmentObject(model.compass)
         .environmentObject(model.voice)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(Theme.isLight ? .light : .dark)
         .onAppear { model.launch() }
     }
 }

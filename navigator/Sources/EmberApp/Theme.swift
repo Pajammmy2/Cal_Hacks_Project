@@ -1,25 +1,66 @@
 import SwiftUI
 
-/// Near-black navy / white / steel blue: white on the card (#0D1A33) is ~17:1, navy text on steel blue (#94B5D6) ~9.5:1, both above 7:1.
+/// Two palettes behind one switch (Settings → Colours), both ≥7:1 for body text:
+/// - `Navy` (default): near-black navy / white / steel blue. White on the card (#0D1A33) ~17:1, navy text on steel
+///   blue (#94B5D6) ~9.5:1. These are the values eval/build_dashboard.py measures (`static let` lines).
+/// - `OffWhite` (owner addendum 3): off-white (#F6F3EE) / slate (#2B3440, #3A4654) / orange (#E8731A). Slate text on
+///   off-white 11.4:1, on the card (#ECE7DF) 10.2:1, secondary slate (#3F4B59) on the card 7.3:1, off-white on the
+///   slate control 8.7:1; the orange is used for the route only (inside the black casing), never for text.
 /// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
 public enum Theme {
-    public static let background = Color(red: 0.015, green: 0.035, blue: 0.09)
-    public static let text = Color.white
-    public static let dim = Color(red: 0.74, green: 0.80, blue: 0.88)
-    public static let accent = Color(red: 0.58, green: 0.71, blue: 0.84)
-    public static let onAccent = Color(red: 0.01, green: 0.03, blue: 0.08)
-    public static let card = Color(red: 0.05, green: 0.10, blue: 0.20)
-    public static let cardRaised = Color(red: 0.09, green: 0.16, blue: 0.29)
+    public enum Navy {
+        public static let background = Color(red: 0.015, green: 0.035, blue: 0.09)
+        public static let text = Color(red: 1, green: 1, blue: 1)
+        public static let dim = Color(red: 0.74, green: 0.80, blue: 0.88)
+        public static let accent = Color(red: 0.58, green: 0.71, blue: 0.84)
+        public static let onAccent = Color(red: 0.01, green: 0.03, blue: 0.08)
+        public static let card = Color(red: 0.05, green: 0.10, blue: 0.20)
+        public static let cardRaised = Color(red: 0.09, green: 0.16, blue: 0.29)
+        /// The route on the map: bright sky blue with a black casing, unmistakable on the veiled photo and on the drawn map.
+        public static let route = Color(red: 0.55, green: 0.85, blue: 1.0)
+        /// Look C "Blueprint": navy land, steel roads, drawn from graph.json (offline / no photo / Settings → Map).
+        public static let mapLand = Color(red: 0.04, green: 0.08, blue: 0.16)
+        public static let mapRoadMinor = Color(red: 0.36, green: 0.46, blue: 0.58)
+        public static let mapRoadMajor = Color(red: 0.62, green: 0.72, blue: 0.84)
+    }
+
+    public enum OffWhite {
+        public static let background = Color(red: 0.965, green: 0.953, blue: 0.933)   // #F6F3EE
+        public static let text = Color(red: 0.169, green: 0.204, blue: 0.251)         // #2B3440 slate
+        public static let dim = Color(red: 0.247, green: 0.294, blue: 0.349)          // #3F4B59
+        public static let accent = Color(red: 0.227, green: 0.275, blue: 0.329)       // #3A4654 slate controls
+        public static let onAccent = Color(red: 0.965, green: 0.953, blue: 0.933)
+        public static let card = Color(red: 0.925, green: 0.906, blue: 0.875)         // #ECE7DF
+        public static let cardRaised = Color(red: 0.867, green: 0.843, blue: 0.804)   // #DDD7CD
+        /// Orange (#E8731A) inside the black casing: reads on the veiled photo and on the pale Blueprint.
+        public static let route = Color(red: 0.91, green: 0.451, blue: 0.102)
+        /// Blueprint: pale land, slate roads.
+        public static let mapLand = Color(red: 0.89, green: 0.87, blue: 0.84)
+        public static let mapRoadMinor = Color(red: 0.55, green: 0.60, blue: 0.66)
+        public static let mapRoadMajor = Color(red: 0.23, green: 0.28, blue: 0.33)
+    }
+
+    /// "navy" (default) | "offwhite". Settings → Colours.
+    public static let paletteKey = "ember.palette"
+    public static var palette: String { UserDefaults.standard.string(forKey: paletteKey) ?? "navy" }
+    public static var isLight: Bool { palette == "offwhite" }
+
+    public static var background: Color { isLight ? OffWhite.background : Navy.background }
+    public static var text: Color { isLight ? OffWhite.text : Navy.text }
+    public static var dim: Color { isLight ? OffWhite.dim : Navy.dim }
+    public static var accent: Color { isLight ? OffWhite.accent : Navy.accent }
+    public static var onAccent: Color { isLight ? OffWhite.onAccent : Navy.onAccent }
+    public static var card: Color { isLight ? OffWhite.card : Navy.card }
+    public static var cardRaised: Color { isLight ? OffWhite.cardRaised : Navy.cardRaised }
     public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
-    /// The route on the map: bright sky blue with a black casing, unmistakable on the veiled photo and on the drawn map.
-    public static let route = Color(red: 0.55, green: 0.85, blue: 1.0)
-    /// Dark navy veil over the satellite photo (look A "Signal"): photo still readable, overlays win.
+    public static var route: Color { isLight ? OffWhite.route : Navy.route }
+    /// Dark veil over the satellite photo (look A "Signal"): photo still readable, overlays win. Same in both
+    /// palettes: the photo is dark either way and the white-on-black pills need it.
     public static let mapVeil = Color(red: 0.01, green: 0.03, blue: 0.08).opacity(0.42)
-    /// Look C "Blueprint": navy land, steel roads, drawn from graph.json (offline / no photo / Settings → Map).
-    public static let mapLand = Color(red: 0.04, green: 0.08, blue: 0.16)
-    public static let mapRoadMinor = Color(red: 0.36, green: 0.46, blue: 0.58)
-    public static let mapRoadMajor = Color(red: 0.62, green: 0.72, blue: 0.84)
+    public static var mapLand: Color { isLight ? OffWhite.mapLand : Navy.mapLand }
+    public static var mapRoadMinor: Color { isLight ? OffWhite.mapRoadMinor : Navy.mapRoadMinor }
+    public static var mapRoadMajor: Color { isLight ? OffWhite.mapRoadMajor : Navy.mapRoadMajor }
     public static let minButtonHeight: CGFloat = 64
     /// "satellite" (default, look A) | "drawn" (look C). Settings → Map.
     public static let mapStyleKey = "ember.mapStyle"
