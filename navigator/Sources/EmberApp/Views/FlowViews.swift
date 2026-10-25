@@ -155,15 +155,14 @@ struct NavigateView: View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
-        let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
         Screen {
             InstructionText(text: model.displayText)
-            tiles {
-                if let d = p?.distanceToNextTurnM {
-                    StatTile(value: "\(Int((d / 10).rounded()) * 10)", unit: "m", caption: "to next turn", systemImage: "arrow.turn.up.right")
-                }
-                StatTile(value: "\(mins)", unit: "min", caption: "to go", systemImage: "figure.roll")
-            }
+            // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
+            // large part of the screen").
+            StatLine(items: [
+                p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
+                ("\(mins) min", "to go", "figure.roll"),
+            ].compactMap { $0 })
             // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
             if let eta {
                 StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
@@ -174,7 +173,7 @@ struct NavigateView: View {
                              heading: compass.heading, walkedM: p.progressM,
                              satellite: SatelliteSnapshot.best(for: p.route, graph: m.graph, bundle: model.bundle, clientId: m.client?.id),
                              online: voice.online)
-                    .frame(height: typeSize.isAccessibilitySize ? 320 : 400)
+                    .frame(height: typeSize.isAccessibilitySize ? 300 : 340)
             }
             CaregiverInfo(client: m?.client)
             if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }

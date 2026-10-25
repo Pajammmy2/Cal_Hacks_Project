@@ -209,3 +209,30 @@ struct StatTile: View {
         .accessibilityLabel("\(value) \(unit) \(caption)")
     }
 }
+
+/// Distance and time on one line: "130 m to next turn · 33 min to go". Wraps to two lines at accessibility sizes.
+struct StatLine: View {
+    let items: [(String, String, String)]
+    @ScaledMetric(relativeTo: .title2) var big: CGFloat = 26
+    @ScaledMetric(relativeTo: .body) var small: CGFloat = 17
+    @Environment(\.dynamicTypeSize) var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
+        layout {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, it in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: it.2).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+                    Text(it.0).font(Theme.font(big, .heavy))
+                    Text(it.1).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+                }
+                .lineLimit(1).minimumScaleFactor(0.6)
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+        }
+        .foregroundColor(Theme.text)
+        .card(padding: 12)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(items.map { "\($0.0) \($0.1)" }.joined(separator: ", "))
+    }
+}
