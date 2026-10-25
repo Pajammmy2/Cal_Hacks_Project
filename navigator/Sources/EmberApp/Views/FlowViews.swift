@@ -25,7 +25,7 @@ struct WhichWayView: View {
                 CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                if !fresh { NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock.badge.exclamationmark") }
+                if !fresh { NoteText(text: model.fireStatusText, systemImage: "clock.badge.exclamationmark") }
                 if !hasCompass { NoteText(text: "No compass on this phone.", systemImage: "location.slash") }
             }
         } buttons: {
