@@ -1,62 +1,62 @@
 {
  "county": "paradise",
- "generated_at": "2026-10-25 02:02 UTC",
+ "generated_at": "2026-10-25 05:36 UTC",
  "route_quality": {
   "profiles": {
    "walker": {
-    "routed": 45,
+    "routed": 49,
     "unrouted": 0,
     "median_min": 32,
     "p90_min": 52,
     "median_m": 1021.3,
     "within": {
-     "20": 35.6,
-     "30": 46.7,
-     "45": 82.2
+     "20": 34.7,
+     "30": 46.9,
+     "45": 81.6
     },
     "two_choices": 100.0
    },
    "manual_chair": {
-    "routed": 43,
-    "unrouted": 2,
+    "routed": 46,
+    "unrouted": 3,
     "median_min": 25,
-    "p90_min": 53,
-    "median_m": 1132.0,
+    "p90_min": 55,
+    "median_m": 1080.4,
     "within": {
-     "20": 33.3,
-     "30": 55.6,
-     "45": 60.0
+     "20": 34.7,
+     "30": 55.1,
+     "45": 63.3
     },
-    "two_choices": 95.6
+    "two_choices": 93.9
    },
    "manual_chair_pushed": {
-    "routed": 45,
+    "routed": 49,
     "unrouted": 0,
     "median_min": 21,
-    "p90_min": 62,
-    "median_m": 1337.9,
+    "p90_min": 63,
+    "median_m": 1237.3,
     "within": {
-     "20": 40.0,
-     "30": 57.8,
-     "45": 68.9
+     "20": 42.9,
+     "30": 59.2,
+     "45": 69.4
     },
     "two_choices": 100.0
    },
    "power_chair": {
-    "routed": 45,
+    "routed": 49,
     "unrouted": 0,
     "median_min": 15,
-    "p90_min": 32,
-    "median_m": 1291.6,
+    "p90_min": 33,
+    "median_m": 1289.4,
     "within": {
-     "20": 62.2,
-     "30": 86.7,
-     "45": 97.8
+     "20": 61.2,
+     "30": 83.7,
+     "45": 95.9
     },
     "two_choices": 100.0
    }
   },
-  "n_addresses": 45,
+  "n_addresses": 49,
   "thresholds_min": [
    20,
    30,
@@ -104,11 +104,6 @@
     "minutes": 9
    },
    {
-    "lat": 39.7856006,
-    "lon": -121.5903595,
-    "minutes": 46
-   },
-   {
     "lat": 39.7759276,
     "lon": -121.59164,
     "minutes": 2
@@ -137,11 +132,6 @@
     "lat": 39.776583,
     "lon": -121.5894817,
     "minutes": 0
-   },
-   {
-    "lat": 39.7599435,
-    "lon": -121.6209877,
-    "minutes": 48
    },
    {
     "lat": 39.7574325,
@@ -287,18 +277,48 @@
     "lat": 39.7464495,
     "lon": -121.6406975,
     "minutes": 97
+   },
+   {
+    "lat": 39.752223,
+    "lon": -121.611556,
+    "minutes": 36
+   },
+   {
+    "lat": 39.748562,
+    "lon": -121.615275,
+    "minutes": 55
+   },
+   {
+    "lat": 39.738987,
+    "lon": -121.629451,
+    "minutes": null
+   },
+   {
+    "lat": 39.7595,
+    "lon": -121.600637,
+    "minutes": 8
+   },
+   {
+    "lat": 39.770428,
+    "lon": -121.598989,
+    "minutes": 13
+   },
+   {
+    "lat": 39.763578,
+    "lon": -121.612415,
+    "minutes": 40
    }
   ]
  },
  "robustness": {
-  "blockage_trials": 356,
-  "blockage_rerouted": 330,
-  "blockage_same_refuge": 176,
-  "wedge_trials": 344,
-  "wedge_rerouted": 275,
-  "blockage_success_pct": 92.7,
-  "wedge_success_pct": 79.9,
-  "delta_median_min": 3,
+  "blockage_trials": 386,
+  "blockage_rerouted": 368,
+  "blockage_same_refuge": 201,
+  "wedge_trials": 368,
+  "wedge_rerouted": 304,
+  "blockage_success_pct": 95.3,
+  "wedge_success_pct": 82.6,
+  "delta_median_min": 4,
   "delta_p90_min": 44
  },
  "replay": {
@@ -317,9 +337,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "1.25": {
       "cut": 0,
@@ -329,9 +376,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "1.5": {
       "cut": 0,
@@ -341,9 +415,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "1.75": {
       "cut": 0,
@@ -353,9 +454,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "2": {
       "cut": 0,
@@ -365,9 +493,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "3": {
       "cut": 0,
@@ -377,9 +532,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "final": {
       "cut": 0,
@@ -389,9 +571,36 @@
       "home_burned_pct": 0.0,
       "rerouted_pct": null,
       "delta_median_min": null,
+      "delta_median_m": null,
       "burned_edges": 25,
       "burned_edges_pct": 0.2,
-      "refuges_left": 32
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      }
     },
     "sources": [
@@ -402,91 +611,280 @@
     "fire": "Camp (2018)",
     "date": "2018-11-08",
     "acres": 153335.6,
-    "front_from_deg": 108.8,
+    "front_from_deg": 71.4,
     "hours": {
      "1": {
       "cut": 0,
       "cut_pct": 0.0,
       "rerouted": 0,
-      "home_burned": 0,
-      "home_burned_pct": 0.0,
+      "home_burned": 1,
+      "home_burned_pct": 1.9,
       "rerouted_pct": null,
       "delta_median_min": null,
-      "burned_edges": 673,
-      "burned_edges_pct": 6.1,
-      "refuges_left": 32
+      "delta_median_m": null,
+      "burned_edges": 446,
+      "burned_edges_pct": 4.1,
+      "refuges_left": 32,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "1.25": {
-      "cut": 0,
-      "cut_pct": 0.0,
+      "cut": 1,
+      "cut_pct": 1.9,
       "rerouted": 0,
-      "home_burned": 2,
-      "home_burned_pct": 4.5,
-      "rerouted_pct": null,
+      "home_burned": 18,
+      "home_burned_pct": 34.6,
+      "rerouted_pct": 0.0,
       "delta_median_min": null,
-      "burned_edges": 2587,
-      "burned_edges_pct": 23.5,
-      "refuges_left": 29
+      "delta_median_m": null,
+      "burned_edges": 3180,
+      "burned_edges_pct": 29.0,
+      "refuges_left": 26,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 1,
+        "rerouted": 0,
+        "home_burned": 18,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "1.5": {
-      "cut": 0,
-      "cut_pct": 0.0,
-      "rerouted": 0,
-      "home_burned": 32,
-      "home_burned_pct": 72.7,
-      "rerouted_pct": null,
-      "delta_median_min": null,
-      "burned_edges": 6398,
-      "burned_edges_pct": 58.2,
-      "refuges_left": 10
+      "cut": 2,
+      "cut_pct": 3.8,
+      "rerouted": 2,
+      "home_burned": 27,
+      "home_burned_pct": 51.9,
+      "rerouted_pct": 100.0,
+      "delta_median_min": -22,
+      "delta_median_m": -804,
+      "burned_edges": 5911,
+      "burned_edges_pct": 54.0,
+      "refuges_left": 23,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 0,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 1,
+        "rerouted": 1,
+        "home_burned": 27,
+        "delta_median_min": -24,
+        "delta_median_m": -1103
+       },
+       "walker": {
+        "n": 2,
+        "cut": 1,
+        "rerouted": 1,
+        "home_burned": 0,
+        "delta_median_min": -22,
+        "delta_median_m": -804
+       }
+      }
      },
      "1.75": {
-      "cut": 0,
-      "cut_pct": 0.0,
+      "cut": 2,
+      "cut_pct": 3.8,
       "rerouted": 0,
-      "home_burned": 44,
-      "home_burned_pct": 100.0,
-      "rerouted_pct": null,
+      "home_burned": 49,
+      "home_burned_pct": 94.2,
+      "rerouted_pct": 0.0,
       "delta_median_min": null,
-      "burned_edges": 9577,
-      "burned_edges_pct": 87.1,
-      "refuges_left": 0
+      "delta_median_m": null,
+      "burned_edges": 8831,
+      "burned_edges_pct": 80.6,
+      "refuges_left": 0,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 1,
+        "rerouted": 0,
+        "home_burned": 47,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 1,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "2": {
       "cut": 0,
       "cut_pct": 0.0,
       "rerouted": 0,
-      "home_burned": 44,
-      "home_burned_pct": 100.0,
+      "home_burned": 51,
+      "home_burned_pct": 98.1,
       "rerouted_pct": null,
       "delta_median_min": null,
-      "burned_edges": 10637,
-      "burned_edges_pct": 96.8,
-      "refuges_left": 0
+      "delta_median_m": null,
+      "burned_edges": 10160,
+      "burned_edges_pct": 92.8,
+      "refuges_left": 0,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 48,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 2,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "3": {
       "cut": 0,
       "cut_pct": 0.0,
       "rerouted": 0,
-      "home_burned": 44,
-      "home_burned_pct": 100.0,
+      "home_burned": 51,
+      "home_burned_pct": 98.1,
       "rerouted_pct": null,
       "delta_median_min": null,
-      "burned_edges": 10819,
+      "delta_median_m": null,
+      "burned_edges": 10779,
       "burned_edges_pct": 98.4,
-      "refuges_left": 0
+      "refuges_left": 0,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 48,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 2,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      },
      "final": {
       "cut": 0,
       "cut_pct": 0.0,
       "rerouted": 0,
-      "home_burned": 44,
-      "home_burned_pct": 100.0,
+      "home_burned": 51,
+      "home_burned_pct": 98.1,
       "rerouted_pct": null,
       "delta_median_min": null,
-      "burned_edges": 10819,
+      "delta_median_m": null,
+      "burned_edges": 10779,
       "burned_edges_pct": 98.4,
-      "refuges_left": 0
+      "refuges_left": 0,
+      "by_profile": {
+       "power_chair": {
+        "n": 1,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 1,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "manual_chair": {
+        "n": 48,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 48,
+        "delta_median_min": null,
+        "delta_median_m": null
+       },
+       "walker": {
+        "n": 2,
+        "cut": 0,
+        "rerouted": 0,
+        "home_burned": 2,
+        "delta_median_min": null,
+        "delta_median_m": null
+       }
+      }
      }
     },
     "sources": [
@@ -494,7 +892,7 @@
     ]
    }
   ],
-  "n_plans": 44,
+  "n_plans": 52,
   "front_kmh": 7.5,
   "hours": [
    1,
@@ -504,48 +902,54 @@
    2,
    3
   ],
-  "plan_sources": "1 bundle plan + 43 manual-chair plans from the county addresses"
+  "plan_sources": "6 bundle plans + 46 manual-chair plans from the county addresses"
  },
  "audio": {
-  "sayable_strings": 9886,
-  "clip_keys": 9886,
+  "sayable_strings": 15772,
+  "clip_keys": 15772,
   "recorded": 0,
   "recorded_pct": 0.0,
-  "fallbacks": 9886,
-  "audio_dir_present": false,
+  "fallbacks": 15772,
+  "audio_dir_present": true,
   "clients": 6
  },
  "accessibility": {
   "contrast": [
    {
     "pair": "text on background",
-    "ratio": 19.89,
-    "aaa": true
+    "ratio": 11.37,
+    "aaa": true,
+    "need": 7.0
    },
    {
     "pair": "dim text on background",
-    "ratio": 12.19,
-    "aaa": true
+    "ratio": 8.04,
+    "aaa": true,
+    "need": 7.0
    },
    {
     "pair": "text on card",
-    "ratio": 17.39,
-    "aaa": true
+    "ratio": 10.23,
+    "aaa": true,
+    "need": 7.0
    },
    {
     "pair": "button label on button",
-    "ratio": 9.4,
-    "aaa": true
+    "ratio": 8.68,
+    "aaa": true,
+    "need": 7.0
    },
    {
-    "pair": "route on map veil",
-    "ratio": 12.75,
-    "aaa": true
+    "pair": "route on its black casing",
+    "ratio": 6.9,
+    "aaa": true,
+    "need": 4.5
    },
    {
-    "pair": "refuge green on background",
-    "ratio": 9.65,
-    "aaa": true
+    "pair": "refuge green on the casing",
+    "ratio": 10.19,
+    "aaa": true,
+    "need": 4.5
    }
   ],
   "all_aaa": true,
@@ -559,7 +963,7 @@
   "rule": "EmberButtonStyle: lineLimit(1) + minimumScaleFactor(0.5); ButtonRow stacks at accessibility sizes"
  },
  "bundle": {
-  "zip_mb": 1.99,
+  "zip_mb": 0.0,
   "zipped": true,
   "files": {
    "manifest.json": true,
@@ -575,15 +979,15 @@
    "shared/profiles.json": true
   },
   "all_present": true,
-  "nodes": 10412,
-  "edges": 10992,
+  "nodes": 10383,
+  "edges": 10952,
   "refuges": 32,
-  "addresses": 45,
+  "addresses": 49,
   "thumbs": 32,
-  "audio_clips": 0,
-  "built_at": "2026-10-24T23:02:12Z",
+  "audio_clips": 1,
+  "built_at": "2026-10-25T05:33:25Z",
   "sources": {
-   "osm": "OpenStreetMap via Overpass API, data as of 2026-10-23T20:20:51Z",
+   "osm": "OpenStreetMap via Overpass API, data as of 2026-06-01T08:52:28Z",
    "dem": "USGS 3DEP 1/3 arc-second (3DEPElevation ImageServer exportImage, bilinear)",
    "fuel": "LANDFIRE LF2024 FBFM40 (lfps.usgs.gov ImageServer, native 30 m grid)",
    "wind": "api.weather.gov gridpoints/STO/47,122",
@@ -604,37 +1008,18 @@
   "import_s": 0.16,
   "planned": 200,
   "failed": 0,
-  "plan_s": 7.1,
+  "plan_s": 7.98,
   "stamped": 200,
-  "stamp_s": 0.34,
-  "pdf_n": 39,
-  "pdf_s": 15.36,
+  "stamp_s": 0.35,
+  "pdf_n": 40,
+  "pdf_s": 15.52,
   "pdf_pages_max": 2,
   "pdf_pages_over_2": 0,
-  "pdf_too_long": [
-   "t0031"
-  ],
+  "pdf_too_long": [],
   "n": 200,
-  "plans_per_hour": 101408,
-  "stamps_per_hour": 2117647,
-  "pdfs_per_hour": 9141
+  "plans_per_hour": 90226,
+  "stamps_per_hour": 2057143,
+  "pdfs_per_hour": 9278
  },
- "tests": {
-  "engine": {
-   "passed": 88,
-   "failed": 0,
-   "ok": true
-  },
-  "staff": {
-   "passed": 55,
-   "failed": 0,
-   "ok": true
-  },
-  "navigator": {
-   "passed": 78,
-   "failed": 0,
-   "ok": true
-  }
- },
- "seconds": 99.6
+ "seconds": 154.7
 }

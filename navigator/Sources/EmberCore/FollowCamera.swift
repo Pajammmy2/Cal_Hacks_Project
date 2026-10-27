@@ -8,7 +8,7 @@ public struct FollowCamera: Equatable, Sendable {
     /// How long the whole route stays on screen when Navigate opens.
     public static let overviewS: TimeInterval = 1.0
     /// Ground width of the follow view.
-    public static let followSpanM = 150.0
+    public static let followSpanM = 250.0   // imagery <= 1.5x native (0.3 m/px, 3x screen, 402 pt map): 190 m still measured 1.75x (owner rule #3)
     /// The user sits this fraction of the span behind the centre, so the map shows what is ahead.
     public static let aheadFraction = 0.22
     /// Pinch limits in the paused view.
@@ -76,4 +76,26 @@ public struct FollowCamera: Equatable, Sendable {
         let need = max(widthM, heightM * max(aspect, 0.1), 40) * (1 + 2 * marginFraction)
         return need
     }
+}
+
+/// Direction of travel from successive GPS fixes (from engineer #1's v1): fixes closer than `minMoveM` are jitter and
+/// ignored; the bearing between real moves is low-pass filtered so the heading-up map does not twitch.
+public struct CourseEstimator: Sendable {
+    public var minMoveM = 6.0
+    public var smoothing = 0.5
+    public private(set) var heading: Double?
+    var last: (lat: Double, lon: Double)?
+
+    public init() {}
+
+    public mutating func add(lat: Double, lon: Double) {
+        guard let l = last else { last = (lat, lon); return }
+        let d = Geo.haversineM(l.lat, l.lon, lat, lon)
+        guard d >= minMoveM else { return }
+        let b = Geo.bearingDeg(l.lat, l.lon, lat, lon)
+        if let h = heading { heading = Py.mod(h + Geo.signedTurn(h, b) * smoothing, 360.0) } else { heading = b }
+        last = (lat, lon)
+    }
+
+    public mutating func reset() { heading = nil; last = nil }
 }

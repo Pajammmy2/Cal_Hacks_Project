@@ -4,7 +4,6 @@ import EmberCore
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var scanning = false
-    @State private var settings = false
     @ScaledMetric(relativeTo: .title2) var nameSize: CGFloat = 26
     @Environment(\.dynamicTypeSize) var typeSize
 
@@ -23,15 +22,29 @@ struct HomeView: View {
                                 .foregroundColor(selected ? Theme.onAccent : Theme.text)
                         }
                         VStack(alignment: .leading, spacing: 2) {
+                            // Rule #4: the name gets the full card width at AX sizes (the tick moves under it) and shrinks
+                            // as a whole word before it would ever break mid-word ("Margar / et", owner pass 3).
                             Text(p.name).font(Theme.font(nameSize, .bold))
-                            Text(p.mobilityLabel).font(Theme.font(nameSize * 0.72, .medium)).foregroundColor(Theme.dim)
+                                .lineLimit(typeSize.isAccessibilitySize ? 2 : nil).minimumScaleFactor(0.6)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(p.mobilityLabel).font(Theme.font(nameSize * 0.72, .medium)).foregroundColor(Theme.dim)
+                                    .lineLimit(2).minimumScaleFactor(0.6)
+                                if typeSize.isAccessibilitySize {
+                                    Spacer(minLength: 0)
+                                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                        .font(Theme.font(nameSize * 0.9, .bold))
+                                        .foregroundColor(selected ? Theme.accent : Theme.dim)
+                                }
+                            }
                         }
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .font(Theme.font(nameSize * 1.1, .bold))
-                            .foregroundColor(selected ? Theme.accent : Theme.dim)
+                        if !typeSize.isAccessibilitySize {
+                            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                .font(Theme.font(nameSize * 1.1, .bold))
+                                .foregroundColor(selected ? Theme.accent : Theme.dim)
+                        }
                     }
                     .foregroundColor(Theme.text)
                     .frame(minHeight: Theme.minButtonHeight)
@@ -49,9 +62,12 @@ struct HomeView: View {
                     .accessibilityHint("Starts the battery timer for oxygen and other devices")
             }
             .card(padding: 14)
-            NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
-                .accessibilityLabel(model.fireAgeText + (model.fireIsStale ? ", old" : ""))
+            NoteText(text: model.fireStatusText, systemImage: model.fireIsStale ? "clock.badge.exclamationmark" : "clock")
+            if let built = model.bundleBuiltText { NoteText(text: built, systemImage: "map") }
             if let note = model.feedNote { NoteText(text: note, systemImage: "antenna.radiowaves.left.and.right") }
+            if let l = model.selected?.language, l != "en" {   // the card is in their language; the voice is not (yet)
+                NoteText(text: "Spoken instructions are in English.", systemImage: "speaker.wave.2")
+            }
             if let err = model.loadError { NoteText(text: err, systemImage: "exclamationmark.triangle") }
             if let n = model.notice { NoteText(text: n, systemImage: "info.circle") }
         } buttons: {
@@ -59,7 +75,7 @@ struct HomeView: View {
                 .disabled(model.selected == nil || model.bundle == nil)
             ButtonRow {
                 EmberButton(title: "Add profile", systemImage: "qrcode.viewfinder", hint: "Scan the QR code on the plan card") { scanning = true }
-                EmberButton(title: "Settings", systemImage: "gearshape", hint: "Map style, font and keys") { settings = true }
+                EmberButton(title: "Settings", systemImage: "gearshape", hint: "Map style, font and keys") { model.settingsShown = true }
             }
         }
         .sheet(isPresented: $scanning) {
@@ -75,23 +91,31 @@ struct HomeView: View {
             .padding(16)
             .background(Theme.background.ignoresSafeArea())
         }
-        .sheet(isPresented: $settings) {
-            SettingsView { settings = false; model.settingsChanged() }
+        .sheet(isPresented: $model.settingsShown) {
+            SettingsView { model.settingsShown = false; model.settingsChanged() }
                 .environmentObject(model)
         }
     }
 
-    func icon(_ p: ClientProfile) -> String {
-        switch p.mobility {
-        case "manual_chair", "power_chair": return "figure.roll"
-        case "walker", "cane": return "figure.walk"
-        case "bedbound": return "bed.double.fill"
-        default: return "person.fill"
-        }
-    }
+    func icon(_ p: ClientProfile) -> String { p.mobilityIcon }
 }
 
 /// Label that wraps, switch on the right, at every text size.
+/// A big switch whose OFF state is still visible on the off-white card (the system switch's pale grey track is not).
+struct EmberSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule().fill(configuration.isOn ? Theme.accent : Theme.dim).frame(width: 68, height: 40)
+                Circle().fill(Color.white).frame(width: 32, height: 32).padding(4)
+                    .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: configuration.isOn)
+    }
+}
+
 struct ToggleRow: View {
     let title: String
     @Binding var isOn: Bool
@@ -99,7 +123,7 @@ struct ToggleRow: View {
     var body: some View {
         HStack(spacing: 12) {
             SecondaryText(text: title)
-            Toggle(title, isOn: $isOn).labelsHidden().tint(Theme.accent)
+            Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(EmberSwitchStyle())
         }
         .frame(minHeight: Theme.minButtonHeight)
         .accessibilityElement(children: .combine)
@@ -127,19 +151,43 @@ struct SettingsView: View {
     @AppStorage(Theme.fontKey) private var fontChoice = "inter"
     @AppStorage(Theme.mapStyleKey) private var mapStyle = "satellite"
 
-    var body: some View {
+    /// The font is read statically: rebuild the sheet's content (not the sheet, whose state holds the half-typed
+    /// keys) when it changes.
+    var body: some View { content.id(fontChoice) }
+
+    private var content: some View {
         Screen {
             InstructionText(text: "Settings")
+            VStack(spacing: 0) {
+                ToggleRow(title: "Power is out", isOn: Binding(get: { model.powerIsOut }, set: { model.setPowerOut($0) }))
+                    .accessibilityHint("Off means power is back: stops the battery timer")
+                if let built = model.bundleBuiltText { NoteText(text: built, systemImage: "map") }
+                NoteText(text: model.fireStatusText, systemImage: "clock")
+            }
+            .card(padding: 14)
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Map")
-                Text("Satellite photo when the phone has signal or a saved picture; Drawn streets always work offline.")
-                    .font(Theme.font(17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                HelpText(text: "Satellite photo when the phone has signal or a saved picture; Drawn streets always work offline.")
                 ButtonRow {
                     ForEach(SettingsView.mapStyles, id: \.0) { m in
                         EmberButton(title: m.1, systemImage: mapStyle == m.0 ? "checkmark.circle.fill" : m.2,
                                     hint: "Show the \(m.1.lowercased()) map") { mapStyle = m.0 }
                     }
                 }
+            }
+            .card()
+            // Owner review (rule #5): "Start over" lives here, not between the Navigate map and its buttons.
+            Button { model.settingsShown = false; model.startOver() } label: {
+                Label("Start over", systemImage: "house").font(Theme.font(20, .semibold)).foregroundColor(Theme.text)
+                    .frame(maxWidth: .infinity, minHeight: Theme.minButtonHeight, alignment: .leading)
+            }
+            .card()
+            .accessibilityHint("Stop guidance and go back to the start screen; asks first")
+            VStack(alignment: .leading, spacing: 10) {
+                ToggleRow(title: "Demo: step through route", isOn: $model.demoStepping)
+                Text("For rehearsals. Moves your position along the route without GPS.")
+                    .font(Theme.font(17)).foregroundColor(Theme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .card()
             VStack(alignment: .leading, spacing: 10) {
@@ -176,8 +224,7 @@ struct SettingsView: View {
             #if os(iOS)
             VStack(alignment: .leading, spacing: 10) {
                 SecondaryText(text: "Offline map (developer)")
-                Text("Saves satellite pictures of \(model.selected?.name ?? "the selected person")'s routes into the county bundle, for use with no signal.")
-                    .font(Theme.font(17)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                HelpText(text: "Saves satellite pictures of \(model.selected?.name ?? "the selected person")'s routes into the county bundle, for use with no signal.")
                 EmberButton(title: saving ? "Saving…" : "Save satellite snapshot", systemImage: "square.and.arrow.down",
                             hint: "Needs signal; writes satellite/<client>_<n>.jpg into the bundle") { saveSnapshots() }
                     .disabled(saving || model.selected == nil || model.bundle == nil)

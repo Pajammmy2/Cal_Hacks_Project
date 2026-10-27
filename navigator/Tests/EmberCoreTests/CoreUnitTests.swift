@@ -53,6 +53,25 @@ import Testing
         }
     }
 
+    /// Owner additions (demo night): one phrase from each new group matches, and "help" does not collide with the
+    /// groups that contain the word ("i need help" is call_help; "fire" alone is still fire, "where is the fire" is where_fire).
+    @Test func fiveNewIntentsMatchWithoutCollisions() {
+        let samples: [(Intent, String)] = [
+            (.goHome, "go home"), (.goHome, "back to the start"),
+            (.otherWay, "other way"), (.otherWay, "the other one"),
+            (.callHelp, "call 911"), (.callHelp, "i need help"),
+            (.whereFire, "where is the fire"), (.whereFire, "which way is the smoke"),
+            (.help, "help"), (.help, "what can i say"),
+        ]
+        for (intent, p) in samples {
+            #expect(m.match(p)?.intent == intent, "\(p)")
+            #expect(m.match("Um, \(p.uppercased()), please")?.intent == intent, "\(p) in a sentence")
+        }
+        #expect(m.match("fire")?.intent == .fire)
+        #expect(m.match("start over")?.intent == .goHome)
+        #expect(Intent.allCases.count == Fixtures.config.intents.intents.count)
+    }
+
     @Test func everySynonymInTheFileMapsToItsIntent() {
         for (key, syns) in Fixtures.config.intents.intents {
             for s in syns { #expect(m.match(s)?.intent.rawValue == key, "\(s)") }

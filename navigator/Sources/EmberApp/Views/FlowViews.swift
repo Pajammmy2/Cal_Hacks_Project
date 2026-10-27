@@ -1,33 +1,82 @@
 import SwiftUI
 import EmberCore
 
+/// Which way is the fire? Fresh data: confirm it. Otherwise point the phone (compass) or, with no compass, tap the
+/// direction of the smoke on eight big buttons (engineer #1's picker). "Not sure" plans from the last report / the
+/// historical prior and says which (engineer #2's lead). Never a dead end: Can't move and Back are always here.
 struct WhichWayView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var speaker: Speaker
     @EnvironmentObject var compass: CompassService
+    @State private var picking = false
 
     var body: some View {
         let fresh = !model.fireIsStale && model.fireBearingWord != nil
+        let hasCompass = compass.heading != nil
         Screen {
-            InstructionText(text: model.displayText)
-            CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            if !fresh { NoteText(text: model.fireAgeText + (model.fireIsStale ? " (old)" : ""), systemImage: "clock.badge.exclamationmark") }
+            HomeChip { model.homeTapped() }
+            InstructionText(text: picking ? NavigatorStateMachine.whichWaySmoke : model.displayText)
+            if picking {
+                DirectionPicker { bearing in
+                    picking = false
+                    model.pickedSmokeDirection(bearing)
+                }
+                .onAppear { model.askDirection(newFire: false) }
+            } else {
+                CompassArrow(fireBearing: fresh ? model.machine?.dataFireBearing : nil, heading: compass.heading)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                if !fresh { NoteText(text: model.fireStatusText, systemImage: "clock.badge.exclamationmark") }
+                if !hasCompass { NoteText(text: "No compass on this phone.", systemImage: "location.slash") }
+            }
         } buttons: {
-            if fresh {
-                EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
-            }
-            if compass.heading != nil {
-                EmberButton(title: "Point", systemImage: "location.north.line.fill",
-                            hint: "Hold the phone flat, point the top at the smoke, then tap") { model.pointAtSmoke() }
-            }
-            if !fresh {
-                // Old data and no compass used to dead-end here. The plan's refuges are still safe choices.
-                EmberButton(title: "Not sure", systemImage: "questionmark.circle",
-                            hint: "Skip the fire direction and choose from the planned safe places") { model.skipFireDirection() }
+            if picking {
+                EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Back without choosing a direction") { picking = false }
+            } else {
+                if fresh {
+                    EmberButton(title: "OK", systemImage: "checkmark", hint: "The fire is to the \(model.fireBearingWord ?? "")") { model.confirmFire() }
+                }
+                ButtonRow {
+                    EmberButton(title: hasCompass ? "Point" : "Direction",
+                                systemImage: hasCompass ? "location.north.line.fill" : "hand.tap.fill",
+                                hint: hasCompass ? "Hold the phone flat, point the top at the smoke, then tap" : "Choose the direction of the smoke from a list") {
+                        if hasCompass { model.pointAtSmoke() } else { picking = true }
+                    }
+                    EmberButton(title: "Not sure", systemImage: "questionmark.circle",
+                                hint: "Plan without pointing, from the last report or where fires have come from here") { model.skipFireDirection() }
+                }
+                ButtonRow {
+                    EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Stay here and start the shelter steps") { model.cantMove() }
+                    EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Back to the start screen") { model.goHome() }
+                }
             }
         }
+    }
+}
+
+/// Eight big direction buttons (from engineer #1). Used wherever the compass cannot answer "which way".
+struct DirectionPicker: View {
+    let onPick: (Double) -> Void
+    static let directions: [(String, Double, String)] = [
+        ("North", 0, "arrow.up"), ("Northeast", 45, "arrow.up.right"),
+        ("East", 90, "arrow.right"), ("Southeast", 135, "arrow.down.right"),
+        ("South", 180, "arrow.down"), ("Southwest", 225, "arrow.down.left"),
+        ("West", 270, "arrow.left"), ("Northwest", 315, "arrow.up.left"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(Array(stride(from: 0, to: DirectionPicker.directions.count, by: 2)), id: \.self) { i in
+                ButtonRow {
+                    ForEach(i..<min(i + 2, DirectionPicker.directions.count), id: \.self) { j in
+                        let d = DirectionPicker.directions[j]
+                        EmberButton(title: d.0, systemImage: d.2, hint: "The smoke is to the \(d.0.lowercased())") { onPick(d.1) }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Direction of the smoke")
     }
 }
 
@@ -36,8 +85,10 @@ struct CompassArrow: View {
     let fireBearing: Double?
     let heading: Double?
     @ScaledMetric(relativeTo: .largeTitle) var scaled: CGFloat = 170
-    /// Capped so the dial always fits the screen width at accessibility sizes.
-    var size: CGFloat { min(scaled, 200) }
+    @Environment(\.dynamicTypeSize) var typeSize
+    /// Capped so the dial fits the screen width, and at accessibility sizes stays whole above the five stacked
+    /// buttons instead of being scroll-cut by the panel (AX5 finding).
+    var size: CGFloat { min(scaled, typeSize.isAccessibilitySize ? 120 : 200) }
 
     var angle: Double {
         guard let f = fireBearing else { return 0 }
@@ -94,36 +145,33 @@ struct ChooseView: View {
         let b = m?.alternateChoice
         let header = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         Screen {
+            HomeChip { model.homeTapped() }
             if let a, let m {
                 VStack(alignment: .leading, spacing: 10) {
                     header {
                         Label("Go here", systemImage: "arrow.forward.circle.fill")
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.accent)
                         if !typeSize.isAccessibilitySize { Spacer() }
-                        Label("\(a.route.minutes) min", systemImage: "figure.roll")
+                        Label("\(a.route.minutes) min", systemImage: m.client?.mobilityIcon ?? "figure.walk")
                             .font(Theme.font(small, .bold)).foregroundColor(Theme.text)
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    Text(a.refuge.name).font(Theme.font(big * 1.15, .heavy)).foregroundColor(Theme.text)
+                    Text(typeSize.isAccessibilitySize ? a.refuge.shortName : a.refuge.name).font(Theme.font(min(big * 1.15, 40), .heavy)).foregroundColor(Theme.text)
+                        .lineLimit(3).minimumScaleFactor(0.7)      // long OSM names: shrink, never break mid-word (engineer #1)
                         .fixedSize(horizontal: false, vertical: true)
                     RouteMapView(graph: m.graph, route: a.route, position: m.position, refuge: a.refuge,
                                  satellites: model.satellites,
-                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 300 : 360)
+                                 online: voice.online, thumbnail: true, height: typeSize.isAccessibilitySize ? 190 : 300)   // AX: whole map above the pinned buttons (owner pass 3)
                 }
                 .card(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous).stroke(Theme.accent, lineWidth: 3))
                 if let b {
-                    HStack(spacing: 12) {
-                        RouteMapView(graph: m.graph, route: b.route, position: m.position, refuge: b.refuge,
-                                     satellites: model.satellites,
-                                     online: voice.online, thumbnail: true, height: 140)
-                            .frame(width: 150)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                            Text(b.refuge.name).font(Theme.font(small * 1.3, .bold)).foregroundColor(Theme.text)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text("\(b.route.minutes) min").font(Theme.font(small * 1.2, .bold)).foregroundColor(Theme.dim)
-                        }
+                    // Text only (no postage-stamp map, owner complaint #4): short enough to sit whole above the buttons.
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("Or").font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+                        Text("\(typeSize.isAccessibilitySize ? b.refuge.shortName : b.refuge.name) · \(b.route.minutes) min").font(Theme.font(min(small * 1.2, 28), .bold)).foregroundColor(Theme.text)
+                            .lineLimit(2).minimumScaleFactor(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                     }
                     .card(padding: 12)
@@ -148,59 +196,125 @@ struct NavigateView: View {
     @EnvironmentObject var voice: VoiceController
     @EnvironmentObject var compass: CompassService
     @Environment(\.dynamicTypeSize) var typeSize
+    @State private var pickingFire = false
 
     var body: some View {
         let m = model.machine
         let p = m?.progress
+        if pickingFire {
+            // New fire, no compass: ask which way (engineer #1's picker); "Can't tell" uses report -> history -> ahead.
+            Screen {
+                InstructionText(text: NavigatorStateMachine.whichWayNewFire)
+                DirectionPicker { bearing in
+                    pickingFire = false
+                    model.pickedSmokeDirection(bearing)
+                }
+                .onAppear { model.askDirection(newFire: true) }
+            } buttons: {
+                ButtonRow {
+                    EmberButton(title: "Can't tell", systemImage: "questionmark.circle",
+                                hint: "Use the last fire report or where fires have come from here; asks first") { pickingFire = false; model.newFireTapped() }
+                    EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Keep the current route") { pickingFire = false }
+                }
+            }
+        } else {
+            navigate(m, p)
+        }
+    }
+
+    @ViewBuilder
+    func navigateWords(_ p: RouteProgress?, mins: Int, eta: Double?, fireFirst: Bool) -> some View {
+        InstructionText(text: model.displayText)
+        // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
+        // large part of the screen").
+        StatLine(items: [
+            p?.distanceToNextTurnM.map { (WordFit.stripValue(Int(($0 / 10).rounded()) * 10, unit: "m"), "to next turn", "arrow.turn.up.right") },
+            (WordFit.stripValue(mins, unit: "min"), "to go", model.machine?.client?.mobilityIcon ?? "figure.walk"),
+        ].compactMap { $0 }) { compact in
+            if model.demoStepping { DemoNextButton(compact: compact) { model.demoNext() } }   // in the strip at every size
+        }
+        // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
+        if let eta {
+            StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
+                     systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
+        }
+        if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
+    }
+
+    @ViewBuilder
+    func navigateMap(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
+        if let m, let p {
+            // Re-centre is drawn by the map itself (bottom-centre, inside the map, only while following is paused,
+            // moved by the placer when the route runs there) so it is never clipped and never sits on the route.
+            RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
+                         heading: compass.heading ?? m.travelHeading, walkedM: p.progressM,
+                         satellites: model.satellites, online: voice.online,
+                         camera: model.mapViewport, paused: model.follow.isPaused,
+                         onUserGesture: { model.mapInteracted() },
+                         nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil,
+                         onSize: { model.mapAspect = Double($0.width / max($0.height, 1)) },
+                         showsRecentre: model.follow.showsRecentre, onRecentre: { model.recentreMap() })
+        }
+    }
+
+    @ViewBuilder
+    func navigate(_ m: NavigatorStateMachine?, _ p: RouteProgress?) -> some View {
         let mins = Int(ceil((m?.remainingRouteTimeS ?? 0) / 60))
         let eta = m?.fireETAMinutes
         let fireFirst = eta.map { Double(mins) >= $0 } ?? false
-        Screen {
-            InstructionText(text: model.displayText)
-            // One compact line instead of three tiles: the map below gets the space (owner: "the map should take up a
-            // large part of the screen").
-            StatLine(items: [
-                p?.distanceToNextTurnM.map { ("\(Int(($0 / 10).rounded()) * 10) m", "to next turn", "arrow.turn.up.right") },
-                ("\(mins) min", "to go", "figure.roll"),
-            ].compactMap { $0 })
-            // Only a real number helps here: an unknown fire ETA used to take a third of the row as "?".
-            if let eta {
-                StatTile(value: "\(Int(eta.rounded()))", unit: "min", caption: fireFirst ? "Fire may arrive first" : "until fire reaches you",
-                         systemImage: fireFirst ? "exclamationmark.triangle.fill" : "flame", warning: fireFirst)
-            }
-            if let m, let p {
-                ZStack(alignment: .bottomTrailing) {
-                    RouteMapView(graph: m.graph, route: p.route, position: m.position, refuge: m.currentChoice?.refuge,
-                                 heading: compass.heading ?? m.travelHeading, walkedM: p.progressM,
-                                 satellites: model.satellites, online: voice.online,
-                                 camera: model.mapViewport, paused: model.follow.isPaused,
-                                 onUserGesture: { model.mapInteracted() },
-                                 nextTurnNode: p.groupIndex + 1 < p.groups.count ? p.groups[p.groupIndex + 1].first?.node : nil)
-                    if model.follow.showsRecentre {
-                        Button { model.recentreMap() } label: { Label("Re-centre", systemImage: "location.fill") }
-                            .buttonStyle(EmberButtonStyle())
-                            .fixedSize()
-                            .padding(10)
-                            .accessibilityLabel("Re-centre")
-                            .accessibilityHint("Follow your position on the map again")
+        // The column scrolls at every size (fixed-height map) so the Home chip, words, strip and map never clip
+        // against the status bar or the pinned button panel.
+        Screen(scrolls: false) {
+            if typeSize.isAccessibilitySize {
+                // Accessibility sizes (owner pass 3): the instruction is never truncated and the distance/time strip
+                // (with the demo "Next" at its end) stays under it; the map keeps a minimum height below them and the
+                // whole column scrolls when the words need the room. Nothing sits under the pinned buttons.
+                ScrollView(showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HomeChip { model.homeTapped() }
+                        navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                        navigateMap(m, p).frame(height: 220)
+                        CaregiverInfo(client: m?.client)
                     }
+                    .padding(.bottom, 8)
                 }
-                .frame(height: typeSize.isAccessibilitySize ? 300 : 340)
+                .frame(maxHeight: .infinity)
+            } else {
+                // Owner (demo/v3 on a 14 Pro): with the Home chip the fixed column clipped top and bottom, so the
+                // default size scrolls too; the map keeps a fixed height that fits a 6.1" phone without scrolling.
+                ScrollView(showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HomeChip { model.homeTapped() }
+                        navigateWords(p, mins: mins, eta: eta, fireFirst: fireFirst)
+                        navigateMap(m, p).frame(height: 300)
+                    }
+                    .padding(.bottom, 8)
+                }
+                .frame(maxHeight: .infinity)
             }
-            CaregiverInfo(client: m?.client)
-            if voice.listening { NoteText(text: voice.partial.isEmpty ? "Listening…" : voice.partial, systemImage: "waveform") }
         } buttons: {
+            if m?.pending != nil {
+                // The tapped action waits for an answer: two big buttons, the question is the instruction text above.
+                ButtonRow {
+                    EmberButton(title: "Yes", systemImage: "checkmark", hint: "Yes, do it") { model.confirmPending() }
+                    EmberButton(title: "No", systemImage: "xmark", hint: "No, keep going as before") { model.cancelPending() }
+                }
+            } else {
+            // Owner reference structure: Blocked / Repeat, Can't move / Speak, then a full-width New fire. "Louder" stays
+            // a voice command (and Repeat speaks at full volume when the user asked for louder before).
             ButtonRow {
-                EmberButton(title: "Blocked", systemImage: "xmark.octagon.fill", hint: "Find a way around") { model.blocked() }
+                EmberButton(title: "Blocked", systemImage: "xmark.octagon.fill", hint: "Find a way around; asks first") { model.blocked() }
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
             }
             ButtonRow {
                 EmberButton(title: "Can't move", systemImage: "house.fill", hint: "Start the shelter steps") { model.cantMove() }
                 EmberButton(title: voice.listening ? "Done" : "Speak", systemImage: voice.listening ? "mic.fill" : "mic",
-                            hint: "Say blocked, fire, repeat, where am I, or how long") { model.micTapped() }
+                            hint: "Say blocked, fire, repeat, louder, where am I, or how long") { model.micTapped() }
             }
-            ButtonRow {
-                EmberButton(title: "New fire", systemImage: "flame.fill", hint: "Point the phone at the fire, then tap") { model.pointAtNewFire() }
+            EmberButton(title: "New fire", systemImage: "flame.fill",
+                        hint: compass.heading != nil ? "Point the phone at the fire, then tap; asks first" : "Choose the direction of the fire from a list") {
+                if compass.heading != nil { model.newFireTapped() } else { pickingFire = true }
+            }
             }
         }
     }
@@ -214,8 +328,11 @@ struct ShelterView: View {
     var body: some View {
         let m = model.machine
         Screen {
+            HomeChip { model.homeTapped() }
             if let room = m?.shelter.room {
-                Text(room).font(Theme.font(roomSize, .black)).foregroundColor(Theme.onAccent)
+                // Bounded and shrink-to-fit: at AX5 a 60 pt scaled title wrapped mid-word ("bedro / om"; found by engineer #2).
+                Text(room).font(Theme.font(min(roomSize, 48), .black)).foregroundColor(Theme.onAccent)
+                    .lineLimit(2).minimumScaleFactor(0.6)
                     .fixedSize(horizontal: false, vertical: true)
                     .card(Theme.accent)
                     .accessibilityLabel("Room: \(room)")
@@ -224,7 +341,9 @@ struct ShelterView: View {
             if let m { NoteText(text: "Step \(m.shelterIndex + 1) of \(m.shelter.steps.count)", systemImage: "list.number") }
             CaregiverInfo(client: m?.client)
         } buttons: {
-            EmberButton(title: "Next", systemImage: "arrow.forward", hint: "Next step") { model.shelterNext() }
+            EmberButton(title: model.machine?.shelterIsLastStep == true ? "Done" : "Next",
+                        systemImage: model.machine?.shelterIsLastStep == true ? "checkmark" : "arrow.forward",
+                        hint: model.machine?.shelterIsLastStep == true ? "Last step done: back to the start screen" : "Next step") { model.shelterNext() }
             ButtonRow {
                 EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say this step again") { model.repeatInstruction() }
                 EmberButton(title: "Back", systemImage: "arrow.backward", hint: "Previous step") { model.shelterBack() }
@@ -252,5 +371,84 @@ struct ArrivedView: View {
         } buttons: {
             EmberButton(title: "Done", systemImage: "checkmark", hint: "Back to the start screen") { model.done() }
         }
+    }
+}
+
+/// Owner "shelter here": every road is cut and nothing is reachable → the location to read to 911, in large text.
+struct StayHereView: View {
+    @EnvironmentObject var model: AppModel
+    @ScaledMetric(relativeTo: .title) var coord: CGFloat = 30
+
+    var body: some View {
+        Screen {
+            HomeChip { model.homeTapped() }
+            InstructionText(text: model.displayText)
+            Text(model.machine?.stayHereText ?? "")
+                .font(Theme.font(min(coord, 44), .heavy)).foregroundColor(Theme.text)
+                .lineLimit(nil).minimumScaleFactor(0.6)
+                .fixedSize(horizontal: false, vertical: true)
+                .card(Theme.card)
+                .accessibilityLabel("Your location: \((model.machine?.stayHereText ?? "").replacingOccurrences(of: "\n", with: ", "))")
+        } buttons: {
+            EmberButton(title: "Call 911", systemImage: "phone.fill", hint: "Calls emergency services") {
+                #if os(iOS)
+                if let u = URL(string: "tel://911") { UIApplication.shared.open(u) }
+                #endif
+            }
+            EmberButton(title: "Repeat", systemImage: "speaker.wave.2.fill", hint: "Say the instruction again") { model.repeatInstruction() }
+        }
+    }
+}
+
+/// Settings → "Demo: step through route": a small secondary button at the end of the distance/time strip. Slate
+/// outline, ≥ 44 pt, never wraps; the approved layout and the map are untouched.
+/// Owner: "a Home button to instantly return to the Home screen from any position in the route". Small slate-outline
+/// chip at the top of every in-run screen (44 pt, VoiceOver "Home"). Mid-route it asks first through the existing
+/// Start-over question ("Stop and go back to the start? Say yes to stop."); elsewhere it goes straight Home.
+struct HomeChip: View {
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Button(action: action) {
+                Label("Home", systemImage: "house")
+                    .padding(.horizontal, 12)
+                    .font(Theme.font(min(size, 24), .bold))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(minWidth: 44, minHeight: 44)
+                    .foregroundColor(Theme.text)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.text, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Home")
+            .accessibilityHint("Back to the start screen; asks first while you are on a route")
+        }
+    }
+}
+
+struct DemoNextButton: View {
+    var compact = false
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if compact { Image(systemName: "forward.end").padding(.horizontal, 10) }
+                else { Label("Next", systemImage: "forward.end").padding(.horizontal, 12) }
+            }
+                .font(Theme.font(min(size, 24), .bold))
+                .lineLimit(1)
+                .fixedSize()
+                .frame(minWidth: 44, minHeight: 44)
+                .foregroundColor(Theme.text)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.text, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Next step, demo")
+        .accessibilityHint("Moves you to the next instruction without walking")
     }
 }

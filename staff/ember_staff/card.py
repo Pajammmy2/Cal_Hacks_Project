@@ -2,6 +2,7 @@
 
 The same context renders the review screen's left pane and the printed PDF, so what staff review is what prints.
 """
+import re
 import base64
 import io
 import json
@@ -97,6 +98,54 @@ def off_thumb(pts, size=THUMB_PX):
     return any(not (0 <= x <= size and 0 <= y <= size) for x, y in pts)
 
 
+def _inside(pt, ring):
+    x, y = pt
+    inside = False
+    for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / ((y2 - y1) or 1e-9):
+            inside = not inside
+    return inside
+
+
+def trim_start(pts, dist):
+    """Cut the first `dist` px of the route so it starts at the edge of the Start dot instead of running under it."""
+    out = list(pts)
+    while len(out) > 1 and math.hypot(out[1][0] - pts[0][0], out[1][1] - pts[0][1]) <= dist:
+        out.pop(1)
+    if len(out) > 1:
+        (x1, y1), (x2, y2) = pts[0], out[1]
+        d = math.hypot(x2 - x1, y2 - y1) or 1.0
+        out[0] = (round(x1 + (x2 - x1) * dist / d, 1), round(y1 + (y2 - y1) * dist / d, 1))
+    return out
+
+
+def trim_to_outline(pts, ring, clearance=24.0):
+    """Phone rule: the route stops short of the refuge outline. Drop trailing points inside the outline (grown by
+    `clearance` px around the centroid) and cut the last segment where it enters."""
+    if not pts or not ring or len(ring) < 3:
+        return pts
+    cx = sum(x for x, _ in ring) / len(ring)
+    cy = sum(y for _, y in ring) / len(ring)
+    grown = []
+    for x, y in ring:
+        d = math.hypot(x - cx, y - cy) or 1.0
+        grown.append((x + (x - cx) / d * clearance, y + (y - cy) / d * clearance))
+    out = list(pts)
+    while len(out) > 1 and _inside(out[-1], grown):
+        out.pop()
+    if len(out) < len(pts):
+        (x1, y1), (x2, y2) = out[-1], pts[len(out)]
+        lo, hi = 0.0, 1.0
+        for _ in range(20):
+            mid = (lo + hi) / 2
+            if _inside((x1 + (x2 - x1) * mid, y1 + (y2 - y1) * mid), grown):
+                hi = mid
+            else:
+                lo = mid
+        out.append((round(x1 + (x2 - x1) * lo, 1), round(y1 + (y2 - y1) * lo, 1)))
+    return out
+
+
 def overview_svg(coords, refuge, graph=None, w=300, h=200, label=True, cls="overview"):
     """Small drawing of the whole route (graph coords), with the nearby streets in grey, home and refuge marked."""
     if not coords:
@@ -121,7 +170,7 @@ def overview_svg(coords, refuge, graph=None, w=300, h=200, label=True, cls="over
 
     parts = [f'<svg class="{cls}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img" '
              f'aria-label="Whole route from home to {refuge["name"]}">',
-             f'<rect x="0" y="0" width="{w}" height="{h}" fill="#fff" stroke="#000" stroke-width="2"/>']
+             f'<rect x="0" y="0" width="{w}" height="{h}" fill="#E3DED5"/>']
     if graph is not None:
         lines = []
         for e in graph.edges:
@@ -131,20 +180,22 @@ def overview_svg(coords, refuge, graph=None, w=300, h=200, label=True, cls="over
                 x2, y2 = P(la2, lo2)
                 lines.append(f"M{x1} {y1}L{x2} {y2}")
         if lines:
-            parts.append(f'<path d="{"".join(lines)}" stroke="#999" stroke-width="1.5" fill="none"/>')
+            parts.append(f'<path d="{"".join(lines)}" stroke="#8C949E" stroke-width="2" fill="none"/>')
     if poly:
         pp = " ".join("%s,%s" % P(p[1], p[0]) for p in poly)
-        parts.append(f'<polygon points="{pp}" fill="#ddd" stroke="#000" stroke-width="2"/>')
+        parts.append(f'<polygon points="{pp}" fill="#4DCC73" fill-opacity="0.45" stroke="#4DCC73" stroke-width="3"/>')
     pts = " ".join("%s,%s" % P(c[0], c[1]) for c in coords)
-    parts.append(f'<polyline points="{pts}" fill="none" stroke="#000" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>')
+    parts.append(f'<polyline points="{pts}" fill="none" stroke="#000" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>')
+    parts.append(f'<polyline points="{pts}" fill="none" stroke="#E8731A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>')
     hx, hy = P(*coords[0])
     ex, ey = P(*coords[-1])
-    parts.append(f'<circle cx="{hx}" cy="{hy}" r="8" fill="#fff" stroke="#000" stroke-width="3"/>')
+    parts.append(f'<circle cx="{hx}" cy="{hy}" r="9" fill="#fff" stroke="#000" stroke-width="3"/>')
     if label:
         right = hx > w * 0.7
         parts.append(f'<text x="{hx - 11 if right else hx + 11}" y="{hy + 6}" text-anchor="{"end" if right else "start"}" '
                      f'font-size="18" font-weight="700" fill="#000" stroke="#fff" stroke-width="4" paint-order="stroke">Home</text>')
-    parts.append(f'<rect x="{ex - 7}" y="{ey - 7}" width="14" height="14" fill="#000"/>')
+    if not poly:
+        parts.append(f'<circle cx="{ex}" cy="{ey}" r="10" fill="#4DCC73" fill-opacity="0.45" stroke="#4DCC73" stroke-width="3"/>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -193,19 +244,129 @@ def refuge_view(choice, bundle_dir, graph, which):
     uri, (tw, th) = thumb_data_uri(bundle_dir, r)
     coords = choice["route"].get("coords") or []
     pts = project_on_thumb(coords, r["centroid"], size=tw) if coords else []
+    poly = r.get("polygon") or []
+    ring = project_on_thumb([(p[1], p[0]) for p in poly], r["centroid"], size=tw) if len(poly) >= 3 else []
+    k = tw / 160.0                       # same scale factor as the phone's thumbnail (1 pt = k px)
+    drawn = trim_to_outline(pts, ring, clearance=0.04 * tw) if ring else pts
+    home_on = bool(pts) and 0.03 * tw <= pts[0][0] <= 0.97 * tw and 0.03 * th <= pts[0][1] <= 0.97 * th
+    if home_on:
+        drawn = trim_start(drawn, 7 * k + 1.5 * k + 4.5 * k)   # dot radius + stroke + half the route casing
     t = r.get("terms") or {}
     return {
         "which": which, "id": r["id"], "name": r["name"], "kind": r.get("kind"),
         "minutes": choice["route"]["minutes"], "length_m": choice["route"].get("length_m"),
         "score": r.get("score"), "terms": t, "claude": r.get("claude"), "flag": r.get("flag"), "history": r.get("history"),
         "thumb": uri, "thumb_w": tw, "thumb_h": th,
-        "route_pts": " ".join(f"{x},{y}" for x, y in pts),
+        "route_pts": " ".join(f"{x},{y}" for x, y in drawn),
+        "outline_pts": " ".join(f"{x},{y}" for x, y in ring),
+        "centroid_pt": (tw / 2, th / 2),
         "home_pt": pts[0] if pts else None, "end_pt": pts[-1] if pts else None,
+        "home_on_thumb": home_on,
         "off_thumb": off_thumb(pts, tw) if pts else False,
         "overview": overview_svg(coords, r, graph),
         "inset": overview_svg(coords, r, graph, 300, 300, label=False, cls="inset"),
         "inset_corner": inset_corner(pts, tw, th),
         "score_parts": score_parts(t),
+    }
+
+
+# --- whole-route card map (owner rule 6b): the phone's Choose-screen look on paper, rule 1 on paper ---
+def _seg_dist(p, a, b):
+    (px, py), (ax, ay), (bx, by) = p, a, b
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    t = 0.0 if L == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def route_rect_gap(pts, rect):
+    """Distance from a polyline to a rect (0 when they touch)."""
+    x, y, w, h = rect
+    cs = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    best = float("inf")
+    for i in range(len(pts)):
+        if x <= pts[i][0] <= x + w and y <= pts[i][1] <= y + h:
+            return 0.0
+        if i + 1 < len(pts):
+            a, b = pts[i], pts[i + 1]
+            for j in range(4):
+                c, d = cs[j], cs[(j + 1) % 4]
+                best = min(best, _seg_dist(c, a, b), _seg_dist(d, a, b), _seg_dist(a, c, d), _seg_dist(b, c, d))
+    return best
+
+
+def _rect_gap(a, b):
+    dx = max(b[0] - (a[0] + a[2]), a[0] - (b[0] + b[2]), 0)
+    dy = max(b[1] - (a[1] + a[3]), a[1] - (b[1] + b[3]), 0)
+    return math.hypot(dx, dy)
+
+
+def place_pill(anchor, offset, w, h, routes, taken, size, clearance):
+    """Nearest free spot around the anchor (8 directions, three distances), fully on the image, clear of every route and
+    other mark by `clearance`. None when nothing fits (the phone hides the pill too)."""
+    ax, ay = anchor
+    dirs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, -1), (1, 1), (-1, 1)]
+    best = None
+    for ring, dist in enumerate((offset, offset * 2, offset * 3.5)):
+        for dx, dy in dirs:
+            cx, cy = ax + dx * (dist + w / 2 * abs(dx)), ay + dy * (dist + h / 2 * abs(dy))
+            x, y = cx - w / 2, cy - h / 2
+            if x < 2 or y < 2 or x + w > size - 2 or y + h > size - 2:
+                continue
+            r = (x, y, w, h)
+            d = min([route_rect_gap(pts, r) for pts in routes] + [_rect_gap(t, r) for t in taken] + [float("inf")])
+            if d >= clearance and (best is None or d > best[0]):
+                best = (d, r)
+        if best:
+            return best[1]
+    return None
+
+
+def corridor_view(plan, bundle_dir, choices, pill_names):
+    """Template data for the main card map: both routes, both refuge outlines/badges, Start dot + pill, refuge pills."""
+    from . import corridor
+    meta = plan.get("corridor")
+    if not meta or not choices:
+        return None
+    path = Path(bundle_dir) / meta["image"]
+    if not path.exists():
+        return None
+    bbox, px = meta["bbox"], meta["px"]
+    k = px / 151.0                                     # px per printed point in a 2.1 in column
+    P = lambda lat, lon: corridor.project(bbox, px, lat, lon)
+    routes, rings, badges = [], [], []
+    for c in choices[:2]:
+        pts = [P(lat, lon) for lat, lon in (c["route"].get("coords") or [])]
+        poly = c["refuge"].get("polygon") or []
+        ring = [P(p[1], p[0]) for p in poly] if len(poly) >= 3 else []
+        drawn = trim_to_outline(pts, ring, clearance=4 * k) if ring else pts
+        if drawn:
+            drawn = trim_start(drawn, 4 * k + 1.5 * k + 2.5 * k)
+        routes.append(drawn)
+        rings.append(ring)
+        cx, cy = P(c["refuge"]["centroid"][1], c["refuge"]["centroid"][0])
+        badges.append((cx, cy))
+    home = P(*(plan["choices"][0]["route"]["coords"][0])) if plan["choices"][0]["route"].get("coords") else None
+    taken = [(bx - 7 * k, by - 7 * k, 14 * k, 14 * k) for bx, by in badges]
+    if home:
+        taken.append((home[0] - 4 * k, home[1] - 4 * k, 8 * k, 8 * k))
+    font = 8.5 * k
+    pills = []
+    # Only the Start pill is lettered on paper: the A/B badges name the refuges through the headlines beside the map.
+    if home:
+        w, h = font * 0.58 * 5 + 12 * k, 13 * k
+        others = [t for t in taken if t[:2] != (home[0] - 4 * k, home[1] - 4 * k)]
+        r = place_pill(home, 6 * k, w, h, routes, others, px, clearance=3 * k)
+        if r:
+            taken.append(r)
+            pills.append(dict(x=r[0], y=r[1], w=r[2], h=r[3], text="Start"))
+    return {
+        "src": "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode(), "px": px, "k": k,
+        "routes": [" ".join(f"{x},{y}" for x, y in r) for r in routes], "routes_xy": routes,
+        "rings": [" ".join(f"{x},{y}" for x, y in r) for r in rings],
+        "badges": [dict(x=bx, y=by, letter=lt) for (bx, by), lt in zip(badges, ["A", "B"])],
+        "home": dict(x=home[0], y=home[1]) if home else None, "pills": pills, "font": font,
+        "m_per_px": meta.get("m_per_px"), "scale_vs_native": round(meta.get("native_m_per_px", 0.3) / meta["m_per_px"], 2),
     }
 
 
@@ -275,15 +436,28 @@ def qr_data_uri(text):
 # Layout levels: each one tightens spacing and image sizes. Fonts never shrink. The last level moves refuge B to
 # the top of the back page (still "the same, smaller") so a 22 pt card with long routes stays one sheet.
 # Real OSM routes run to 7 steps per refuge, so the deepest levels also narrow the margin to 0.25 in.
+def _renumber(H, level):
+    """Section numbers follow print order: tight levels move "devices"/"whoever" to the front, and a card that
+    reads 1, 5, 2 confuses the responder it is written for."""
+    order = ["leave"] + [k for k, f in (("devices", "devices_front"), ("whoever", "whoever_front")) if level.get(f)]
+    order += ["noone", "cannot"] + [k for k, f in (("devices", "devices_front"), ("whoever", "whoever_front")) if not level.get(f)]
+    H = dict(H)
+    for i, k in enumerate(order, 1):
+        H[k] = f"{i}. " + re.sub(r"^\d+\.\s*", "", H[k])
+    return H
+
+
+# Letter, up to two pages. Levels only tighten spacing and the image column; body type never goes below 14 pt.
+# QR stays >= 1.1 in: the plan payload is a version-13 code (69 modules), so 1.1 in = 0.38 mm modules, the floor phones scan.
 LEVELS = [
-    dict(margin=0.45, lh=1.25, h2_top=0.14, gap=5, img_a=2.4, img_b=1.7, qr=1.6, flow=False, b_on_back=False),
-    dict(margin=0.4, lh=1.2, h2_top=0.1, gap=4, img_a=2.25, img_b=1.6, qr=1.5, flow=False, b_on_back=False),
-    dict(margin=0.35, lh=1.15, h2_top=0.07, gap=2, img_a=2.1, img_b=1.5, qr=1.4, flow=False, b_on_back=False),
-    dict(margin=0.3, lh=1.12, h2_top=0.05, gap=1, img_a=2.1, img_b=1.5, qr=1.3, flow=True, b_on_back=False),
-    dict(margin=0.3, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=False),
-    dict(margin=0.25, lh=1.1, h2_top=0.04, gap=1, img_a=1.9, img_b=1.35, qr=1.25, flow=True, b_on_back=True),
+    dict(margin=0.5, lh=1.3, gap=6, img=2.1, qr=1.25, body_delta=0),
+    dict(margin=0.45, lh=1.25, gap=5, img=2.0, qr=1.2, body_delta=0),
+    dict(margin=0.4, lh=1.2, gap=4, img=1.9, qr=1.2, body_delta=-1),
+    dict(margin=0.4, lh=1.15, gap=3, img=1.8, qr=1.15, body_delta=-2),
+    dict(margin=0.35, lh=1.12, gap=2, img=1.7, qr=1.15, body_delta=-2),
+    dict(margin=0.3, lh=1.08, gap=1, img=1.5, qr=1.1, body_delta=-4),
 ]
+FONT_DIR = (Path(__file__).resolve().parents[1] / "static" / "fonts").as_uri()
 AID_KEPT = {"manual_chair": "Wheelchair", "power_chair": "Wheelchair", "walker": "Walker", "cane": "Cane",
             "bedbound": "Wheelchair"}
 
@@ -299,7 +473,9 @@ def context(row, tighten=0, for_print=False):
     lang = text.get("language")
     use_l2 = bool(lang and S.get("steps_l2") is not None and (S.get("steps_l2") or not a))
     sfx = "l2" if use_l2 else "en"
-    H = HEADINGS["es" if (use_l2 and lang == "es") else "en"]
+    bilingual = bool(use_l2 and S.get("steps_en") is not None)   # owner: both languages on the card, English second
+    L = LEVELS[min(tighten, len(LEVELS) - 1)]
+    H = _renumber(HEADINGS["es" if (use_l2 and lang == "es") else "en"], L)
 
     def sec(name, fallback):
         v = S.get(f"{name}_{sfx}")
@@ -314,8 +490,14 @@ def context(row, tighten=0, for_print=False):
     pets = (home.get("pets") or "").strip()
     return {
         "row": row, "p": profile, "plan": plan, "H": H, "county": county,
-        "body_pt": 22 if big else 18, "head_pt": 28, "tighten": tighten, "for_print": for_print,
+        # 28 / 20 / 16 pt hierarchy (18 pt body for low vision); levels may take the body down to 14, never lower.
+        "body_pt": max(14, (18 if big else 16) + L["body_delta"]), "head_pt": 28, "sub_pt": 20,
+        "tighten": tighten, "for_print": for_print, "font_dir": FONT_DIR, "bilingual": bilingual,
+        "lang_label": (lang or "").strip(), "bundle_id": plan.get("bundle") or plan.get("bundle_id") or county,
+        "steps_a_en": S.get("steps_en") if bilingual else None, "steps_b_en": S.get("steps_b_en") if bilingual else None,
+        "shelter_en": S.get("shelter_en") if bilingual else None, "devices_en": S.get("devices_en") if bilingual else None,
         "L": LEVELS[min(tighten, len(LEVELS) - 1)], "aid_label": AID_KEPT.get(profile.get("mobility"), "Wheelchair"),
+        "corridor": corridor_view(plan, bdir, [c for c in (a, b) if c], [c["refuge"].get("short_name") or c["refuge"]["name"] for c in (a, b) if c]) if a else None,
         "A": refuge_view(a, bdir, graph, "A") if a else None,
         "B": refuge_view(b, bdir, graph, "B") if b else None,
         "steps_a": sec("steps", (a or {}).get("card_steps", [])),

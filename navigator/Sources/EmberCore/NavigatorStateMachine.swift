@@ -1,7 +1,7 @@
 import Foundation
 
 public enum NavState: String, Sendable {
-    case home, whichWay, choose, navigate, shelter, arrived
+    case home, whichWay, choose, navigate, shelter, arrived, stayHere
 }
 
 /// One spoken + shown string. `template`/`vars` let the Speaker compose cached fragments.
@@ -23,8 +23,83 @@ public struct Utterance: Sendable, Equatable {
 /// Every action sets `utterances` (what to say and show) and bumps `serial` so the app speaks it once.
 public final class NavigatorStateMachine {
     public static let noRoute = "No route. Stay where you are. Start the shelter steps."
+    public static let stayHere = "No safe road left. Stay in the open, away from trees and cars. Call 911 and read them this location."
+    public static let fallbackLead = "No route to a safe place ahead. Going to the nearest open area."
+    /// Further than this from the plan origin the home shelter script is never spoken (owner: "shelter here").
+    public static let awayFromHomeM = 100.0
+    /// A fallback refuge must be this close in time at the profile's speed.
+    public static let fallbackMaxS = 300.0
     public static let sayAgain = "Say again?"
     public static let fireAhead = "Fire ahead. Turning away from it."
+    public static let cardMismatch = "This card does not match the phone's plan. Ask staff for a new card."
+    public static let noCompassReport = "No compass. Using the last fire report."
+    public static let noCompassHistory = "No compass. Using where past fires came from."
+    public static let noCompassAhead = "No compass. Treating the fire as straight ahead. Turning away from it."
+    // v2 (engineer #2): spoken leads for "Skip"/"Not sure" and the shelter's last step; v1 (engineer #1): the picker prompts.
+    public static let lastReport = "Using the last fire report."
+    public static let noFireInfo = "No fire information. Showing the nearest safe places."
+    public static let shelterLast = "That is the last step. Stay in the room and keep the phone on."
+    public static let whichWaySmoke = "Which way is the smoke?"
+    public static let whichWayNewFire = "Which way is the new fire?"
+    // Confirm step (round 2, all five found the mis-tap risk): a tap on Blocked / New fire / Start over asks first.
+    public static let rerouteQuestion = "Find a new route? Say yes to reroute."
+    public static let fireAheadQuestion = "Fire ahead. Turning away from it. Say yes to reroute."
+    public static let startOverQuestion = "Stop and go back to the start? Say yes to stop."
+    public static let okay = "Okay."
+    /// Voice "help": the command list, one recorded sentence.
+    public static let helpLine = "You can say: blocked, fire, repeat, louder, slower, where am I, how long, which way, can't move, or go home."
+
+    /// What a tapped button is waiting to do until the person answers Yes / No.
+    public enum Pending: Equatable, Sendable { case blocked, fireAhead(heading: Double?), newFireNoCompass, startOver }
+    public private(set) var pending: Pending?
+
+    /// "Blocked" tapped: ask before throwing the route away (one mis-tap doubled Harold's trip).
+    public func requestBlocked() {
+        guard state == .navigate else { return }
+        pending = .blocked
+        say(NavigatorStateMachine.rerouteQuestion)
+    }
+
+    /// "New fire" tapped with a compass heading (nil: no compass, the report -> history -> ahead chain runs on Yes).
+    public func requestFire(heading: Double?) {
+        guard state == .navigate || state == .choose else { return }
+        pending = heading == nil ? .newFireNoCompass : .fireAhead(heading: heading)
+        say(NavigatorStateMachine.fireAheadQuestion)
+    }
+
+    /// "Start over" tapped on Navigate / Choose: back to Home only after a Yes. Returns true when the reset happened
+    /// now (on Home), false when the machine only asked "Start over?".
+    @discardableResult
+    public func requestStartOver() -> Bool {
+        guard state != .home else {
+            // Settings -> Start over on Home (the only screen that reaches Settings): nothing to stop, but never a
+            // silent tap, and a rehearsal's stepped position and blocked roads are forgotten here as on Start.
+            if positionSource == .demo { position = nil; positionSource = .gps }
+            blocked = []
+            say(NavigatorStateMachine.okay)
+            return true
+        }
+        pending = .startOver
+        say(NavigatorStateMachine.startOverQuestion)
+        return false
+    }
+
+    public func confirmPending() {
+        guard let p = pending else { return }
+        pending = nil
+        switch p {
+        case .blocked: blockCurrent()
+        case .fireAhead(let h): fireAhead(heading: h)
+        case .newFireNoCompass: newFireWithoutCompass()
+        case .startOver: goHome()
+        }
+    }
+
+    public func cancelPending() {
+        guard pending != nil else { return }
+        pending = nil
+        say([Utterance(NavigatorStateMachine.okay)] + currentRepeat())
+    }
 
     public let bundle: EmberBundle
     public var config: SharedConfig { bundle.config }
@@ -72,6 +147,8 @@ public final class NavigatorStateMachine {
     }
     public var fireIsFresh: Bool { fireData.isFresh(now: clock()) }
     public var clock: () -> Date = { Date() }
+    private var startedAt = Date.distantPast
+    private var startSerial = -1
 
     /// Bearing to the fire from the cached data at the client's position (WhichWay "OK").
     public var dataFireBearing: Double? {
@@ -109,7 +186,14 @@ public final class NavigatorStateMachine {
     // MARK: Home
 
     /// Start on Home: bedbound always goes to Shelter; everyone else to WhichWay.
+    /// A repeated Start for the same card within `TapGuard.settleS` of the last one, with nothing said or done since,
+    /// is the second half of a double tap (Walter: step 1 was spoken twice, or skipped once the screen had switched)
+    /// and is ignored.
     public func start(client: ClientProfile, caregiver: Bool) throws {
+        let now = clock()
+        if state != .home, self.client == client, self.caregiver == caregiver, serial == startSerial,
+           !TapGuard.accepts(tapAt: now, screenShownAt: startedAt) { return }
+        defer { startedAt = now; startSerial = serial }
         self.client = client
         self.caregiver = caregiver
         profile = try Profile(client.profileKey(caregiver: caregiver), batteryPct: client.batteryPct, config: config)
@@ -120,9 +204,19 @@ public final class NavigatorStateMachine {
         arrivedRefuge = nil
         stopped = false
         fireBearing = nil
-        shelter = bundle.plan(clientId: client.id)?.shelter ?? PlanText.shelterSteps(client)
+        if positionSource == .demo { position = nil; positionSource = .gps }
+        let planFile = bundle.plan(clientId: client.id)
+        shelter = planFile?.shelter ?? PlanText.shelterSteps(client)
+        planRefugeIds = (planFile?.choices ?? []).prefix(2).map { $0.refuge.id }
+        cardMismatch = !NavigatorStateMachine.cardMatchesPlan(cardIds: client.refugeIds, planIds: planRefugeIds)
         if client.isBedbound || profile?.shelterOnly == true {
             enterShelter(lead: nil)
+            return
+        }
+        if client.vision == "blind" {
+            // Which-way is a visual compass: skip it, go to Choose and speak the first option.
+            fireBearing = fireIsFresh ? dataFireBearing : historyPrior
+            planChoices()
             return
         }
         state = .whichWay
@@ -138,10 +232,54 @@ public final class NavigatorStateMachine {
         }
     }
 
+    /// Refuge ids A, B of the bundle's plan file for this client (plans/<id>.json, written by the staff tool when it
+    /// plans and when it prints): the single source the printed card and the phone both follow.
+    public private(set) var planRefugeIds: [String] = []
+    /// True when the scanned card names other refuges than the plan file (an old card or a stale bundle).
+    public private(set) var cardMismatch = false
+
+    /// Card (QR refuge_ids) vs plan file: equal, or one side unknown, is a match.
+    public static func cardMatchesPlan(cardIds: [String]?, planIds: [String]) -> Bool {
+        guard let cardIds, !cardIds.isEmpty, !planIds.isEmpty else { return true }
+        return Array(cardIds.prefix(2)) == Array(planIds.prefix(2))
+    }
+
+    /// Live routing may order refuges differently from the plan file (a slightly different bearing, a newer graph).
+    /// When the plan's A is still an allowed choice it goes first, so the phone says what the card says; the router's
+    /// own order (fire side, time) is kept for everything else.
+    public static func ordered(_ choices: [Choice], planIds: [String]) -> [Choice] {
+        guard let a = planIds.first, let i = choices.firstIndex(where: { $0.refuge.id == a }), i > 0 else { return choices }
+        var out = choices
+        out.insert(out.remove(at: i), at: 0)
+        return out
+    }
+
     /// Baked historical spread direction (history.json), used only when live data is stale and nothing better exists.
     public var historyPrior: Double? { bundle.history?.priorBearingDeg }
 
-    public func setPosition(lat: Double, lon: Double) { position = (lat, lon) }
+    public func setPosition(lat: Double, lon: Double) { position = (lat, lon); positionSource = .gps }
+
+    /// Where the next demo step lands: the point on the route where the next cue group is announced (exactly where
+    /// a walking GPS fix would first speak it — if two groups announce within the same lookahead they merge the same
+    /// way GPS does), or the route's final node (the chosen entry point, never the centroid) once the arrival cue is
+    /// current. Nil outside Navigate.
+    public var demoNextPoint: (lat: Double, lon: Double)? {
+        guard state == .navigate, let p = progress else { return nil }
+        if let s = p.nextAnnounceM {
+            return p.point(atM: max(s + 1, p.progressM + 1), graph: graph)   // 1 m past the threshold, like the first fix past it
+        }
+        guard let last = p.route.nodes.last else { return nil }
+        return (graph.lat[last], graph.lon[last])
+    }
+
+    /// One demo step: the same code path as a GPS fix at the next cue point (cue speech, progress, Arrived at the
+    /// end). Returns false when there is nothing to step (not navigating).
+    @discardableResult
+    public func demoStep() -> Bool {
+        guard let t = demoNextPoint else { return false }
+        updatePosition(lat: t.lat, lon: t.lon, source: .demo)
+        return true
+    }
 
     // MARK: WhichWay
 
@@ -157,8 +295,17 @@ public final class NavigatorStateMachine {
     /// still close the wedge later. Better than the old dead end on Which Way.
     public func skipFireDirection() {
         guard state == .whichWay else { return }
-        fireBearing = historyPrior
-        planChoices()
+        if let b = dataFireBearing {                       // a stale report still beats nothing: say so
+            fireBearing = b
+            planChoices(lead: Utterance(NavigatorStateMachine.lastReport))
+        } else if let prior = historyPrior {
+            fireBearing = prior
+            let d = Geo.directionWord(prior, config.templates.directions)
+            planChoices(lead: Utterance(config.phrase("history_dir", ["direction": d]), template: "history_dir", vars: ["direction": d]))
+        } else {
+            fireBearing = nil
+            planChoices(lead: Utterance(NavigatorStateMachine.noFireInfo))
+        }
     }
 
     /// "Point": the compass bearing of the phone, pointed at the smoke.
@@ -187,15 +334,17 @@ public final class NavigatorStateMachine {
         return graph.edgeBearing(p.route.edges[i], p.route.forward[i])
     }
 
-    func planChoices() {
-        choices = route(from: originNode())
+    func planChoices(lead: Utterance? = nil) {
+        choices = NavigatorStateMachine.ordered(route(from: originNode()), planIds: planRefugeIds)
         choiceIndex = 0
         if choices.isEmpty {
-            enterShelter(lead: NavigatorStateMachine.noRoute)
+            noRouteLeft(from: originNode())
             return
         }
         state = .choose
-        sayChoice()
+        var u: [Utterance] = lead.map { [$0] } ?? []
+        if cardMismatch { u.append(Utterance(NavigatorStateMachine.cardMismatch)) }
+        say(u + choiceUtterances())
     }
 
     func choiceUtterances() -> [Utterance] {
@@ -248,8 +397,21 @@ public final class NavigatorStateMachine {
     }
 
     /// GPS fix. In Navigate: arrival within 25 m of an entry point, else advance the cue by progress.
-    public func updatePosition(lat: Double, lon: Double) {
+    /// Demo stepping (Settings): while on, real GPS fixes are ignored and `demoStep()` moves the position along the
+    /// route instead, so a rehearsal on a desk fires exactly what arriving there would.
+    public var demoStepping = false
+    /// Set by the voice intent "call 911"; the app reads and clears it to open the dialer.
+    public var call911Requested = false
+
+    public enum PositionSource { case gps, demo }
+    /// Where the current `position` came from: a stepped (demo) position must not survive a new card or Start over,
+    /// or the next route would start at the refuge the rehearsal ended at.
+    public internal(set) var positionSource: PositionSource = .gps
+
+    public func updatePosition(lat: Double, lon: Double, source: PositionSource = .gps) {
+        if demoStepping, source == .gps, state == .navigate { return }
         position = (lat, lon)
+        positionSource = source
         guard state == .navigate, var p = progress, let c = currentChoice else { return }
         if Router.arrived(lat: lat, lon: lon, refuge: c.refuge) {
             arrive(c.refuge)
@@ -301,6 +463,36 @@ public final class NavigatorStateMachine {
         rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.fireAhead)])
     }
 
+    /// "New fire" tapped on a phone with no compass (the Simulator, some older phones). Never a silent no-op and
+    /// never a silent drop to shelter: the best bearing we have, said aloud so the person can correct it with
+    /// "Fire" / a new report: the fire report (fresh or stale) -> the historical prior -> straight ahead (the direction
+    /// of travel). Returns the source used, for the UI and the tests.
+    @discardableResult
+    public func newFireWithoutCompass() -> String {
+        guard state == .navigate || state == .choose else {
+            say(NavigatorStateMachine.sayAgain)
+            return "none"
+        }
+        func fireIs(_ b: Double) -> Utterance {
+            let d = Geo.directionWord(b, config.templates.directions)
+            return Utterance(config.phrase("fire_is", ["direction": d]), template: "fire_is", vars: ["direction": d])
+        }
+        if let b = dataFireBearing {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassReport), fireIs(b), Utterance("Rerouting.")])
+            return "report"
+        }
+        if let b = historyPrior {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassHistory), fireIs(b), Utterance("Rerouting.")])
+            return "history"
+        }
+        if let b = travelHeading ?? fireBearing {
+            rerouteAwayFromFire(bearing: b, lead: [Utterance(NavigatorStateMachine.noCompassAhead)])
+            return "ahead"
+        }
+        say("Point the phone at the smoke and tap.")
+        return "none"
+    }
+
     /// "Point" mid-route: the compass bearing of the phone, pointed at new smoke. Updates `fireBearing`, closes the
     /// wedge toward it and re-routes: "Fire is to the <direction>." + "Rerouting." + the first instruction.
     public func pointAtNewFire(bearing: Double) {
@@ -333,11 +525,10 @@ public final class NavigatorStateMachine {
 
     func replan(origin: Int?, lead: [Utterance]?, prefer: Double? = nil) {
         guard let profile else { return }
-        let fresh = route(from: origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode(), prefer: prefer)
+        let node = origin ?? originNodeAvoidingBlocked() ?? progress?.currentNode ?? originNode()
+        let fresh = route(from: node, prefer: prefer)
         guard let best = fresh.first else {
-            choices = []
-            progress = nil
-            enterShelter(lead: NavigatorStateMachine.noRoute)
+            noRouteLeft(from: node)
             return
         }
         choices = fresh
@@ -379,7 +570,68 @@ public final class NavigatorStateMachine {
 
     // MARK: Shelter
 
+    // MARK: "Shelter here" (owner): every route cut mid-way must never fall back to the home shelter script.
+
+    /// More than 100 m from the plan origin (the home the shelter script was written for).
+    public var awayFromHome: Bool {
+        guard let p = position, let c = client, let la = c.lat, let lo = c.lon else { return false }
+        return Geo.haversineM(p.lat, p.lon, la, lo) > NavigatorStateMachine.awayFromHomeM
+    }
+
+    /// Lowered bar from the CURRENT position: any refuge in the bundle whatever its score, no fire-direction wedge and
+    /// no preferred-direction penalty, reachable within `fallbackMaxS` at the profile's speed, nearest first.
+    public func fallbackChoices(from node: Int) -> [Choice] {
+        guard let profile else { return [] }
+        let all = Router.choose(graph, refuges: bundle.refuges, profile: profile, origin: node,
+                                fireBearing: nil, perimeter: nil, blocked: blocked.union(feedBlocked), topN: bundle.refuges.count)
+        return all.filter { $0.route.timeS <= NavigatorStateMachine.fallbackMaxS }.sorted { $0.route.timeS < $1.route.timeS }
+    }
+
+    /// No route to any chosen refuge: away from home go to the nearest fallback refuge, else "Stay here" with the
+    /// location to read to 911; at home (within 100 m of the plan origin) the plan's own shelter script still applies.
+    /// A bedbound or shelter-only client cannot move, so "stay in the open" is never the answer for them whatever the
+    /// GPS says: they get the home script even when the fix is away from the card's address.
+    var mustShelterInPlace: Bool { client?.isBedbound == true || profile?.shelterOnly == true }
+
+    func noRouteLeft(from node: Int?) {
+        if awayFromHome, !mustShelterInPlace {
+            if let node, let profile, !fallbackChoices(from: node).isEmpty {
+                choices = fallbackChoices(from: node)
+                choiceIndex = 0
+                startNavigation(choices[0], profile: profile, lead: [Utterance(NavigatorStateMachine.fallbackLead)])
+                return
+            }
+            enterStayHere()
+            return
+        }
+        choices = []
+        progress = nil
+        enterShelter(lead: NavigatorStateMachine.noRoute)
+    }
+
+    func enterStayHere() {
+        state = .stayHere
+        choices = []
+        progress = nil
+        say([Utterance(NavigatorStateMachine.stayHere)])
+    }
+
+    /// Large text for the Stay-here screen: what to read to 911.
+    public var stayHereText: String {
+        guard let p = position else { return "Location unknown. Tell 911 the last street you were on." }
+        var out = String(format: "Latitude %.5f\nLongitude %.5f", p.lat, p.lon)
+        if let st = currentStreet() { out += "\nNear \(st)" }
+        return out
+    }
+
+    /// Test hook and worst case: every road is cut, then re-plan (fallback → Stay here → or the home script at home).
+    public func cutEveryRoad() {
+        blocked = Set(graph.edges.indices)
+        replan(origin: nil)
+    }
+
     func enterShelter(lead: String?) {
+        if awayFromHome, !mustShelterInPlace { enterStayHere(); return }     // the home script is never spoken away from home
         state = .shelter
         shelterIndex = 0
         progress = nil
@@ -389,11 +641,15 @@ public final class NavigatorStateMachine {
         say(u)
     }
 
+    /// "Next"; on the last step the button reads "Done" and goes back to Home, never a dead end.
     public func shelterNext() {
         guard state == .shelter, !shelter.steps.isEmpty else { return }
-        shelterIndex = min(shelterIndex + 1, shelter.steps.count - 1)
+        if shelterIsLastStep { goHome(); return }               // "Done" on the last step: back to Home, never a dead end
+        shelterIndex += 1
         say(shelter.steps[shelterIndex])
     }
+
+    public var shelterIsLastStep: Bool { state == .shelter && !shelter.steps.isEmpty && shelterIndex >= shelter.steps.count - 1 }
 
     /// "Back": previous step; from the first step, back to Home.
     public func shelterBack() {
@@ -411,6 +667,15 @@ public final class NavigatorStateMachine {
     // MARK: Arrived / Home
 
     public func done() { goHome() }
+
+    /// A card was scanned (QR or deep link) while a run was on screen: the run is over. Back to Home silently; the
+    /// app announces the card itself, and the next Start begins the new client's run (or the same one's) from the top.
+    public func cardScanned() {
+        pending = nil
+        stopped = false
+        arrivedRefuge = nil
+        goHome()
+    }
 
     public func goHome() {
         state = .home
@@ -502,6 +767,22 @@ public final class NavigatorStateMachine {
             } else {
                 say(NavigatorStateMachine.sayAgain)
             }
+        case .goHome:
+            requestStartOver()
+        case .otherWay:
+            if (state == .choose || state == .navigate) && choices.count > 1 { other() } else { say(NavigatorStateMachine.sayAgain) }
+        case .callHelp:
+            call911Requested = true          // the app opens the dialer; the spoken answer is the recorded "Okay."
+            say(NavigatorStateMachine.okay)
+        case .whereFire:
+            if let b = dataFireBearing ?? fireBearing {
+                let d = Geo.directionWord(b, config.templates.directions)
+                say(Utterance(config.phrase("fire_is", ["direction": d]), template: "fire_is", vars: ["direction": d]))
+            } else {
+                say(NavigatorStateMachine.sayAgain)
+            }
+        case .help:
+            say(NavigatorStateMachine.helpLine)
         case .stop:
             stopped = true
             say("Stopped. Speak or tap a button when you are ready.")

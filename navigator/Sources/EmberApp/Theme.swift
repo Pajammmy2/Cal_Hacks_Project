@@ -1,25 +1,31 @@
 import SwiftUI
+import EmberCore
 
-/// Near-black navy / white / steel blue: white on the card (#0D1A33) is ~17:1, navy text on steel blue (#94B5D6) ~9.5:1, both above 7:1.
-/// Green is used only on the map for the refuge area, never as the sole carrier of meaning.
+/// One palette (owner decision): off-white (#F6F3EE) / slate (#2B3440, #3A4654) / orange (#E8731A). Slate text on
+/// off-white 11.4:1, on the card (#ECE7DF) 10.2:1, secondary slate (#3F4B59) on the card 7.3:1, off-white on the slate
+/// control 8.7:1; the orange is the route (inside its black casing) and the single accent, never body text. Green is
+/// used only on the map for the refuge area, never as the sole carrier of meaning. eval/build_dashboard.py measures the
+/// `static let` lines below.
 public enum Theme {
-    public static let background = Color(red: 0.015, green: 0.035, blue: 0.09)
-    public static let text = Color.white
-    public static let dim = Color(red: 0.74, green: 0.80, blue: 0.88)
-    public static let accent = Color(red: 0.58, green: 0.71, blue: 0.84)
-    public static let onAccent = Color(red: 0.01, green: 0.03, blue: 0.08)
-    public static let card = Color(red: 0.05, green: 0.10, blue: 0.20)
-    public static let cardRaised = Color(red: 0.09, green: 0.16, blue: 0.29)
+    public static let background = Color(red: 0.965, green: 0.953, blue: 0.933)   // #F6F3EE
+    public static let text = Color(red: 0.169, green: 0.204, blue: 0.251)         // #2B3440 slate
+    public static let dim = Color(red: 0.247, green: 0.294, blue: 0.349)          // #3F4B59
+    public static let accent = Color(red: 0.227, green: 0.275, blue: 0.329)       // #3A4654 slate controls
+    public static let onAccent = Color(red: 0.965, green: 0.953, blue: 0.933)
+    public static let card = Color(red: 0.925, green: 0.906, blue: 0.875)         // #ECE7DF
+    public static let cardRaised = Color(red: 0.867, green: 0.843, blue: 0.804)   // #DDD7CD
     public static let land = Color(red: 0.16, green: 0.17, blue: 0.18)
     public static let safe = Color(red: 0.30, green: 0.80, blue: 0.45)
-    /// The route on the map: bright sky blue with a black casing, unmistakable on the veiled photo and on the drawn map.
-    public static let route = Color(red: 0.55, green: 0.85, blue: 1.0)
-    /// Dark navy veil over the satellite photo (look A "Signal"): photo still readable, overlays win.
+    /// Orange (#E8731A) inside the black casing: reads on the veiled photo and on the pale Blueprint.
+    public static let route = Color(red: 0.91, green: 0.451, blue: 0.102)
+    /// The route's casing and the dark pills: what the route orange and refuge green are measured against.
+    public static let casing = Color(red: 0.0, green: 0.0, blue: 0.0)
+    /// Dark veil over the satellite photo (look A "Signal"): photo still readable, overlays win.
     public static let mapVeil = Color(red: 0.01, green: 0.03, blue: 0.08).opacity(0.42)
-    /// Look C "Blueprint": navy land, steel roads, drawn from graph.json (offline / no photo / Settings → Map).
-    public static let mapLand = Color(red: 0.04, green: 0.08, blue: 0.16)
-    public static let mapRoadMinor = Color(red: 0.36, green: 0.46, blue: 0.58)
-    public static let mapRoadMajor = Color(red: 0.62, green: 0.72, blue: 0.84)
+    /// Look C "Blueprint": pale land, slate roads, drawn from graph.json (offline / no photo / Settings → Map).
+    public static let mapLand = Color(red: 0.89, green: 0.87, blue: 0.84)
+    public static let mapRoadMinor = Color(red: 0.55, green: 0.60, blue: 0.66)
+    public static let mapRoadMajor = Color(red: 0.23, green: 0.28, blue: 0.33)
     public static let minButtonHeight: CGFloat = 64
     /// "satellite" (default, look A) | "drawn" (look C). Settings → Map.
     public static let mapStyleKey = "ember.mapStyle"
@@ -140,15 +146,28 @@ extension View {
 struct InstructionText: View {
     let text: String
     @ScaledMetric(relativeTo: .title) var size: CGFloat = 28
+    @Environment(\.dynamicTypeSize) var typeSize
 
     var body: some View {
         Text(text)
-            .font(Theme.font(min(size, 56), .bold))     // bounded: a 6-word instruction must stay on one screen at AX5
+            // bounded: at AX sizes 44 pt keeps a 6-word instruction to ~3 lines so the distance strip stays on screen
+            .font(Theme.font(min(size, typeSize.isAccessibilitySize ? 44 : 56), .bold))
+            .minimumScaleFactor(0.7)                    // rule #4: a long word ("Supermarket" at 56 pt) shrinks whole, never breaks
             .foregroundColor(Theme.text)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
             .card()
             .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// Explanatory line under a heading: dim, but Dynamic Type like everything else.
+struct HelpText: View {
+    let text: String
+    @ScaledMetric(relativeTo: .body) var size: CGFloat = 17
+
+    var body: some View {
+        Text(text).font(Theme.font(size)).foregroundColor(Theme.dim).fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -213,28 +232,81 @@ struct StatTile: View {
 }
 
 /// Distance and time on one line: "130 m to next turn · 33 min to go". Wraps to two lines at accessibility sizes.
-struct StatLine: View {
-    let items: [(String, String, String)]
-    @ScaledMetric(relativeTo: .title2) var big: CGFloat = 26
-    @ScaledMetric(relativeTo: .body) var small: CGFloat = 17
-    @Environment(\.dynamicTypeSize) var typeSize
+/// StatLine's default-size metrics (value 26 pt heavy, caption 17 pt semibold) and the shrink steps tried with the
+/// icon-only "Next" before the row may truncate. 0.6 is the smallest the stats can go anyway (minimumScaleFactor);
+/// without it "270 m to next turn · 36 min to go" + Next became "to next…" on a 393 pt phone at the default size.
+enum StatLineMetrics {
+    static let shrinkSteps: [CGFloat] = [1, 0.85, 0.7, 0.6]
+    static let big: CGFloat = 26
+    static let small: CGFloat = 17
+}
 
+struct StatLine<Trailing: View>: View {
+    let items: [(String, String, String)]
+    /// Optional control at the right end (the demo "Next"); `compact` asks for its icon-only form.
+    @ViewBuilder var trailing: (_ compact: Bool) -> Trailing
+    @ScaledMetric(relativeTo: .title2) var big: CGFloat = StatLineMetrics.big
+    @ScaledMetric(relativeTo: .body) var small: CGFloat = StatLineMetrics.small
+    @Environment(\.dynamicTypeSize) var typeSize
     var body: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
-        layout {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, it in
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: it.2).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
-                    Text(it.0).font(Theme.font(big, .heavy))
-                    Text(it.1).font(Theme.font(small, .semibold)).foregroundColor(Theme.dim)
+        Group {
+            if typeSize.isAccessibilitySize {
+                // icon-only "Next" at AX sizes: beside the full label "119 min" at 66 pt had no room and broke
+                // into "119" / "min"; the stats column keeps the width a number and its unit need
+                HStack(spacing: 10) {
+                    stats(fixed: false)
+                    Spacer(minLength: 0)
+                    trailing(true)
                 }
-                .lineLimit(1).minimumScaleFactor(0.6)
+            } else {
+                // Stats never truncate: full words + full "Next" if it fits, else icon-only "Next", else the stats
+                // shrink step by step (WordFit.stripScales), last of all each item shrinks as one run.
+                // Margaret (119 min, 3 digits) overflowed the single-step layout even without the demo button:
+                // "to next t…" / "119…", so the same ladder now runs with and without a trailing control.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { stats(fixed: true); trailing(false) }
+                    ForEach(StatLineMetrics.shrinkSteps, id: \.self) { s in
+                        HStack(spacing: 10) { stats(fixed: true, scale: s); trailing(true) }
+                    }
+                    HStack(spacing: 10) { stats(fixed: false, scale: StatLineMetrics.shrinkSteps.last ?? 1); trailing(true) }
+                }
             }
-            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
         }
         .foregroundColor(Theme.text)
         .card(padding: 12)
+    }
+
+    func stats(fixed: Bool, scale: CGFloat = 1) -> some View {
+        // AX sizes: the value is capped (title2 26 → 66 pt at AX5) so "119 min" fits the column beside its icon and
+        // the demo "Next" as one word; the same cap pattern as the instruction (44) and CaregiverInfo (22).
+        let big = typeSize.isAccessibilitySize ? min(self.big, WordFit.stripBigAXCap) : self.big
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 18))
+        return layout {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, it in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: it.2).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                    if typeSize.isAccessibilitySize || !fixed {
+                        // one run of text so it wraps at word boundaries ("130 m" stays together); in the shrink-to-fit
+                        // fallback the run also scales as a whole (two separate Texts got unequal shares: "119…", "to next t…")
+                        (Text(it.0).font(Theme.font(big * scale, .heavy))
+                         + Text(" \(it.1)").font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim))
+                    } else {
+                        Text(it.0).font(Theme.font(big * scale, .heavy))
+                        Text(it.1).font(Theme.font(small * scale, .semibold)).foregroundColor(Theme.dim)
+                    }
+                }
+                // AX sizes: the row may wrap to a second line (owner: strip stays, may wrap), never "…"
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.6)
+                .fixedSize(horizontal: fixed && !typeSize.isAccessibilitySize, vertical: typeSize.isAccessibilitySize)
+                .layoutPriority(1)   // the items are sized before the trailing Spacer takes its share
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(items.map { "\($0.0) \($0.1)" }.joined(separator: ", "))
     }
+}
+
+extension StatLine where Trailing == EmptyView {
+    init(items: [(String, String, String)]) { self.init(items: items, trailing: { _ in EmptyView() }) }
 }

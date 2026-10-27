@@ -41,6 +41,8 @@ def main(argv=None):
                     help="drop disconnected graph fragments smaller than this (0 keeps everything)")
     ap.add_argument("--extra-candidates", help="reviewed GeoJSON polygons with OSM-style tags for places OSM is "
                                                "missing (see engine/extra_candidates/README.md)")
+    ap.add_argument("--extra-addresses", help="CSV with address,lat,lon columns (e.g. the staff sample registry): "
+                    "added to addresses.json so the phone and the staff tool find these homes by address")
     ap.add_argument("--skip-vision", action="store_true", help="do not run the Claude vision pass")
     ap.add_argument("--out", default=str(util.ROOT / "bundles"), help="output root (default: bundles/)")
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -52,7 +54,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.county != Path(a.county).name or not a.county:
         ap.error("--county must be a plain name")
-    bundle.build(a.county, a.bbox, a.out, fuel_path=a.fuel, dem_path=a.dem, perimeters_path=a.perimeters,
+    bundle.build(a.county, a.bbox, a.out, extra_addresses=a.extra_addresses, fuel_path=a.fuel, dem_path=a.dem, perimeters_path=a.perimeters,
                  current_perimeter=a.current_perimeter, evidence_path=a.evidence, skip_vision=a.skip_vision,
                  fuel_version=a.fuel_version, osm_date=a.osm_date, min_component_nodes=a.min_component_nodes,
                  extra_candidates=a.extra_candidates)

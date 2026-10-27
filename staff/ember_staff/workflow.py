@@ -26,7 +26,14 @@ def run_engine(cid, use_claude=True):
     text = plan_writer.generate(row["profile"], plan, selected, use_claude=use_claude)
     db.update(cid, plan=plan, plan_error=None, selected=selected, text=text)
     db.clear_stamp(cid)
-    return db.get(cid)
+    row = db.get(cid)
+    # The bundle's plans/<id>.json is the single source the card QR (refuge_ids) and the phone both follow; write it
+    # as soon as a plan exists so a re-run can never leave the phone on an older plan than the card.
+    try:
+        write_plan_file(row)
+    except OSError:
+        pass
+    return row
 
 
 def run_all(include_stamped=False):
@@ -128,6 +135,12 @@ def print_card(cid):
         raise Forbidden("Print is disabled until the card is stamped (reviewed by + date).")
     if row["profile"].get("cognition") == "simple_steps" and not row.get("attested"):
         raise Forbidden("Cognition-flagged client: the reviewer must tick \"I read every sentence.\"")
+    plan = row.get("plan") or {}
+    if plan.get("choices"):
+        from . import corridor
+        if corridor.ensure(config.bundle_dir(plan.get("county") or config.county()), plan, cid):
+            db.update(cid, plan=plan)
+            row = db.get(cid)
     data, pages, level = pdf.render_pdf(row, allow_long=True)
     db.update(cid, printed_at=db.now())
     write_plan_file(db.get(cid))

@@ -108,6 +108,18 @@ public struct ClientProfile: Codable, Sendable, Equatable, Identifiable {
         }
     }
 
+    /// One SF Symbol per mobility profile (owner pass 3: Lupe uses a cane and showed a wheelchair).
+    public var mobilityIcon: String {
+        switch mobility {
+        case "manual_chair": return "figure.roll"
+        case "power_chair": return "figure.roll.runningpace"
+        case "walker": return "figure.walk.motion"
+        case "cane": return "figure.walk"
+        case "bedbound": return "bed.double.fill"
+        default: return "person.fill"
+        }
+    }
+
     public var transferLabel: String {
         switch transfer {
         case "independent": return "Transfers independently"
@@ -211,7 +223,7 @@ public enum PlanText {
             case "oxygen", "ventilator":
                 let h = d.hours ?? 0
                 out.append(PlanDevice(kind: d.kind, hours: h, batteryPct: nil, sentence:
-                    "Your \(d.kind) battery lasts about \(fmtHours(h)) hours. If the power goes out, leave while it has \(fmtHours(need)) hours left."))
+                    "Your \(d.kind) battery lasts about \(fmtHours(h)) hours. If the power goes out, leave while it has \(fmtHours(need)) \(need == 1 ? "hour" : "hours") left."))
             case "power_chair":
                 let pct = d.batteryPct ?? 100
                 let km = fullRangeM * pct / 100.0 / 1000.0

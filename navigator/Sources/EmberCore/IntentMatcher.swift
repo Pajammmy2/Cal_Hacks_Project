@@ -1,6 +1,6 @@
 import Foundation
 
-/// The 13 on-device intents (shared/intents.json), in spec order (used as the last tie-break).
+/// The 18 on-device intents (shared/intents.json), in spec order (used as the last tie-break).
 public enum Intent: String, CaseIterable, Sendable {
     case blocked, fire, `repeat`, slower, louder, pushing
     case cantMove = "cant_move"
@@ -8,6 +8,12 @@ public enum Intent: String, CaseIterable, Sendable {
     case howLong = "how_long"
     case whichWay = "which_way"
     case stop, yes, no
+    // Owner additions (demo night): all answered with already-recorded sentences.
+    case goHome = "go_home"
+    case otherWay = "other"
+    case callHelp = "call_help"
+    case whereFire = "where_fire"
+    case help
 }
 
 public struct IntentMatch: Sendable, Equatable {

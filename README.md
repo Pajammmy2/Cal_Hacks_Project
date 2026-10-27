@@ -1,6 +1,10 @@
-# Ember: offline last-resort evacuation
+# Margin: offline wildfire evacuation for people who can't just drive away
 
-Ember gives people who cannot evacuate a wildfire on their own, and the people who move them, a plan for the hour when no one comes: where they can survive, how to get there in their chair, in words and a voice they can follow, on paper and on a phone with no network.
+**Devpost:** https://devpost.com/software/margin-q8z4sl (CalHacks). "Margin" is the product name; the code, bundle ids and this repo still use the working name **Ember** (`ember_engine`, `ember_staff`, `EmberCore`, `org.ember.navigator`).
+
+When the fire comes and the signal dies, Margin gets wheelchair users and older adults to safety: offline, on their phone, in a voice they can hear.
+
+Margin gives people who cannot evacuate a wildfire on their own, and the people who move them, a plan for the hour when no one comes: where they can survive, how to get there in their chair, in words and a voice they can follow, on paper and on a phone with no network.
 
 **Who it is for:** older adults and people with mobility disabilities in wildfire country, and the caregivers, family and neighbors who move them. The staff tool is designed for a disability-evacuation nonprofit to run across its client registry; we are not working with one yet, so for now we run it ourselves.
 
@@ -14,7 +18,7 @@ The full spec is in [docs/spec.md](docs/spec.md); the cross-lane interfaces are 
 | [staff/](staff/) | FastAPI + HTMX staff tool: clients, profile, review + stamp, print to PDF, plan writer, Cartesia pre-generation, voice consent | Needs signal only for Claude/Cartesia/Apify |
 | [navigator/](navigator/) | Swift: `EmberCore` (pure logic, a port of `engine/ember_engine/core` with exact parity) + `EmberApp` (SwiftUI iOS 16 app) + XcodeGen `project.yml` | Yes, airplane mode |
 | [actors/](actors/) | Apify actors `wildfire-refuge-evidence` and `county-fire-situation` | Pre-season / when online |
-| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 13 intents | |
+| [shared/](shared/) | JSON contracts read by Python and Swift: profiles, turn templates, phrase set, pronunciation map, 18 voice intents (blocked, fire, repeat, slower, louder, pushing, can't move, where am I, how long, which way, stop, yes, no, go home, other way, call 911, where is the fire, help) | |
 | [notability/](notability/) | Build-log structure, capture schedule and checklist | |
 | [docs/DEMO.md](docs/DEMO.md) | Demo scripts and rehearsal plan | |
 
@@ -22,7 +26,7 @@ The full spec is in [docs/spec.md](docs/spec.md); the cross-lane interfaces are 
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r engine/requirements.txt -r staff/requirements.txt
-.venv/bin/python -m playwright install chromium
+.venv/bin/python -m playwright install chromium chromium-headless-shell   # both: card print (PDF) uses the headless shell
 cp .env.example .env            # every key is optional
 
 # 1. Bundles
@@ -118,6 +122,6 @@ Open items:
   - Cartesia pre-generation completed for all six sample clients after the account moved off the free tier: 1,890 unique clips (shared across clients: Harold 1,317 cues, June 696, Lupe 1,164, Margaret 1,161, Rosa 1,103, Walter 777), zero failures, every key the dry-run requires present in `audio/index.json`, bundle zip 82 MB. On the free tier the same run hit the 2-concurrent-request limit (429) and then ran out of credits at ~840 clips (`402 quota_exceeded`), so pre-generation now retries 429s with backoff, defaults to 2 workers (`EMBER_CARTESIA_CONCURRENCY`) and stops cleanly on 402, leaving the navigator's on-device voice fallback to cover the rest.
   - The voice agent in the navigator still has only run against mocks and still names `claude-sonnet-4-5`.
 - **Actors are not published,** and no Docker image has been built.
-- **The iOS app compiles and runs in the Simulator, but has not run on a phone.** Verified with Xcode 26.6 (17F113) on macOS 26.6: `xcodegen` + `xcodebuild` build the `EmberNavigator` app for the iPhone 17 / iOS 26.5 Simulator with no source changes; `EmberCoreTests` passes 47/47 both via `swift test` and as an `xcodebuild test` bundle on the Simulator (the only fix was `GENERATE_INFOPLIST_FILE: YES` on the test target in `navigator/project.yml`). The flow Home → profile (via an `ember://` deep link) → WhichWay → Choose → Navigate → Arrived was walked on the Simulator with `bundles/fake.zip` in Documents and a simulated GPS fix, without crashes. Still untested on a device: real GPS and compass (the Simulator has no heading, so "Point" is disabled there), microphone and on-device speech recognition, haptics, cached-audio and Cartesia speech output, QR camera scanning, VoiceOver, and the airplane-mode run.
+- **The iOS app runs on an iPhone 14 Pro (build `demo/v3.2`) and in the Simulator; the paragraph below is the original drop-1 note.** On the phone: GPS/compass, QR scanning, cached Henry audio in airplane mode, Home control, 18 voice commands; Swift 179 / engine 92 / staff 66 tests pass on the current branch. Each shipped build is tagged `demo/v1-drop1`, `demo/v2`, `demo/v3`, `demo/v3.1`, `demo/v3.2`. The iOS app compiled and ran in the Simulator before it ran on a phone. Verified with Xcode 26.6 (17F113) on macOS 26.6: `xcodegen` + `xcodebuild` build the `EmberNavigator` app for the iPhone 17 / iOS 26.5 Simulator with no source changes; `EmberCoreTests` passes 47/47 both via `swift test` and as an `xcodebuild test` bundle on the Simulator (the only fix was `GENERATE_INFOPLIST_FILE: YES` on the test target in `navigator/project.yml`). The flow Home → profile (via an `ember://` deep link) → WhichWay → Choose → Navigate → Arrived was walked on the Simulator with `bundles/fake.zip` in Documents and a simulated GPS fix, without crashes. Still untested on a device: real GPS and compass (the Simulator has no heading, so "Point" is disabled there), microphone and on-device speech recognition, haptics, cached-audio and Cartesia speech output, QR camera scanning, VoiceOver, and the airplane-mode run.
 - **Still for the team to do:** Notability, videos, printed cards, a chair-route film, and (optionally) a second county's bbox.
 - **Typed-address geocoding is weak in Paradise.** OSM has only 64 addresses there. Enter lat,lon in the staff tool.

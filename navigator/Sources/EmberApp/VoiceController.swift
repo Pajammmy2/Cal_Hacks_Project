@@ -49,6 +49,13 @@ public final class VoiceController: ObservableObject {
         if listening { finish() } else { start(onFinal: onFinal) }
     }
 
+    /// installTap raises an uncatchable NSException on a 0 Hz / 0-channel input format (no microphone route:
+    /// Simulator on a headless Mac, a Bluetooth route mid-switch, mic denied on some devices). Treat it as
+    /// "heard nothing" instead of crashing the app.
+    nonisolated static func micFormatIsUsable(sampleRate: Double, channels: UInt32) -> Bool {
+        sampleRate > 0 && channels > 0
+    }
+
     func start(onFinal: @escaping (String) -> Void) {
         guard let recognizer, recognizer.isAvailable else {
             onFinal("")
@@ -63,6 +70,11 @@ public final class VoiceController: ObservableObject {
         request = req
         let input = engine.inputNode
         let fmt = input.outputFormat(forBus: 0)
+        guard VoiceController.micFormatIsUsable(sampleRate: fmt.sampleRate, channels: fmt.channelCount) else {
+            cleanup()
+            onFinal("")
+            return
+        }
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { buf, _ in req.append(buf) }
         engine.prepare()

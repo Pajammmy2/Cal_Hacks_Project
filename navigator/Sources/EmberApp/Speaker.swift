@@ -14,9 +14,12 @@ public final class Speaker: NSObject, ObservableObject {
 
     @Published public private(set) var currentText = ""
     @Published public private(set) var lastSource = ""
+    /// W1 watchdog: clips that would not start or never finished (shown in diagnostics; every one is a silent gap avoided).
+    @Published public private(set) var stalls = 0
     /// "slower": cached clips play at 0.85x (time-stretched), Apple TTS slows to match.
     @Published public var slower = false
-    @Published public var volume: Float = 0.85
+    public static let normalVolume: Float = 0.85
+    @Published public var volume: Float = Speaker.normalVolume
 
     var config: SharedConfig?
     var audioDir: URL?
@@ -113,11 +116,13 @@ public final class Speaker: NSObject, ObservableObject {
     private func playOne(_ u: Utterance, gen: Int) async {
         if let url = fullClip(u.text) {
             lastSource = "cached"
+            audit(u.text)
             await playFile(url)
             return
         }
         if let urls = fragmentClips(u) {
             lastSource = "fragments"
+            audit(u.text)
             for url in urls {
                 guard gen == generation else { return }
                 await playFile(url)
@@ -142,21 +147,52 @@ public final class Speaker: NSObject, ObservableObject {
         p.rate = slower ? 0.85 : 1.0
         p.volume = volume
         player = p
+        var started = true
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             playerDone = c
             if !p.play() {
                 playerDone = nil
+                started = false
+                stalls += 1
                 c.resume()
+                return
+            }
+            // Watchdog: if the delegate never calls back, move the queue on after the clip's own length + grace.
+            let timeout = SpeechWatchdog.timeoutS(clipDuration: p.duration, rate: Double(p.rate))
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                guard let self, let cur = self.player, cur === p, self.playerDone != nil else { return }
+                self.stalls += 1
+                cur.stop()
+                self.playerDone?.resume()
+                self.playerDone = nil
             }
         }
+        if !started { await speakAppleFallbackForBadClip(url) }   // a clip that will not start must not mean silence
     }
 
     /// A corrupt clip must not leave silence: say the text with Apple TTS instead.
     private func speakAppleFallbackForBadClip(_ url: URL) async {
+        lastSource = "badclip:\(url.lastPathComponent)"
         await speakApple(currentText)
     }
 
+    /// Audit hook: with EMBER_AUDIT_SPEECH=1 (env or launch argument) every spoken sentence is appended to
+    /// Documents/speech_audit.log as "<clip key>\t<source>\t<text>". Source "apple" = no clip and no fragments
+    /// (the demo build must never log one); "badclip:<file>" = a clip that exists but would not play.
+    static let auditSpeech: Bool = ProcessInfo.processInfo.environment["EMBER_AUDIT_SPEECH"] == "1"
+        || ProcessInfo.processInfo.arguments.contains("-EMBER_AUDIT_SPEECH")
+    static let auditLog = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("speech_audit.log")
+
+    private func audit(_ text: String) {
+        guard Speaker.auditSpeech else { return }
+        let line = "\(Hashing.clipKey(text))\t\(lastSource)\t\(text)\n"
+        if let h = try? FileHandle(forWritingTo: Speaker.auditLog) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() }
+        else { try? line.write(to: Speaker.auditLog, atomically: true, encoding: .utf8) }
+    }
+
     private func speakApple(_ text: String) async {
+        audit(text)
         let u = AVSpeechUtterance(string: text)
         u.rate = slower ? Speaker.appleRate * 0.85 : Speaker.appleRate
         u.volume = volume

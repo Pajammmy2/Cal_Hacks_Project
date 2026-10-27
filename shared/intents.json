@@ -254,6 +254,64 @@
       "don't do that",
       "dont do that",
       "no no"
+    ],
+    "go_home": [
+      "go home",
+      "home",
+      "start over",
+      "new route",
+      "restart",
+      "back to the start",
+      "go back to the start",
+      "start again",
+      "reset",
+      "main screen",
+      "home screen"
+    ],
+    "other": [
+      "other way",
+      "the other one",
+      "other option",
+      "other route",
+      "option b",
+      "second option",
+      "the other lot",
+      "switch",
+      "not this one",
+      "other place"
+    ],
+    "call_help": [
+      "call 911",
+      "call for help",
+      "call help",
+      "emergency",
+      "call emergency",
+      "nine one one",
+      "call an ambulance",
+      "call the fire department",
+      "get help",
+      "i need help"
+    ],
+    "where_fire": [
+      "where is the fire",
+      "where's the fire",
+      "wheres the fire",
+      "which way is the fire",
+      "fire direction",
+      "where is the smoke",
+      "which way is the smoke",
+      "how close is the fire"
+    ],
+    "help": [
+      "help",
+      "what can i say",
+      "commands",
+      "what can you do",
+      "options",
+      "menu",
+      "what do i say",
+      "list commands",
+      "voice commands"
     ]
   }
 }

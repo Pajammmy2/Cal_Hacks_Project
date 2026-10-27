@@ -88,11 +88,11 @@ def device_sentences(client, route_minutes):
         if k == "oxygen":
             h = float(d.get("hours") or 0)
             out.append({"kind": k, "hours": h, "sentence":
-                        f"Your oxygen battery lasts about {_fmt_hours(h)} hours. If the power goes out, leave while it has {_fmt_hours(need)} hours left."})
+                        f"Your oxygen battery lasts about {_fmt_hours(h)} hours. If the power goes out, leave while it has {_fmt_hours(need)} {'hour' if need == 1 else 'hours'} left."})
         elif k == "ventilator":
             h = float(d.get("hours") or 0)
             out.append({"kind": k, "hours": h, "sentence":
-                        f"Your ventilator battery lasts about {_fmt_hours(h)} hours. If the power goes out, leave while it has {_fmt_hours(need)} hours left."})
+                        f"Your ventilator battery lasts about {_fmt_hours(h)} hours. If the power goes out, leave while it has {_fmt_hours(need)} {'hour' if need == 1 else 'hours'} left."})
         elif k == "power_chair":
             pct = float(d.get("battery_pct") if d.get("battery_pct") is not None else 100)
             km = shared.profiles()["power_chair"]["full_range_m"] * pct / 100.0 / 1000.0
